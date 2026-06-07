@@ -16,7 +16,9 @@ from typing import Annotated
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_KNOWN_SENTINEL_SECTIONS = frozenset({"app", "vault", "postgres", "minio", "startup"})
+_KNOWN_SENTINEL_SECTIONS = frozenset(
+    {"app", "vault", "postgres", "minio", "startup", "observability"}
+)
 _SENTINEL_PREFIX = "SENTINEL__"
 
 
@@ -102,6 +104,18 @@ class StartupSettings(BaseSettings):
     connect_retries: Annotated[int, Field(ge=1)] = 5
 
 
+class ObservabilitySettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
+
+    presidio_enabled: bool = True
+    spacy_model: str = "en_core_web_sm"
+    entropy_threshold: Annotated[float, Field(gt=0)] = 4.0
+    span_attr_max_bytes: Annotated[int, Field(gt=0)] = 8192
+    export_batch_size: Annotated[int, Field(gt=0)] = 512
+    export_interval_ms: Annotated[int, Field(gt=0)] = 2000
+    trace_to_stdout: bool = False
+
+
 class Settings(BaseSettings):
     """Root settings object — built once at startup, frozen thereafter.
 
@@ -122,3 +136,4 @@ class Settings(BaseSettings):
     postgres: PostgresSettings = Field(default_factory=PostgresSettings)
     minio: MinioSettings = Field(default_factory=MinioSettings)
     startup: StartupSettings = Field(default_factory=StartupSettings)
+    observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)

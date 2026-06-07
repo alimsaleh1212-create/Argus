@@ -46,7 +46,7 @@ Specs are scoped to **components** (a bounded capability with a stable contract)
 
 | # | Spec file | Scope (one line) | Covers (build nouns) | ~Days | Target window | Tier | Depends on |
 |---|-----------|------------------|----------------------|-------|---------------|------|------------|
-| 1 | `SPEC-platform-infra.md` | Compose stack, secrets, blob, config, layered `app/` skeleton, lifespan singletons | Vault, MinIO, config, secrets, docker-compose, Alembic, pre-commit | 0.5 | Day 1 | T1 | — |
+| 1 | `SPEC-platform-infra.md` | Compose stack, secrets, blob, config, layered `backend/` skeleton, lifespan singletons | Vault, MinIO, config, secrets, docker-compose, Alembic, pre-commit | 0.5 | Day 1 | T1 | — |
 | 2 | `SPEC-observability.md` | Tracing + structured logging + redaction as one cross-cutting concern; spans carry tokens in/out, model, latency, redacted I/O; export off the synchronous path | tracing, span, token (metric), redaction, logging, no-latency NFR | 0.5 | Day 1 (+ verify d8) | T1 | 1 |
 | 3 | `SPEC-llm-provider.md` | Provider-agnostic LLM adapter; env-selected primary; automatic fallback; evals must pass on both providers | LLM provider, Ollama, Gemini, fallback | 0.5 | Day 1 | T1 | 1 |
 | 4 | `SPEC-ingestion.md` | Wazuh-format adapter, Pydantic webhook, Redis queue, async worker, incident object schema, grounding pipeline | adapter, webhook, queue, worker, grounding pipeline, incident schema | 1 | Day 2 | T1 | 1, 2 |
@@ -56,7 +56,7 @@ Specs are scoped to **components** (a bounded capability with a stable contract)
 | 8 | `SPEC-triage-agent.md` | Triage tool contract (read-only), adaptive-depth rule, real/noise + severity + **confidence** + evidence-cited rationale I/O; judges over supplied evidence, never trained priors; abstains/escalates when unsure | triage agent | 1 | Day 3 | T1 | 4, 3, 5, 6 |
 | 9 | `SPEC-enrichment-agent.md` | Enrichment tool contract (retrieval-only), both-directions (external intel + internal correlation), cross-correlation as output | enrichment agent | 1 | Day 5 | T1 | 6, 5, 3 |
 | 10 | `SPEC-response-remediation.md` *(big)* | Response tool contract (only agent with action tools), playbook selection, config-backed auto/approval policy, interrupt/resume state machine, approval timeout, audit rows | response agent, playbook, auto-execute, approval interrupt, audit | 2 | Days 6–7 | T1 | 7, 3 |
-| 11 | `SPEC-safety.md` | Guardrails sidecar (service-cred via Vault), injection/jailbreak rails over alert *and* feed text, red-team probe set, structural triage-has-no-action-tools boundary | guardrail, injection, red-team, safety boundary | 1 | Day 8 | T1 | 1, 2 |
+| 11 | `SPEC-safety.md` | Guardrails sidecar (service-cred via Vault; **library TBD — NeMo / Llama-Guard / Guardrails-AI / custom**), injection/jailbreak rails over alert *and* feed text, red-team probe set, structural triage-has-no-action-tools boundary | guardrail, injection, red-team, safety boundary | 1 | Day 8 | T1 | 1, 2 |
 | 12 | `SPEC-dashboard.md` | React operations console: single `admin` role (extensible auth), incident queue, trace/evidence inspector, approve/reject, KPI views; the API contract it consumes | React, dashboard, auth, role, KPIs | 1 | Day 8 | T1 | 10, 2, 3 |
 | 13 | `SPEC-eval.md` *(big)* | All golden sets + committed thresholds + CI gates: triage (F1 vs labels), supervisor routing, enrichment/retrieval (hit@k/MRR), **temporal-memory** eval, rationale (LLM-judge validated by hand-labels), red-team, redaction, smoke; three-tier (unit/integration/e2e) discipline; runs on both LLM providers | eval, threshold, CI gate, temporal eval, 3-tier tests | spread | Days 1, 3, 4, 5, 8, 9 | T1 (+ extended each tier) | all of 2–12 |
 | 14 | `SPEC-detector.md` | **T3:** lightweight rule/threshold detector that *fires* alerts from replayed events into the existing ingestion schema; tuned by §v2c feedback loop | detector (T3) | 1.5 | Days 11–12 | T3 / roadmap | 4 (schema), 6 (loop) |
@@ -125,3 +125,35 @@ Dependency-ordered, with rough windows. This is a *budget*, not a rigid schedule
 ## What to tell your mentor
 
 > *"I build spec by spec — each component is done only when its unit, integration, and e2e tests are green and it's pushed, so the system is always in a valid state. Time is a budget, not the structure: I complete v1 — the full triage→enrichment→response pipeline with seeded knowledge, Graphiti temporal memory, the approval interrupt, and a polished operations dashboard — and tag it at the day-9 checkpoint. I then close the detection↔response feedback loop by day 10 and add a working rule-based detector by day 12, so the system genuinely detects and responds end to end. The full ML anomaly layer is a second project's worth of dataset and training work; I've scoped it as v3 with the integration boundary already in place. Every tier is independently complete, so there's no all-or-nothing risk."*
+
+---
+
+## Implementation Decisions — Component #1 · 2026-06-07
+
+Refinements/supersessions from building `SPEC-platform-infra` (#1). Full rationale in `DECISIONS.md`
+(D1–D11). These do **not** move any tier checkpoint or the day-9 freeze.
+
+- **Structure** (supersedes `app/` in the spec table): layered package is **`backend/`**, interface layer
+  **`routers/`**; monorepo adds reserved **`frontend/`**. Inward-only layering enforced in CI by
+  `import-linter`. Non-code config under `config/` (`alembic.ini`, `eval_thresholds.yaml`); one
+  Dockerfile per built image under `deploy/<svc>/`.
+- **One image, many containers**: the single backend image runs `api`, one-shot `migrate`, and reserved
+  `worker` — same venv, different commands.
+- **Turnkey compose** (hardens the day-9 "fresh-clone `docker-compose up` green" gate): one-shot
+  `vault-seed` + `migrate` run *before* `api` via `depends_on: service_completed_successfully`; no manual
+  steps. `.env` feeds only `vault-seed` (user API keys → Vault).
+- **uv at root**: one project/venv for the backend; a second Python service joins as a **uv workspace
+  member**. Python 3.12 pinned; pgvector image from day 1.
+- **Full scaffold first**: all future seams are reserved as stubs now, so specs #2–#12 fill modules
+  without restructuring.
+- **Seam reservations made in #1 that bind later specs**:
+  - **#2 `SPEC-observability`** — redaction seam reserved as **Presidio (PII) + deterministic secret
+    scrubber**, three boundaries (logs / LLM prompts / stored snapshots).
+  - **#3 `SPEC-llm-provider`** — `llm.py` provider seam reserved.
+  - **#4 `SPEC-ingestion`** — **push-webhook → `202` → enqueue** confirmed; Redis `cache.py`/`queue.py`
+    seams + the `worker` compose slot reserved.
+  - **#6 `SPEC-memory`** — `memory.py` seam reserved; pgvector already in the DB image.
+  - **#11 `SPEC-safety`** — `guardrails.py` seam reserved; **library TBD** (NeMo one candidate).
+
+*Component #1 status (2026-06-07): unit green (17/17), import-linter 2 kept, ruff clean, CI + ≥80%
+coverage gate wired, `DECISIONS.md` D1–D11 — spec-complete per the constitution.*

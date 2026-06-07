@@ -15,3 +15,39 @@ gates:
     threshold:
       max_unhealthy_services: 0
       ready_within_seconds: 60
+
+  redaction:
+    description: >
+      Redaction safety gate (SPEC-observability #2, seeded here; harness owned by SPEC-eval #13).
+      Drives a synthetic incident through the unified observability seam with payloads
+      seeded with fake credentials (AWS key, bearer token, PEM block) and fake PII
+      (email, credit card, IP address).  Captures output at every boundary (log lines,
+      trace span attributes, model-prompt assembly, stored snapshots, dashboard-facing
+      views).  The gate passes only when ZERO seeded sensitive values appear unredacted
+      anywhere in the captured output.  Credentials must also be absent from the
+      operational incident object and the memory-store snapshot (FR-006a).
+      Required in CI from day one; full harness wired by SPEC-eval (#13).
+    required: true
+    threshold:
+      max_credential_leaks: 0
+      max_pii_leaks: 0
+      boundaries_checked:
+        - log
+        - trace
+        - prompt
+        - snapshot
+        - dashboard
+        - memory_write
+        - operational
+      seeded_credentials:
+        - type: aws_key
+          pattern: "AKIA[0-9A-Z]{16}"
+        - type: bearer_token
+          pattern: "Bearer eyJ[A-Za-z0-9._-]+"
+        - type: pem_block
+          pattern: "BEGIN RSA PRIVATE KEY"
+      seeded_pii:
+        - type: email
+          example: "alice@example.com"
+        - type: credit_card
+          example: "4111111111111111"

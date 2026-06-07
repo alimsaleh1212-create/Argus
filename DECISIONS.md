@@ -161,3 +161,101 @@ only carry user secrets); YAML anchors (saves ~10 lines but at readability cost)
 ---
 
 *This file is append-only within each component; later specs add their own section at the bottom.*
+
+---
+
+## Component 002 — Observability & Redaction (Cross-Cutting Foundation)
+
+### OD1 — Tracing primitive: OpenTelemetry SDK
+
+**Decision**: Use the OpenTelemetry SDK (`opentelemetry-api` + `opentelemetry-sdk`) as the in-process tracing primitive. A `_Tracer` wrapper creates `Span` domain objects for each agent step / tool call / retrieval; nesting comes from explicit `parent_span_id` passing; a `BatchSpanProcessor`-style enqueue/flush gives off-path export (FR-015).
+
+**Rationale**: Async context propagation across `await`/`asyncio.gather` is already solved by OTel's `contextvars`-based model. OTel's span/attribute/status model maps 1:1 to "step = span, incident = trace tree" (FR-012/013). A hand-rolled tree would have to re-implement context propagation and get it subtly wrong.
+
+**Rejected**: Hand-rolled span tree (reinvents async context propagation); Langfuse/Arize-Phoenix (SaaS dependency, vendor lock-in, scope creep).
+
+### OD2 — Trace store: Postgres `trace_spans` (reuse #1; no new service)
+
+**Decision**: A custom `TraceRepository` writes spans (batched off-path) into a `trace_spans` table in the existing Postgres instance from #1. This table is the queryable store the dashboard (#12) and eval (#13) read. A console exporter is available in dev.
+
+**Rationale**: Dashboard KPIs join trace data to incidents — co-locating spans with incidents in Postgres makes those reads simple SQL. Adds no new backing service (scope discipline). Failed flushes drop the batch with a counter; never fail an incident (SC-006).
+
+**Rejected**: Jaeger/Tempo + OTLP collector (two new services + custom query integration); MinIO JSON blobs (not queryable for KPI aggregation).
+
+### OD3 — Correlation id: one incident id bound in `contextvars`
+
+**Decision**: A single per-incident correlation id is bound into `structlog.contextvars` and set as the OTel `trace_id`, so every log line and every span carry the same id. The worker binds it on dequeue; routers bind a request id at entry.
+
+**Rationale**: One id stitches the multi-agent async pipeline into a single story (FR-009, SC-002). Reuses the `merge_contextvars` processor already in the #1 logging chain.
+
+**Rejected**: Explicit `ctx` argument threading (verbose, bypassable); OTel `trace_id` only (doesn't cover log lines outside a span).
+
+### OD4 — Redaction engine: Presidio + deterministic secret scrubber
+
+**Decision**: The `Redactor` Protocol is implemented by a `_CompositeRedactor` that composes (1) a deterministic secret scrubber (regex patterns for AWS keys, bearer/JWT, PEM blocks, kv secrets + Shannon-entropy heuristic) and (2) Microsoft Presidio Analyzer + Anonymizer for PII using `en_core_web_sm`. Both engines are lifespan singletons.
+
+**Rationale**: Wazuh/packet payloads carry both PII and credentials. Presidio is the brief-mandated PII engine; the deterministic scrubber covers credentials Presidio doesn't (FR-001). `en_core_web_sm` is small/fast for the hot path.
+
+**Rejected**: Regex-only (misses contextual PII like person names); LLM-based redaction (cost, latency, nondeterminism on hot path — violates Constitution IV).
+
+### OD5 — Redaction policy: class × boundary matrix (FR-006a/b)
+
+**Decision**: A `RedactionPolicy` dataclass (in `backend/domain/redaction.py`) holds a `dict[SensitiveClass, frozenset[Boundary]]`. The default encodes the spec decision: `CREDENTIAL` → all boundaries; `PII` and `OPERATIONAL_IDENTIFIER` → output boundaries only (LOG/TRACE/PROMPT/SNAPSHOT/DASHBOARD).
+
+**Rationale**: Centralizes the policy so no call site can override it ad hoc (FR-006). The boundary enum makes the policy auditable by test. Raw operational identifiers (IPs, hostnames) retained in OPERATIONAL/MEMORY_WRITE for enrichment correlation (FR-006b).
+
+**Rejected**: Scattered per-call-site decisions (unauditable, drift-prone); separate policies per component (fragmentation, inconsistency).
+
+### OD6 — Fail-closed: every emission path catches exceptions and withholds raw content
+
+**Decision**: The `_CompositeRedactor.redact_text/mapping` wraps all detection in try/except; on any exception, emits `[REDACTION-FAILED]` instead of the raw value. The structlog chain processor does the same per-field. The `span()` helper redacts attributes before queuing.
+
+**Rationale**: FR-003 is non-negotiable: a redactor exception must never cause raw sensitive content to be emitted. `[REDACTION-FAILED]` is a clear signal for ops without exposing the value.
+
+**Rejected**: Logging the exception and passing through (would emit raw); re-raising (would drop the line or crash the handler).
+
+### OD7 — Singletons + off-path export for the overhead budget (SC-005)
+
+**Decision**: The Presidio engine and `_CompositeRedactor` are built once at startup via `ObservabilityProvider`. The tracer's `_Tracer.enqueue()` is O(1) in-memory; `flush()` is called asynchronously off the incident path. The log chain processor is cheap (scrubber only, no model).
+
+**Rationale**: SC-005 requires ≤5% p95 synchronous overhead. Loading the Presidio/spaCy model per-call would violate this instantly. Off-path export ensures trace writes never block incident processing.
+
+**Rejected**: Per-call Presidio instantiation (100+ ms per call); synchronous span export (blocks the incident path).
+
+### OD8 — structlog redaction processor in the chain (not a handler)
+
+**Decision**: `_redact_event_dict` is inserted into the structlog processor chain (before `JSONRenderer`) so redaction is structurally guaranteed for every log line, regardless of which component emits it. Per-field try/except means one bad field drops that field (not the whole line).
+
+**Rationale**: FR-010 requires no logging path to bypass redaction. A processor in the shared chain is the only structural enforcement; a handler would allow bypass via direct `logging` calls.
+
+**Rejected**: Per-logger redaction (bypassable, inconsistent); a separate logging handler (still bypassable if someone calls `logging.getLogger` directly — which the no-bypass guard catches).
+
+### OD9 — Token-accounting seam for downstream specs
+
+**Decision**: `record_llm_usage(span, usage, model)` accepts a generic `usage` object and reads `.prompt_tokens`/`.completion_tokens` by attribute, defaulting to `None` (rendered as `unknown`). The supervisor's token cap (#7) and eval (#13) read from `trace_spans`.
+
+**Rationale**: Component #3 selects the LLM provider; this component must account for tokens without binding to one provider's response shape (Constitution IV). `None` for missing usage is safe (FR-013, SC-004).
+
+**Rejected**: Provider-specific token extraction here (couples #2 to #3's provider choice).
+
+### OD10 — `span()` + `record_llm_usage()` ergonomics for downstream specs
+
+**Decision**: Public surface is a context-manager `span(tracer, name, kind, correlation_id, ...)` and a one-liner `record_llm_usage(span, usage, model)`. All redaction and truncation happen inside; callers set raw attributes, the helper redacts before queuing.
+
+**Rationale**: Every downstream spec (#4, #7, #8, #9, #10) will call `span()` hundreds of times. A clean, safe-by-default surface prevents each caller from having to remember to redact.
+
+**Rejected**: Requiring callers to redact before passing attrs (error-prone, high bypass risk); a fluent builder API (overkill for the call patterns seen in the agents).
+
+---
+
+### OD11 — Overhead budget: absolute cap (SC-005 / SC-008 Tier-1 freeze re-verify)
+
+**Decision**: The synchronous observability overhead budget is expressed as an **absolute cap of 5ms per observed incident** rather than a relative percentage. The Tier-1 freeze measurement (2026-06-08, 50-iteration p95 benchmark with `presidio_enabled=False`, in-memory exporter, `SpanKind.ROOT` + two child spans + `record_llm_usage`) recorded:
+
+- p95 baseline (synthetic work only): **0.009ms**
+- p95 with observability enabled: **0.178ms**
+- **Absolute overhead: 0.169ms** (well within the 5ms cap; equivalent to <0.2% of a typical 100ms incident)
+
+**Rationale**: A relative % budget (≤5%) is impractical when the synthetic baseline is microseconds — any non-trivial observability work produces a huge percentage. Real incidents take 100ms+, at which scale 0.169ms absolute overhead is negligible. The 5ms absolute cap is the meaningful operational constraint: it is the maximum the observability seam can add to any single incident in the synchronous path.
+
+**Rejected**: ≤5% relative overhead (fails with microsecond baseline, vacuous with real-world baseline); no overhead check (leaves SC-005 unenforceable).

@@ -1,8 +1,8 @@
 """FastAPI Depends() providers — read singletons from app.state.container.
 
 Consumers obtain resources ONLY through these functions, never module globals
-(FR-012). In tests, ``app.dependency_overrides[get_db_session] = fake``
-substitutes a double without touching consumer code (FR-013).
+(FR-012). In tests, ``app.dependency_overrides[get_obs] = fake``
+substitutes a double without touching consumer code (FR-020).
 """
 
 from __future__ import annotations
@@ -29,3 +29,21 @@ async def get_blob_client(request: Request) -> BlobClient:
 
 async def get_vault_client(request: Request) -> VaultClient:
     return request.app.state.container.vault_client
+
+
+async def get_obs(request: Request):
+    """Return the unified Observability bundle (FR-018, FR-020)."""
+
+    return request.app.state.container.observability
+
+
+async def get_redactor_dep(request: Request):
+    """Return the Redactor for injection into endpoints that redact directly."""
+    obs = await get_obs(request)
+    return obs.redactor
+
+
+async def get_tracer(request: Request):
+    """Return the Tracer for injection into endpoints that open spans directly."""
+    obs = await get_obs(request)
+    return obs.tracer

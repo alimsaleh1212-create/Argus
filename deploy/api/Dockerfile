@@ -21,6 +21,9 @@ COPY backend/ ./backend/
 COPY config/ ./config/
 RUN uv sync --no-dev --frozen
 
+# 3) spaCy language model for Presidio PII detection.
+RUN uv run python -m spacy download en_core_web_sm
+
 ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8000
