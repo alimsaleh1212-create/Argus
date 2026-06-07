@@ -1,0 +1,106 @@
+[project]
+name = "sentinel"
+version = "0.1.0"
+description = "AI-driven SOAR platform — Platform & Infrastructure Foundation"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+    "httpx>=0.27",
+    "aioboto3>=13.0",
+    "tenacity>=8.3",
+    "structlog>=24.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "testcontainers[postgres,minio]>=4.8",
+    "import-linter>=2.1",
+    "ruff>=0.4",
+    "pre-commit>=3.7",
+    "httpx>=0.27",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--cov=backend --cov-report=term-missing"
+markers = [
+    "integration: requires real backing services (testcontainers/Docker)",
+    "e2e: end-to-end compose smoke (requires Docker)",
+]
+
+[tool.coverage.run]
+source = ["backend"]
+omit = [
+    # Reserved stubs — not implemented yet, measured when their spec lands
+    "backend/agents/*",
+    "backend/worker.py",
+    "backend/routers/ingest.py",
+    "backend/routers/incidents.py",
+    "backend/routers/approvals.py",
+    "backend/infra/cache.py",
+    "backend/infra/queue.py",
+    "backend/infra/memory.py",
+    "backend/infra/llm.py",
+    "backend/infra/guardrails.py",
+    "backend/infra/redaction.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "if TYPE_CHECKING:",
+    "# pragma: no cover",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "PTH"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# Tests legitimately use os.path / open / subprocess and local fixture types.
+"tests/**" = ["PTH"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.importlinter]
+root_packages = ["backend"]
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture: routers -> services -> agents -> repositories -> infra"
+type = "layers"
+layers = [
+    "backend.routers",
+    "backend.services",
+    "backend.agents",
+    "backend.repositories",
+    "backend.infra",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain is isolated"
+type = "forbidden"
+source_modules = ["backend.domain"]
+forbidden_modules = [
+    "backend.routers",
+    "backend.services",
+    "backend.agents",
+    "backend.repositories",
+    "backend.infra",
+]
