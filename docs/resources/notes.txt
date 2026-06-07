@@ -8,3 +8,14 @@ anomal ml dtection increases false postive intrusion alarms so here AI agents be
 
 Part 3 — The precise division: determinism for the enumerable, agents for the ambiguous.
 So the defensible position isn't "agents are better than playbooks." It's: the response space has an enumerable core and an ambiguous long tail. Determinism owns the core; agents own the tail. Mature SOAR is converging on exactly this hybrid — the 2026 buyer's-guide language describes "micro-agents scoped to narrow tasks coordinating autonomously and handing high-impact actions to humans." Pure-deterministic SOAR exists (it's the previous generation — Phantom, classic XSOAR playbooks) and its well-documented pain is precisely the long tail: rigid playbooks that can't handle novel or multi-step incidents and that over-fire, which is why the industry is moving to agentic.
+
+
+
+I want to negotiate the project structure with you where I have multiple points with a main point that I like to have solid complete project structure confirmed from begining and other specs start filling the agreed structure:
+- at docker compose up all app must work and secrets must be seeded to vault and migrations should be performed directly, how are you performing that?
+- I think it's better having all project scaffolding with docstrings at the first stage to have a solid structure at first place and then fill it as we move on on steps.
+and I like to make it very clean and structured (you must suggest complete sructure for the project nad we will negotiate it)
+- there is many file at the root dir, why there is a main.oy file? why there is alembic files, and eval files.
+- usually I prefer very clean structure where wach docker container has it's own docker file (to not make heavy one docker image for all containers)
+- also concerning the uv dependencies isn't better having venv for each docker container instead for heavy one uv venv?
+- in docker compose where are neo4j and nemo guardrails (tell me if nemo guardrails fits this project or not)

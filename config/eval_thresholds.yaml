@@ -1,0 +1,17 @@
+# Sentinel evaluation thresholds — seeded day 1 per constitution Principle II.
+# The full eval harness and remaining gates are added by SPEC-eval (#13).
+# This file is extended (never replaced) by later components.
+
+version: "1"
+
+gates:
+  smoke:
+    description: >
+      Provider-agnostic stack smoke gate: `docker compose up` from a fresh clone
+      reaches all-services-healthy and `/ready` returns 200 within the grace window.
+      Wired as a required CI check from day 1.
+    required: true
+    # No LLM provider dimension here — the smoke check is infrastructure-only.
+    threshold:
+      max_unhealthy_services: 0
+      ready_within_seconds: 60

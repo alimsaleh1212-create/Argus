@@ -119,51 +119,74 @@ specs/001-platform-infra/
 
 ### Source Code (repository root)
 
+> **Structure revised post-`/speckit-tasks`** during a structure negotiation with the maintainer.
+> Monorepo `backend/` + `frontend/`; layered package renamed `app/` → `backend/`, `api/` → `routers/`;
+> Dockerfiles under `deploy/<svc>/`; non-code config under `config/`. One backend image runs as
+> several containers (api / worker / migrate). Full scaffold (incl. reserved seam stubs) is laid down
+> now so later specs *fill* modules rather than restructure. Tooling/contracts unchanged in intent.
+
 ```text
-compose.yaml                  # Docker Compose v2 — api, postgres(pgvector), vault(dev), minio
-                              #   (Redis/Neo4j/guardrails appended later via the seam)
+compose.yaml                  # api + one-shot migrate + one-shot vault-seed; reserved: worker/redis/neo4j/guardrails/frontend
 .env.example                  # committed; documents every required/optional setting (no values)
-pyproject.toml                # uv project; requires-python; ruff config; deps
-uv.lock                       # pinned, committed
-.pre-commit-config.yaml       # ruff (lint+format), gitleaks, end-of-file/trailing-whitespace
-eval_thresholds.yaml          # seeded day 1 with the provider-agnostic `smoke` gate placeholder
-alembic.ini
+pyproject.toml  uv.lock       # uv project (package = backend); pinned, committed
+.pre-commit-config.yaml       # ruff (lint+format), gitleaks, import-linter, eof/trailing-ws
+Makefile                      # up/down/migrate/test/lint shortcuts (hides -c config/alembic.ini)
 .github/workflows/ci.yml      # uv install → ruff → pytest(unit+integration) → gitleaks → smoke
 
-app/
-├── main.py                   # FastAPI app factory + lifespan wiring; mounts /health, /ready
-├── api/                      # interface layer (health/ready router; later: incidents, approvals)
-│   └── health.py
-├── services/                 # use-case orchestration (empty placeholder for later specs)
-├── agents/                   # placeholder (triage/enrichment/response attach later)
-├── repositories/             # data access (empty placeholder)
-├── domain/                   # pure types/enums (no outward deps): HealthStatus, etc.
-└── infra/                    # the foundation lives here
-    ├── config.py             # Settings (pydantic-settings, extra="forbid", SecretStr)
-    ├── container.py          # AppContainer + Provider protocol + registry (the seam)
-    ├── lifespan.py           # builds/disposes singletons via registered providers
-    ├── vault.py              # async VaultClient (httpx) — startup secret resolution
-    ├── blob.py               # async MinIO/S3 client (aioboto3) + bucket bootstrap
-    ├── db.py                 # async SQLAlchemy engine/session factory provider
-    └── health.py             # readiness probes for vault/postgres/minio
+deploy/                       # one Dockerfile per BUILT image
+├── api/Dockerfile            #   the single backend image (api + worker + migrate run it)
+├── frontend/Dockerfile       #   reserved (#12, Node)
+└── guardrails/Dockerfile     #   reserved (#11, only if self-hosted sidecar)
 
-migrations/                   # Alembic (async env.py) — baseline migration committed
-└── versions/
+config/
+├── alembic.ini               # script_location = backend/db/migrations
+└── eval_thresholds.yaml      # seeded day 1 with the provider-agnostic `smoke` gate
+
+backend/                      # the importable package  →  backend.*
+├── main.py                   # thin app factory: settings → logging → lifespan → api_router
+├── worker.py                 # reserved: queue consumer (#4/#5); `python -m backend.worker`
+├── dependencies.py           # shared Depends() providers (get_db_session/blob/vault)
+├── routers/                  # interface layer (was api/)
+│   ├── __init__.py           #   api_router aggregator
+│   ├── health.py             #   /health (liveness) + /ready (readiness)
+│   └── ingest.py incidents.py approvals.py   # reserved stubs
+├── services/                 # use-case orchestration (reserved)
+├── agents/                   # triage.py enrichment.py response.py (reserved stubs)
+├── repositories/             # data access (reserved)
+├── domain/                   # pure types/enums (no outward deps): health.py
+├── infra/                    # the foundation lives here
+│   ├── config.py container.py lifespan.py logging.py
+│   ├── vault.py db.py blob.py health.py
+│   └── redaction.py cache.py queue.py memory.py llm.py guardrails.py   # reserved seams
+└── db/migrations/            # Alembic (async env.py) — baseline migration committed
+    └── versions/
+
+frontend/                     # reserved (#12, React) — README placeholder only
 
 tests/
-├── unit/                     # Settings validation, container wiring (fakes), secret-not-leaked
+├── unit/                     # Settings validation, container wiring (fakes), secret-not-leaked, health
 ├── integration/              # boot vs real Vault/PG/MinIO (testcontainers); ready; migrate; put/get
 └── e2e/                      # compose smoke: fresh-up reaches healthy
 ```
 
-**Structure Decision**: A single backend service in a layered `app/` package (api / services /
-agents / repositories / domain / infra) per the brief's hygiene standard and FR-018. Import direction
-is **inward-only** (`api → services → repositories → infra`; `domain` depends on nothing), enforced in
-CI via a `ruff`/import-linter rule (FR-018). The foundation's own code concentrates in `app/infra`;
-the other layers ship as thin, documented placeholders so later specs add files without restructuring.
-The compose file and `app/infra` together own the orchestration scaffold + Vault + MinIO + relational
-store + config + lifecycle; all other backing services and singletons attach through the **provider
-seam** (`app/infra/container.py`), satisfying the spec's ownership-seam assumption.
+**Structure Decision**: A modular-monolith backend in a layered `backend/` package (routers /
+services / agents / repositories / domain / infra) per the brief's hygiene standard and FR-018. Import
+direction is **inward-only** (`routers → services → agents → repositories → infra`; `domain` depends on
+nothing), enforced in CI via `import-linter` (FR-018). **One image, many containers**: the same
+`deploy/api/Dockerfile` image runs as the API (`uvicorn backend.main:app`), the worker
+(`python -m backend.worker`, reserved until #4), and one-shot `migrate`. Separate images only for
+genuinely different runtimes — the React `frontend/` (#12) and an optional guardrails sidecar (#11).
+On `compose up`, one-shot `migrate` + `vault-seed` run before the API so the stack is correct with no
+manual step. The foundation's own code concentrates in `backend/infra`; all other layers ship as thin
+documented stubs (incl. reserved seams `cache/queue/memory/llm/redaction/guardrails`) so later specs
+add behaviour without restructuring. All backing services and singletons attach through the **provider
+seam** (`backend/infra/container.py`), satisfying the spec's ownership-seam assumption.
+
+**Redaction (elevated):** packet/Wazuh payloads carry PII + secrets, so redaction is a first-class
+cross-cutting seam (`backend/infra/redaction.py`) applied at three boundaries — logs, LLM prompts,
+stored snapshots — composing a deterministic secret/credential scrubber with **Presidio** for PII
+(in-process default). Interface locked here; implementation lands in SPEC-observability (#2) and is
+reused by SPEC-ingestion (#4).
 
 ## Complexity Tracking
 

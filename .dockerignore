@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.git/
+.github/
+tests/
+specs/
+docs/
+*.md
+.pre-commit-config.yaml
+.gitignore
