@@ -164,7 +164,7 @@ The detection layer is deliberately decoupled from response. A SOAR welded to on
 
 ## Reused infrastructure (built before, wired to the same bar)
 
-- **Safety** — NeMo guardrails sidecar over HTTP with a Vault-resolved service credential; mandatory injection/jailbreak rails that fail CI on regression; redaction layer before any log/trace/memory write. Domain tweak: injection rails also guard alert-derived *and* feed-derived text, since both are attacker-influenceable.
+- **Safety** — a guardrails sidecar over HTTP with a Vault-resolved service credential; mandatory injection/jailbreak rails that fail CI on regression; redaction layer before any log/trace/memory write. **The guardrails library is deferred to `SPEC-safety` (#11)** — NeMo is one candidate (heavier, sidecar) alongside Llama-Guard-via-LLM-provider, Guardrails AI, or a custom rail; the *structural* boundary (triage holds no action tools) does not depend on the library choice. Domain tweak: injection rails also guard alert-derived *and* feed-derived text, since both are attacker-influenceable.
 - **Secrets/blob/observability** — Vault at startup (refuses to boot if unreachable); MinIO for eval reports and per-incident context snapshots; tracing where each agent step/tool/retrieval is a span and an incident is a trace tree.
 
 ---
@@ -180,7 +180,7 @@ The detection layer is deliberately decoupled from response. A SOAR welded to on
 - **Structured logging** (`structlog`), trace ID on every line, redaction before anything leaves the service.
 - **Observability without latency** — auth checks, span emission, token accounting, redaction, and eval hooks add negligible latency; span export and eval logging are asynchronous / off the synchronous incident path. Overhead measured against the disposition-time budget.
 - **Three-tier tests, green every day** — *unit* (schemas, tool logic with the LLM mocked), *integration* (each agent against its real backing service: Redis, Postgres, Neo4j/Graphiti, guardrails sidecar), *e2e* (one full incident with only external/remediation targets mocked). All three green in CI before each day's commit. ≥80% on new code, higher on remediation and the safety boundary.
-- **Hygiene** — layered `app/` (api / services / agents / repositories / domain / infra); `ruff` + formatter in pre-commit; `gitleaks`; pinned deps; Conventional Commits; `feature/` branches; PRs under ~400 lines.
+- **Hygiene** — layered `backend/` (routers / services / agents / repositories / domain / infra), enforced inward-only by `import-linter`; `ruff` + formatter in pre-commit; `gitleaks`; pinned deps; Conventional Commits; `feature/` branches; PRs under ~400 lines.
 - **Spec-driven** — a `SPEC.md` per major component before code; `eval_thresholds.yaml` seeded day 1 so CI gates from the start. I own every line.
 - **use uv for venv and dependencies instead of normal pip**
 
@@ -214,3 +214,59 @@ The detection layer is deliberately decoupled from response. A SOAR welded to on
 A solo, 12-working-day (10 hrs/day) SOAR capstone whose graded new work is a supervisor-coordinated triage→enrichment→response pipeline, a temporal incident-memory layer (Graphiti/Neo4j) delivering a defensible "gets smarter over time" capability, tiered human-in-the-loop remediation, and a polished React operations dashboard — sitting deliberately downstream of detection, with a professional detection roadmap and an in-build feedback loop, reusing my Week 7/8 safety and infrastructure patterns, held to the full engineering-standards bar.
 
 Submission: public repo, tag `v1.0.0-capstone`, clean `docker-compose up` from a fresh clone.
+
+---
+
+## Implementation Decisions — Component #1 (Platform & Infrastructure) · 2026-06-07
+
+Decisions made while building `SPEC-platform-infra` (#1) that refine or supersede statements above.
+Full rationale + rejected alternatives live in `DECISIONS.md` (D1–D11); this is the narrative summary.
+
+**Project structure (supersedes `app/`/`api/` above)**
+- The layered package is **`backend/`**, and its interface layer is **`routers/`** (not `app/` / `api/`).
+  The monorepo also carries a reserved **`frontend/`** (React dashboard, #12). Layering is inward-only —
+  `routers → services → agents → repositories → infra`, with `domain` isolated — **enforced in CI by
+  `import-linter`**, not convention.
+- **One image, many containers.** A single backend image (`deploy/api/Dockerfile`) runs as the API
+  (uvicorn), a one-shot **`migrate`** (Alembic), and the reserved **`worker`** (`python -m backend.worker`)
+  — same venv, different commands. Separate images are reserved only for genuinely different runtimes
+  (the React `frontend/`, an optional guardrails sidecar).
+- **Full scaffold first.** Every later seam already exists as a docstring + `NotImplementedError` stub
+  (`cache`/`queue`/`memory`/`llm`/`redaction`/`guardrails`, the three agents, the
+  `ingest`/`incidents`/`approvals` routers, and `worker`) so specs #2–#12 *fill* modules instead of
+  restructuring.
+
+**Turnkey bring-up (makes the "clean `docker-compose up`" promise concrete)**
+- `docker compose up` is self-configuring: a one-shot **`vault-seed`** writes dev secrets into Vault
+  (KV v2) and a one-shot **`migrate`** applies migrations *before* the API starts
+  (`depends_on: service_completed_successfully`). No manual migrate/seed step.
+- **`.env` is read only by `vault-seed`** — it carries user-supplied API keys (LLM/threat-intel) that get
+  seeded into Vault. The app containers get bootstrap config from explicit compose `environment:` and all
+  runtime secrets from Vault; no `env_file` on the app, no YAML anchors (see D11).
+
+**Tooling**
+- **Single `uv` project at the repo root** (`pyproject.toml` / `uv.lock` / `.python-version`) — one dev
+  venv for the backend. A second Python service (e.g. a self-hosted guardrails sidecar) would be added as
+  a **uv workspace member**, not a new root project; per-container Docker images isolate runtime deps
+  regardless. Python **3.12** pinned; **pgvector** image (`pgvector/pgvector:pg16`) from day 1 so
+  `SPEC-memory` (#6) needs no image swap.
+
+**Redaction (elevated; owned by `SPEC-observability` #2, seam reserved in #1)**
+- Redaction is **first-class** because Wazuh/packet payloads carry **both PII and credentials**. Two
+  composed strategies sit behind one `Redactor` interface: **Microsoft Presidio** for PII + a
+  **deterministic secret/credential scrubber** (regex + entropy) for API keys, JWTs, tokens, private keys.
+  In-process by default; applied at three boundaries — logs, LLM prompts, stored incident snapshots.
+
+**Safety / guardrails (supersedes the hardcoded "NeMo" above)**
+- The guardrails **library choice is deferred to `SPEC-safety` (#11)** — candidates are
+  Llama-Guard-via-LLM-provider, Guardrails AI, a custom input rail, or NeMo (heavier sidecar). The
+  structural boundary (triage holds no action tools) is architectural and library-independent.
+
+**Ingestion shape (confirmed; owned by `SPEC-ingestion` #4)**
+- **Push-webhook, not worker-pull:** a thin endpoint validates → redacts → persists → enqueues → returns
+  `202 Accepted`; the worker consumes and runs triage→enrichment→response. Redis serves the queue plus the
+  enrichment IOC cache, alert dedup, and outbound rate-limiting.
+
+*Component #1 status (2026-06-07): unit tier green (17/17), `import-linter` 2 contracts kept, `ruff`
+clean, CI workflow + ≥80% coverage gate wired, `DECISIONS.md` D1–D11 recorded. Integration/e2e tiers run
+under Docker in CI.*

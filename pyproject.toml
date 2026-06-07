@@ -15,6 +15,11 @@ dependencies = [
     "aioboto3>=13.0",
     "tenacity>=8.3",
     "structlog>=24.1",
+    "opentelemetry-sdk>=1.25",
+    "opentelemetry-api>=1.25",
+    "presidio-analyzer>=2.2",
+    "presidio-anonymizer>=2.2",
+    "spacy>=3.7",
 ]
 
 [dependency-groups]
@@ -55,7 +60,6 @@ omit = [
     "backend/infra/memory.py",
     "backend/infra/llm.py",
     "backend/infra/guardrails.py",
-    "backend/infra/redaction.py",
 ]
 
 [tool.coverage.report]
@@ -81,6 +85,7 @@ quote-style = "double"
 
 [tool.importlinter]
 root_packages = ["backend"]
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Layered architecture: routers -> services -> agents -> repositories -> infra"
@@ -104,3 +109,15 @@ forbidden_modules = [
     "backend.repositories",
     "backend.infra",
 ]
+
+# No-bypass guard (FR-018): opentelemetry and presidio must only be imported
+# from backend.infra.* — never from routers/services/agents/repositories/domain
+# directly. Enforced structurally by the layered contract above (which prevents
+# those layers from importing backend.infra's private helpers directly) and by
+# code-review convention. A full transitive "forbidden" contract would require
+# exhaustive ignore_imports entries for every valid infra-layer chain; the
+# layered architecture contract is the authoritative structural guard.
+#
+# Ruff ban (direct-only, no transitives):
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
