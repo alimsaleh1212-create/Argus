@@ -47,3 +47,13 @@ async def get_tracer(request: Request):
     """Return the Tracer for injection into endpoints that open spans directly."""
     obs = await get_obs(request)
     return obs.tracer
+
+
+async def get_llm(request: Request):
+    """Return the process-singleton LLM adapter (FR-014).
+
+    Consumers depend on this via FastAPI Depends(get_llm); they never construct
+    a vendor client and never import a vendor SDK (FR-001, SC-001).
+    Substitutable in tests: app.dependency_overrides[get_llm] = lambda: FakeLlm().
+    """
+    return request.app.state.container.llm

@@ -84,8 +84,35 @@ services:
         required: false
     command: >
       sh -c "
-        vault kv put secret/minio access_key=minioadmin secret_key=minioadmin
+        vault kv put secret/minio access_key=minioadmin secret_key=minioadmin &&
+        vault kv put secret/llm api_key=$${GEMINI_API_KEY:-placeholder}
       "
+    restart: on-failure
+
+  # Local Ollama runtime — the secondary/fallback LLM provider (SPEC-llm-provider #3).
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # One-shot: pull the tiny pinned model so the fallback path, integration tier,
+  # and both-providers eval are real and the stack comes up clean from a fresh clone.
+  ollama-pull:
+    image: ollama/ollama
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "qwen2:0.5b"]
     restart: on-failure
 
   # One-shot: applies Alembic schema migrations before the API starts.
@@ -112,9 +139,10 @@ services:
     environment:
       SENTINEL__VAULT__ADDR: http://vault:8200
       SENTINEL__VAULT__TOKEN: dev-root-token
-      SENTINEL__VAULT__REQUIRED_PATHS: '["secret/minio"]'
+      SENTINEL__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm"]'
       SENTINEL__POSTGRES__DSN: postgresql+asyncpg://sentinel:sentinel@postgres:5432/sentinel
       SENTINEL__MINIO__ENDPOINT_URL: http://minio:9000
+      SENTINEL__LLM__OLLAMA_BASE_URL: http://ollama:11434
     depends_on:
       postgres:
         condition: service_healthy
@@ -122,9 +150,13 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
       vault-seed:
         condition: service_completed_successfully
       migrate:
+        condition: service_completed_successfully
+      ollama-pull:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
@@ -179,3 +211,4 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  ollama_data:
