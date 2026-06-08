@@ -1,0 +1,22 @@
+{
+  "id": "00000000-0000-0000-0000-000000000004",
+  "status": "grounded",
+  "severity": "high",
+  "correlation_id": "corr-ambiguous-full",
+  "dedup_fingerprint": "fp-ambiguous-full",
+  "source": "wazuh",
+  "raw_alert": {"rule": {"level": 11}},
+  "evidence": {
+    "verdict": "ambiguous",
+    "severity": "high",
+    "normalized_event": {},
+    "summary": "High ambiguous alert — full depth triage→enrichment→response",
+    "flags": [],
+    "retrieved_context": []
+  },
+  "_expected": {
+    "route": "triaging",
+    "stages": ["triage", "enrichment", "response"],
+    "final_status": "resolved"
+  }
+}

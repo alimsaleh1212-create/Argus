@@ -2,29 +2,37 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
-**Active component**: `004-ingestion-pipeline` (Component #4 — Alert Ingestion Pipeline; depends on #1
-and #2).
-- Plan: `specs/004-ingestion-pipeline/plan.md`
-- Spec: `specs/004-ingestion-pipeline/spec.md`
-- Design: `specs/004-ingestion-pipeline/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
+**Active component**: `005-incident-state-machine` (Component #7 — deterministic supervisor; depends on #4
+and #3).
+- Plan: `specs/005-incident-state-machine/plan.md`
+- Spec: `specs/005-incident-state-machine/spec.md`
+- Design: `specs/005-incident-state-machine/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
-Stack (this component): fills the #1-reserved `routers/ingest.py`, `infra/queue.py`, `infra/cache.py`,
-and `worker.py` seams so a Wazuh alert flows **webhook → queue → worker → Incident**. Thin webhook
-(`POST /ingest/wazuh`): **validate → redact → dedup → persist → enqueue → `202`** (`services/intake.py`);
-the **async worker** runs a deterministic **grounding** step (`services/grounding.py`, no LLM) then a
-**logging-stub handoff** (`services/pipeline.py`, filled by #7). **Postgres `incidents` table is the
-source of truth** (migration `0003`); **Redis is transient** — reliable-list queue (`BLMOVE`
-main→processing + `LREM` ack + startup `recover()`, at-least-once) and `SET NX EX` dedup on a redacted
-content fingerprint. Owns the **single Incident schema** `domain/incident.py` (`Incident`,
-`IncidentStatus` `received/grounding/grounded/failed`, `Severity`, `NormalizedEvent`, `Evidence`,
-`WazuhAlert`) imported by #7/#8/#12. Deterministic Wazuh `rule.level`→severity band; **idempotent**
-grounding; **atomic accept-and-enqueue** (enqueue fail → `503`, no orphan); **bounded retry → `failed`**.
-`redis.asyncio` confined to `infra/` (no-bypass); redaction at `SNAPSHOT`/`LOG` (#2); webhook
-shared-secret from Vault `secret/ingest` (required→fail boot); `check_redis` in `/ready`. Adds the
-`redis` + `worker` compose services (pre-reserved in #1); typed `redis`/`ingest` settings sections.
-No new eval gate — strengthens existing smoke + redaction gates.
+Stack (this component): fills the #4-reserved `services/pipeline.py:dispatch_to_pipeline` seam and the
+#1-reserved `agents/` stubs with a **deterministic supervisor** (`services/supervisor.py`) — a **plain
+async state machine** (explicit transition table + loop), **not** an LLM and **not** LangGraph (deferred to
+#10). Runs **in the existing `worker` container** — no new service, no new dependency, **no LLM call**
+(SC-006). Drives a grounded Incident `grounded → {resolved | escalated | failed}` (or parks in
+`awaiting_approval`): **determinism-first routing** (config-backed fast-path — `severity=low` ⇒
+auto-`resolved` with **zero** stage calls; `severity=critical` ⇒ straight to `responding`; `medium`/`high`
+⇒ ambiguous full depth triage→enrichment→response, **adaptive** — enrichment only if triage `ADVANCE`s);
+**hard step+token cap** → `escalated`; **graceful degradation** (retryable `ToolError` retried, else
+`escalated`; worker never crashes). **Single-writer**: stages are **pure handlers** returning a
+`StageResult` (or raising `ToolError`) — the supervisor persists all state, so triage/enrichment get no
+DB-write/action capability (Constitution III structural). New pure types `domain/pipeline.py`
+(`StageName`, `StageOutcome`, `StageResult`, `ToolError`) imported by #8/#9/#10/#12; **extends**
+`IncidentStatus` (+`triaging/enriching/responding/awaiting_approval/resolved/escalated`, no migration — text)
+and adds nullable `disposition` (migration `0004`). Guarded `advance_status` transitions ⇒ idempotent /
+resumable (at-least-once). `awaiting_approval` **park + resume edges** owned here; interrupt mechanism /
+timeout / audit are #10. Typed `supervisor` settings; spans per step via #2 (redacted). Lands the
+**supervisor-routing** eval gate (deterministic fixtures, provider-independent).
 
-Prior components (done): `003-llm-provider` — provider-agnostic async `LlmClient` (`Depends(get_llm)`),
+Prior components (done): `004-ingestion-pipeline` — Wazuh **webhook → queue → worker → Incident**; thin
+`POST /ingest/wazuh` (**validate → redact → dedup → persist → enqueue → `202`**); async **worker** grounds
+(`services/grounding.py`, no LLM) then hands to `services/pipeline.py` (the seam #7 now fills). **Postgres
+`incidents` source of truth** (migration `0003`); **Redis transient** (reliable-list queue + `SET NX EX`
+dedup). Owns the **Incident schema** `domain/incident.py`. Plan: `specs/004-ingestion-pipeline/plan.md`.
+`003-llm-provider` — provider-agnostic async `LlmClient` (`Depends(get_llm)`),
 Gemini primary + Ollama fallback behind SDKs confined to `infra/llm_drivers.py`, fail-closed contract,
 `domain/llm.py`, `ollama` compose service. Plan: `specs/003-llm-provider/plan.md`.
 `002-observability-redaction` — `structlog` redaction + correlation-id,

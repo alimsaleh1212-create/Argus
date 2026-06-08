@@ -1,0 +1,21 @@
+{
+  "id": "00000000-0000-0000-0000-000000000006",
+  "status": "grounded",
+  "severity": "critical",
+  "correlation_id": "corr-destructive",
+  "dedup_fingerprint": "fp-destructive",
+  "source": "wazuh",
+  "raw_alert": {"rule": {"level": 14}},
+  "evidence": {
+    "verdict": "critical",
+    "severity": "critical",
+    "normalized_event": {},
+    "summary": "Critical destructive action required — needs approval",
+    "flags": ["destructive"],
+    "retrieved_context": []
+  },
+  "_expected": {
+    "final_status": "awaiting_approval",
+    "disposition": "awaiting_approval_destructive"
+  }
+}

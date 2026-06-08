@@ -57,6 +57,27 @@ gates:
   # with planted secrets). No new gate is invented — triage/routing/retrieval gates
   # land with their own components.
 
+  supervisor_routing:
+    description: >
+      Deterministic supervisor-routing gate (SPEC-incident-state-machine #7).
+      Runs a labeled fixture set of grounded incidents through the supervisor with
+      scripted stage fakes and asserts each incident reaches the expected next stage
+      or terminal disposition. 100% pass required — the routing is deterministic,
+      so anything below 1.0 is a regression. Provider-independent (no LLM call).
+      Unit-tier (no DB). CI gate alongside smoke and redaction.
+    required: true
+    threshold:
+      pass_rate: 1.0
+    fixtures:
+      - noise_low
+      - critical_high
+      - ambiguous_resolved_at_triage
+      - ambiguous_full_depth
+      - destructive_parks
+      - indeterminate_severity
+      - stage_error_escalates
+      - cap_breach_escalates
+
   llm_provider:
     description: >
       Both-providers gate (SPEC-llm-provider #3, seeded here; full harness owned by SPEC-eval #13).

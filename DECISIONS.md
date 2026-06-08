@@ -483,3 +483,35 @@ only carry user secrets); YAML anchors (saves ~10 lines but at readability cost)
 **Rationale**: The brief and #1 already committed to the push-webhook→queue→worker shape. Activating pre-reserved infrastructure is not a complexity deviation; it is the planned delivery.
 
 **Rejected**: Activate only redis and stub the worker (leaves the queue unconsumed, defeats the grounding milestone); add a third service type (out of scope).
+
+---
+
+## Component 005 — Incident State Machine (Deterministic Supervisor)
+
+### SD1 — Plain async state machine (no LangGraph, no LLM)
+
+**Decision**: The supervisor is a hand-written `while` loop over an explicit `TRANSITIONS: dict[(IncidentStatus, str), (IncidentStatus, str | None)]` table inside `backend/services/supervisor.py`. No LangGraph, no LLM call within the supervisor, no async frameworks beyond `asyncio`.
+
+**Rationale**: The spec explicitly requires "plain async state machine (explicit transition table + loop) — not an LLM and not LangGraph (deferred to #10)" and SC-006 prohibits LLM imports in the supervisor. A hand-written FSM is fully deterministic, unit-testable with zero infrastructure, and enables a provider-independent 100%-pass eval gate. The transition table is the single source of truth for all legal state changes; any outcome not in the table immediately escalates (illegal-transition guard), which satisfies the single-writer contract (Constitution III structural). LangGraph's HITL interrupt mechanism and graph runtime are reserved for component #10, where they add HITL workflow management that is out of scope here.
+
+**Rejected**: LangGraph now (deferred — adds the graph runtime + checkpointer complexity before HITL/interrupt is designed; breaks the provider-independent eval gate); LLM-based routing (non-deterministic, adds latency, violates SC-006); async event/signal library (hides state machine semantics, harder to audit against the transition table).
+
+---
+
+### SD2 — Migration 0004: nullable `disposition` column (text, no enum)
+
+**Decision**: `0004_incident_disposition.py` adds a single nullable `TEXT` column `disposition` to the `incidents` table. Values are short snake-case vocab words (`auto_resolved_noise`, `escalated_stage_error`, etc.) asserted by the supervisor — not a Postgres enum.
+
+**Rationale**: Using a plain text column avoids a Postgres `ALTER TYPE … ADD VALUE` migration every time the disposition vocabulary extends (expected for components #8–#12). Nullable means existing `grounded` rows require no backfill. The supervisor writes the column atomically inside `advance_status` via a single `UPDATE … WHERE status=:expected RETURNING id`.
+
+**Rejected**: Postgres `ENUM` type (requires `ALTER TYPE` for each new value — rigid, error-prone cross-migration); a separate `dispositions` table (adds a join on the hot path; no benefit at this vocabulary size); non-nullable with a default (forces a migration-time backfill of thousands of rows in production).
+
+---
+
+### SD3 — `SupervisorSettings`: typed pydantic-settings config, no runtime mutation
+
+**Decision**: `SupervisorSettings` (a Pydantic `BaseModel` with `extra="forbid"`) is nested under `Settings.supervisor` via `Field(default_factory=SupervisorSettings)`. It exposes: `max_steps=8`, `max_tokens=40_000`, `max_stage_retries=2`, `fast_path_autoclose_severities=["low"]`, `fast_path_critical_severities=["critical"]`. The `"supervisor"` section is added to `_KNOWN_SENTINEL_SECTIONS` for the nested-env-prefix loader.
+
+**Rationale**: All tuning knobs that affect routing behavior belong in config, not code, so they can be adjusted per environment without redeployment (Constitution II). `extra="forbid"` catches typos in env var names at startup rather than silently ignoring them. Typed lists for the severity bands mean adding/removing a severity (e.g. promoting "high" to a fast-path) is a one-line config change, provider-independent and testable.
+
+**Rejected**: Hardcoded constants in the supervisor body (untunable without code change, untestable isolation); environment variables read ad hoc in the supervisor (bypasses the validated settings graph, violates SC-007); mutable settings object (would allow stages to influence future routing decisions, breaking the single-writer contract).

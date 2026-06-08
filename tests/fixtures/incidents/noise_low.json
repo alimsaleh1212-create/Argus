@@ -1,0 +1,22 @@
+{
+  "id": "00000000-0000-0000-0000-000000000001",
+  "status": "grounded",
+  "severity": "low",
+  "correlation_id": "corr-noise-low",
+  "dedup_fingerprint": "fp-noise-low",
+  "source": "wazuh",
+  "raw_alert": {"rule": {"level": 2}},
+  "evidence": {
+    "verdict": "noise",
+    "severity": "low",
+    "normalized_event": {},
+    "summary": "Low-level rule hit — obvious noise",
+    "flags": [],
+    "retrieved_context": []
+  },
+  "_expected": {
+    "next_status": "resolved",
+    "disposition": "auto_resolved_noise",
+    "stage_calls": 0
+  }
+}

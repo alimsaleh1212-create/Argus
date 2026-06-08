@@ -6,6 +6,14 @@ anomal ml dtection increases false postive intrusion alarms so here AI agents be
 
 
 
+/speckit-specify depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_plan.md make things simple and don't overengineer while working
+
+/speckit-plan  depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_plan.md and created spec. make things simple and don't overengineer while working
+
+/speckit-implement and when reaching tests make sure to run tests without OOM error 
+
+
+
 Part 3 — The precise division: determinism for the enumerable, agents for the ambiguous.
 So the defensible position isn't "agents are better than playbooks." It's: the response space has an enumerable core and an ambiguous long tail. Determinism owns the core; agents own the tail. Mature SOAR is converging on exactly this hybrid — the 2026 buyer's-guide language describes "micro-agents scoped to narrow tasks coordinating autonomously and handing high-impact actions to humans." Pure-deterministic SOAR exists (it's the previous generation — Phantom, classic XSOAR playbooks) and its well-documented pain is precisely the long tail: rigid playbooks that can't handle novel or multi-step incidents and that over-fire, which is why the industry is moving to agentic.
 
@@ -22,4 +30,53 @@ and I like to make it very clean and structured (you must suggest complete sruct
 
 what is the next spec /speckit-specify depending on  @docs/resources/SOAR_brief.md and @docs/resources/SOAR_plan.md
 
-/speckit-specify depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_plan.md make things simple and don't overengineer while working
+
+
+Implementation complete. Here's a summary of what was built:
+
+Phase 1–2 (Setup + Foundational)
+
+redis>=5 added to deps, uv lock updated
+Wazuh alert fixtures (4 JSON files), .env.example updated
+backend/domain/incident.py — full Incident schema (IncidentStatus, Severity, WazuhAlert, NormalizedEvent, Evidence, Incident, IngestResult)
+backend/infra/config.py — RedisSettings + IngestSettings, vault-path model_validator
+backend/db/migrations/versions/0003_incidents.py — incidents table + 3 indexes
+backend/repositories/incidents.py — IncidentRepository (create/get/claim/set_grounded/bump/fail/list)
+backend/infra/cache.py — CacheProvider + claim_fingerprint/lookup_fingerprint
+backend/infra/queue.py — QueueProvider + RedisTaskQueue (BLMOVE/LREM/recover)
+backend/infra/health.py — check_redis() added + wired into /ready
+backend/main.py, backend/dependencies.py, compose.yaml — providers registered, redis activated
+Phase 3–5 (US1→US2→US3)
+
+backend/services/wazuh.py — normalize, level_to_severity, content_signature, _compute_fingerprint
+backend/services/intake.py — full accept() with redact→dedup→persist→enqueue (atomic)
+backend/routers/ingest.py — POST /ingest/wazuh with auth guard, size guard, 202/401/413/422/503
+backend/services/grounding.py — pure ground() function
+backend/services/pipeline.py — dispatch_to_pipeline() logging stub
+backend/worker.py — full async consume loop with bounded retry → failed
+compose.yaml — worker container activated, vault-seed writes secret/ingest
+61 unit + e2e tests all pass, ruff clean, 43/43 tasks marked [X].
+
+
+Async FSM — what it is
+FSM = Finite State Machine. An incident can only ever be in one of a fixed list of states, and it can only move between them via allowed transitions.
+
+Think of it like a traffic light:
+
+States: red → green → yellow → red
+You can't jump from red directly to yellow
+The light doesn't "decide" anything — it just follows the table
+For Sentinel, an incident follows this path:
+
+
+grounded → triaging → enriching → responding → resolved
+                                              ↘ awaiting_approval
+               ↘ escalated (anything goes wrong)
+"Async" just means the code uses async/await — so while waiting for a triage result, the worker isn't frozen; it can handle other work.
+
+Why not LangGraph? LangGraph is a framework for building graph-based agent workflows with checkpointing. It's powerful but heavy. 
+Our incident's state is already saved in Postgres after every step — we don't need a separate checkpointer. 
+The entire FSM is ~30 lines: a transition table + a while loop. LangGraph would be a dependency added for zero extra capability.
+
+then where is the AI and agents in the workflow, where supervisor is deterministic, triage I am not sure if it's determenestic or not, enrichment uses graph temporal memory. Response suggests remediation but it seems couldn't perform them? whereas agents are smart llms that could take actions.
+ Also you talked about #7 but we are now in #5 I need clarification about what is happening in this stage

@@ -14,10 +14,18 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class IncidentStatus(StrEnum):
+    # --- from #4 (ingestion) ---
     RECEIVED = "received"
     GROUNDING = "grounding"
     GROUNDED = "grounded"
     FAILED = "failed"
+    # --- added by #7 (supervisor) ---
+    TRIAGING = "triaging"
+    ENRICHING = "enriching"
+    RESPONDING = "responding"
+    AWAITING_APPROVAL = "awaiting_approval"
+    RESOLVED = "resolved"
+    ESCALATED = "escalated"
 
 
 class Severity(StrEnum):
@@ -92,6 +100,7 @@ class Incident(BaseModel):
     raw_alert: dict[str, Any]
     normalized_event: dict[str, Any] | None = None
     evidence: dict[str, Any] | None = None
+    disposition: str | None = None
     attempts: int = 0
     created_at: datetime | None = None
     updated_at: datetime | None = None

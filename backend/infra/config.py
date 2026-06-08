@@ -19,7 +19,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from backend.domain.llm import ProviderId
 
 _KNOWN_SENTINEL_SECTIONS = frozenset(
-    {"app", "vault", "postgres", "minio", "startup", "observability", "llm", "redis", "ingest"}
+    {"app", "vault", "postgres", "minio", "startup", "observability", "llm", "redis", "ingest", "supervisor"}
 )
 _SENTINEL_PREFIX = "SENTINEL__"
 
@@ -166,6 +166,16 @@ class LlmSettings(BaseSettings):
         return v
 
 
+class SupervisorSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
+
+    max_steps: Annotated[int, Field(gt=0)] = 8
+    max_tokens: Annotated[int, Field(gt=0)] = 40_000
+    max_stage_retries: Annotated[int, Field(ge=0)] = 2
+    fast_path_autoclose_severities: list[str] = Field(default_factory=lambda: ["low"])
+    fast_path_critical_severities: list[str] = Field(default_factory=lambda: ["critical"])
+
+
 class Settings(BaseSettings):
     """Root settings object — built once at startup, frozen thereafter.
 
@@ -190,6 +200,7 @@ class Settings(BaseSettings):
     llm: LlmSettings = Field(default_factory=LlmSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
     ingest: IngestSettings = Field(default_factory=IngestSettings)
+    supervisor: SupervisorSettings = Field(default_factory=SupervisorSettings)
 
     @model_validator(mode="after")
     def _ensure_ingest_vault_path_required(self) -> Settings:

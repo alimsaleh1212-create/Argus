@@ -70,6 +70,11 @@ async def get_queue(request: Request):
     return request.app.state.container.queue
 
 
+async def get_supervisor(request: Request):
+    """Return the Supervisor singleton (for #12 dashboard and tests)."""
+    return request.app.state.container.supervisor
+
+
 async def get_incident_repo(request: Request):
     """Return an IncidentRepository bound to the current request's DB session."""
     from backend.repositories.incidents import IncidentRepository

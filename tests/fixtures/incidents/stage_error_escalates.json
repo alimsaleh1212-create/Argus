@@ -1,0 +1,22 @@
+{
+  "id": "00000000-0000-0000-0000-000000000007",
+  "status": "grounded",
+  "severity": "medium",
+  "correlation_id": "corr-stage-error",
+  "dedup_fingerprint": "fp-stage-error",
+  "source": "wazuh",
+  "raw_alert": {"rule": {"level": 8}},
+  "evidence": {
+    "verdict": "ambiguous",
+    "severity": "medium",
+    "normalized_event": {},
+    "summary": "Incident where triage raises a non-retryable ToolError",
+    "flags": ["inject_triage_error"],
+    "retrieved_context": []
+  },
+  "_expected": {
+    "final_status": "escalated",
+    "disposition": "escalated_stage_error",
+    "worker_survives": true
+  }
+}

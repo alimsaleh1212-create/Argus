@@ -1,0 +1,24 @@
+{
+  "id": "00000000-0000-0000-0000-000000000003",
+  "status": "grounded",
+  "severity": "medium",
+  "correlation_id": "corr-ambiguous-triage",
+  "dedup_fingerprint": "fp-ambiguous-triage",
+  "source": "wazuh",
+  "raw_alert": {"rule": {"level": 8}},
+  "evidence": {
+    "verdict": "ambiguous",
+    "severity": "medium",
+    "normalized_event": {},
+    "summary": "Medium ambiguous alert — resolved at triage",
+    "flags": [],
+    "retrieved_context": []
+  },
+  "_expected": {
+    "route": "triaging",
+    "triage_outcome": "resolved",
+    "final_status": "resolved",
+    "disposition": "auto_resolved_triage",
+    "enrichment_calls": 0
+  }
+}
