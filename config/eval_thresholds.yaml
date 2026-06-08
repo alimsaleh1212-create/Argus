@@ -51,3 +51,22 @@ gates:
           example: "alice@example.com"
         - type: credit_card
           example: "4111111111111111"
+
+  llm_provider:
+    description: >
+      Both-providers gate (SPEC-llm-provider #3, seeded here; full harness owned by SPEC-eval #13).
+      Runs a minimal generate-and-validate check against each configured provider (Gemini and Ollama)
+      independently. A regression on either provider fails CI. Validates:
+      - The provider returns a non-empty LlmResponse via the uniform seam.
+      - Usage is present or correctly rendered as None ("unknown").
+      - served_by_fallback reflects the configured primary correctly.
+      Required in CI; full harness wired by SPEC-eval (#13).
+    required: true
+    providers:
+      - gemini
+      - ollama
+    threshold:
+      max_provider_failures: 0
+      min_content_length: 1
+      max_credential_leaks: 0
+      check_per_provider: true

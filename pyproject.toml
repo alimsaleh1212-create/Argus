@@ -20,6 +20,8 @@ dependencies = [
     "presidio-analyzer>=2.2",
     "presidio-anonymizer>=2.2",
     "spacy>=3.7",
+    "google-genai>=2.8.0",
+    "ollama>=0.6.2",
 ]
 
 [dependency-groups]
@@ -58,8 +60,9 @@ omit = [
     "backend/infra/cache.py",
     "backend/infra/queue.py",
     "backend/infra/memory.py",
-    "backend/infra/llm.py",
     "backend/infra/guardrails.py",
+    # backend/infra/llm.py + llm_drivers.py + backend/domain/llm.py are now measured
+    # (SPEC-llm-provider #3 — removed from omit list)
 ]
 
 [tool.coverage.report]

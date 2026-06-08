@@ -1,4 +1,4 @@
-"""Readiness probes for vault, postgres, and minio.
+"""Readiness probes for vault, postgres, minio, and llm.
 
 Each probe is redaction-safe: ``detail`` names the problem, never a secret
 value. Per-dependency timeouts prevent a slow dep from blocking the others.
@@ -84,3 +84,54 @@ async def check_minio(settings: Any) -> DependencyStatus:
             healthy=False,
             detail=f"MinIO unreachable: {type(exc).__name__}",
         )
+
+
+async def check_llm(settings: Any) -> DependencyStatus:
+    """Probe LLM providers — healthy iff ≥1 configured provider is reachable (LD5 / FR-019).
+
+    Uses each driver's ping() method (cheap probe). Secret-free detail names
+    which providers are down. Never crashes boot — only config/cred errors do.
+    """
+    from backend.infra.config import LlmSettings
+    from backend.infra.llm_drivers import GeminiDriver, OllamaDriver
+
+    timeout = getattr(settings.startup, "dependency_timeout_s", 5.0)
+    llm_settings: LlmSettings = settings.llm
+
+    # Build temporary probe drivers (no Vault — just connectivity checks)
+    # Gemini ping: uses a placeholder key; auth errors are treated as unreachable
+    try:
+        gemini_driver = GeminiDriver(llm_settings, api_key="probe-placeholder")
+    except Exception:
+        gemini_driver = None
+
+    try:
+        ollama_driver = OllamaDriver(llm_settings)
+    except Exception:
+        ollama_driver = None
+
+    results: list[tuple[str, bool]] = []
+
+    async def _ping(name: str, driver: Any) -> None:
+        if driver is None:
+            results.append((name, False))
+            return
+        try:
+            ok = await asyncio.wait_for(driver.ping(), timeout=timeout)
+            results.append((name, bool(ok)))
+        except Exception:
+            results.append((name, False))
+
+    await asyncio.gather(
+        _ping("gemini", gemini_driver),
+        _ping("ollama", ollama_driver),
+    )
+
+    any_reachable = any(ok for _, ok in results)
+    down = [name for name, ok in results if not ok]
+
+    if any_reachable:
+        return DependencyStatus(name="llm", healthy=True)
+
+    detail = f"No LLM provider reachable. Down: {down}"
+    return DependencyStatus(name="llm", healthy=False, detail=detail)

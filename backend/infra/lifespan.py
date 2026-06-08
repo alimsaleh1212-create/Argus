@@ -34,6 +34,11 @@ async def sentinel_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     providers = get_registry()
     entered: list[str] = []
 
+    # Make the in-progress container accessible to providers that need already-built
+    # siblings (e.g. LlmProvider reading observability). Uses object.__setattr__
+    # to bypass the frozen Settings model.
+    object.__setattr__(settings, "_container", container)
+
     try:
         async with stack:
             for provider in providers:

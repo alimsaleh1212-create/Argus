@@ -259,3 +259,115 @@ only carry user secrets); YAML anchors (saves ~10 lines but at readability cost)
 **Rationale**: A relative % budget (≤5%) is impractical when the synthetic baseline is microseconds — any non-trivial observability work produces a huge percentage. Real incidents take 100ms+, at which scale 0.169ms absolute overhead is negligible. The 5ms absolute cap is the meaningful operational constraint: it is the maximum the observability seam can add to any single incident in the synchronous path.
 
 **Rejected**: ≤5% relative overhead (fails with microsecond baseline, vacuous with real-world baseline); no overhead check (leaves SC-005 unenforceable).
+
+---
+
+## Component 003 — Provider-Agnostic LLM Adapter
+
+### LP1 — Provider pair: Gemini (primary, cloud) + Ollama (secondary, local)
+
+**Decision**: Two configured providers — **Google Gemini** (`gemini-1.5-flash`) as the env-selected primary and a **local Ollama** runtime (`qwen2:0.5b`) as the automatic fallback.
+
+**Rationale**: The spec explicitly names this pair. One cloud + one local backend satisfies the constitution's "evals on both providers" requirement. The capability gap (structured output, tool-calling quality) between Gemini and local Ollama is exactly what the fail-closed contract (LP4) and per-provider eval (LP5) are designed to handle.
+
+**Rejected**: Anthropic-first (rejected by user for this component); Gemini+Anthropic (two cloud, no local path).
+
+---
+
+### LP2 — Transport: official async vendor SDKs, confined to one driver module
+
+**Decision**: `google-genai` (Gemini async SDK) and `ollama` (Ollama Python SDK) imported **only** in `backend/infra/llm_drivers.py`. Each driver maps the uniform `LlmRequest` ↔ vendor API.
+
+**Rationale**: SDKs handle auth, tool-calling, structured-output, and usage shapes correctly so the adapter owns only normalization, selection, fallback, validation, and telemetry. Confinement to one module makes the no-bypass guard (FR-001) target a single file.
+
+**Rejected**: hand-rolled `httpx` REST (re-implements what SDKs get right); mixed approach (inconsistent).
+
+---
+
+### LP3 — Selection & fallback: env-selected primary, stateless per-call order
+
+**Decision**: `LlmSettings.primary` + `LlmSettings.fallback_order` define a config-driven order. Every call begins at the primary and walks the order on transient failure. No circuit-breaker in v1 — each call is evaluated independently (stateless).
+
+**Rationale**: Simplest correct behavior at demo scale; deterministic and trivially testable (no shared mutable state). Switching the primary is configuration-only (SC-002).
+
+**Rejected**: circuit-breaker / sticky-secondary (deferred; lower latency under sustained outage but adds shared state).
+
+---
+
+### LP4 — Output contract: capability-aware request shaping + fail-closed post-call validation
+
+**Decision**: After the call, the adapter validates the result against the caller's required schema/tools. If validation fails, raises `LlmError(CONTRACT_UNSATISFIED)` — never returns a silently degraded result. `ProviderCapability` used for request shaping only, not routing.
+
+**Rationale**: A malformed disposition is worse than a surfaced error for a security SOAR — it becomes a step the supervisor escalates to a human (HITL-consistent). Post-call validation keeps acceptance tests crisp (SC-009).
+
+**Rejected**: best-effort degraded result (pushes handling to every caller, weakens tests); capability-matched routing (user chose fail-closed).
+
+---
+
+### LP5 — Readiness: at-least-one-reachable gate via the existing `/ready`
+
+**Decision**: `check_llm(settings)` returns `DependencyStatus(name="llm", healthy=any(reachable))`, included in `run_readiness_probes`. `/ready` is 503 only when no provider is reachable.
+
+**Rationale**: Blocking boot on provider reachability would defeat fallback (a Gemini blip at startup should still bring the app up to serve via Ollama). Reachability failures are readiness-only, never liveness.
+
+**Rejected**: all-providers-verified-at-boot (brittle; partially defeats fallback); no readiness gate (silently accepts incidents with no usable provider).
+
+---
+
+### LP6 — Token-usage normalization onto #2's `record_llm_usage` shape
+
+**Decision**: `TokenUsage(prompt_tokens, completion_tokens)` with field names matching `record_llm_usage`'s `getattr` reads. Gemini: `prompt_token_count`/`candidates_token_count`; Ollama: `prompt_eval_count`/`eval_count`. Missing counts stay `None`.
+
+**Rationale**: No change to #2 required — field names match exactly. `None` counts render as "unknown" in views, never fabricated (FR-013, SC-004).
+
+**Rejected**: bespoke usage type (would force change to #2); fabricating estimates (constitution: never fabricate).
+
+---
+
+### LP7 — Redaction wiring at the model boundary
+
+**Decision**: (a) Scrub CREDENTIAL-class content from the outbound prompt via `#2 Redactor` at `Boundary.OPERATIONAL` before transmission. (b) Record prompt/completion as span attributes — `span()` redacts them at `Boundary.TRACE`. Does not strip operational identifiers (IP/host/user).
+
+**Rationale**: FR-012 requires redaction "before logged, traced, or stored" — `#2 span()` already provides this. Outbound credential scrubbing prevents raw API keys in alert text from reaching providers. Operational identifiers are preserved so the agent can reason over them.
+
+**Rejected**: redact PII from outbound prompt (blinds enrichment correlation); re-implement redaction in adapter (violates no-bypass).
+
+---
+
+### LP8 — Timeouts, transient-only retry, and error taxonomy
+
+**Decision**: Per-call `asyncio.wait_for` timeout (`request_timeout_s=30s`), transient-only bounded `tenacity` retry (`max_retries=2`, exponential backoff). Error taxonomy: `TRANSIENT` (timeout/429/5xx → retry+failover), `AUTH`/`INVALID_REQUEST`/`CONTENT_REFUSAL` (non-retryable, no failover), `CONTRACT_UNSATISFIED` (fail-closed), `EXHAUSTED` (all providers tried).
+
+**Rationale**: Matches FR-008/FR-009/FR-010 and the existing `tenacity`-on-transient-only convention (mirrors Vault retry). A timeout is transient — a slow provider never hangs the incident path.
+
+**Rejected**: retry all errors (masks auth/validation issues); no retry, fail over immediately (single blip burns the fallback).
+
+---
+
+### LP9 — Ollama as a compose service; per-tier test strategy
+
+**Decision**: `ollama` compose service (official image) with one-shot `qwen2:0.5b` pull. Unit tests fake both drivers; integration tests run real Ollama + Gemini via mocked HTTP (live test gated on `GEMINI_API_KEY`); e2e uses injected fakes for fallback/telemetry assertions.
+
+**Rationale**: Three real tiers with CI-deterministic behavior. A tiny pinned model keeps Ollama self-contained; gating live Gemini on key presence keeps keyless CI green.
+
+**Rejected**: real Gemini calls in CI (cost/flakiness/secret management); no Ollama service (breaks fresh-clone reproducibility); large Ollama model (CI RAM/time blowup).
+
+---
+
+### LP10 — Lifespan singleton + registration order
+
+**Decision**: `LlmProvider` (Provider protocol, `name="llm"`) builds both driver clients once via an async context manager. Registered **after** observability in `_bootstrap_providers()` in `main.py`. `get_llm()` in `dependencies.py` returns `app.state.container.llm`. The lifespan sets `settings._container` so providers can access already-built siblings.
+
+**Rationale**: Matches #1's provider seam. The `settings._container` hack mirrors #2's pattern for the trace-repository access; a proper multi-arg provider build interface is a future refactor.
+
+**Rejected**: build clients per call (wasteful, breaks singleton standard); read observability via module global (violates no-bypass / DI standard).
+
+---
+
+### LP11 — Structured-output & tool-calling mechanism per provider
+
+**Decision**: Gemini: `response_mime_type="application/json"` + `response_schema` for structured output; `FunctionDeclaration` + `ToolConfig` for tool-calling. Ollama: `format=<schema>` for structured output; OpenAI-compatible `tools` list. Post-call validation enforces the contract regardless of provider capability.
+
+**Rationale**: Each driver uses the provider's best-supported mechanism; callers describe tools/schema once and are provider-agnostic. Fail-closed validation catches weaker local-model failovers.
+
+**Rejected**: lowest-common-denominator JSON-in-text for both (wastes Gemini's native structured output); per-caller vendor branching (defeats the provider-agnostic seam).
