@@ -1,0 +1,21 @@
+{
+  "id": "1700000002",
+  "timestamp": "2026-06-08T10:05:00.000Z",
+  "rule": {
+    "level": 14,
+    "id": "31151",
+    "description": "Web attack detected - possible SQL injection",
+    "groups": ["web", "attack", "sql_injection"]
+  },
+  "agent": {
+    "id": "002",
+    "name": "db-server-01",
+    "ip": "10.0.0.10"
+  },
+  "data": {
+    "srcip": "203.0.113.50",
+    "url": "/api/users?id=1' OR '1'='1",
+    "status": "400"
+  },
+  "full_log": "nginx: 203.0.113.50 - - [08/Jun/2026:10:05:00 +0000] \"GET /api/users?id=1' OR '1'='1 HTTP/1.1\" 400 512"
+}

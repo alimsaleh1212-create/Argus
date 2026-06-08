@@ -22,6 +22,7 @@ dependencies = [
     "spacy>=3.7",
     "google-genai>=2.8.0",
     "ollama>=0.6.2",
+    "redis>=5",
 ]
 
 [dependency-groups]
@@ -53,12 +54,8 @@ source = ["backend"]
 omit = [
     # Reserved stubs — not implemented yet, measured when their spec lands
     "backend/agents/*",
-    "backend/worker.py",
-    "backend/routers/ingest.py",
     "backend/routers/incidents.py",
     "backend/routers/approvals.py",
-    "backend/infra/cache.py",
-    "backend/infra/queue.py",
     "backend/infra/memory.py",
     "backend/infra/guardrails.py",
     # backend/infra/llm.py + llm_drivers.py + backend/domain/llm.py are now measured

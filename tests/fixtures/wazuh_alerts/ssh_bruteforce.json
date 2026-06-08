@@ -1,0 +1,20 @@
+{
+  "id": "1700000001",
+  "timestamp": "2026-06-08T10:00:00.000Z",
+  "rule": {
+    "level": 10,
+    "id": "5763",
+    "description": "SSHD brute force trying to get access to the system",
+    "groups": ["syslog", "sshd", "authentication_failures"]
+  },
+  "agent": {
+    "id": "001",
+    "name": "web-server-01",
+    "ip": "10.0.0.42"
+  },
+  "data": {
+    "srcip": "192.168.1.100",
+    "dstuser": "root"
+  },
+  "full_log": "sshd[1234]: Failed password for root from 192.168.1.100 port 44321 ssh2"
+}

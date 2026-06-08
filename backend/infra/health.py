@@ -86,6 +86,32 @@ async def check_minio(settings: Any) -> DependencyStatus:
         )
 
 
+async def check_redis(settings: Any) -> DependencyStatus:
+    """Probe Redis by issuing a PING (FR-014).
+
+    Uses the configured URL; redaction-safe detail names the dep, never a value.
+    """
+    timeout = getattr(settings.startup, "dependency_timeout_s", 5.0)
+    url = getattr(getattr(settings, "redis", None), "url", "redis://redis:6379/0")
+    try:
+        import asyncio
+
+        import redis.asyncio as aioredis
+
+        client: aioredis.Redis = aioredis.from_url(url, socket_connect_timeout=timeout)
+        try:
+            await asyncio.wait_for(client.ping(), timeout=timeout)
+            return DependencyStatus(name="redis", healthy=True)
+        finally:
+            await client.aclose()
+    except Exception as exc:
+        return DependencyStatus(
+            name="redis",
+            healthy=False,
+            detail=f"Redis unreachable: {type(exc).__name__}",
+        )
+
+
 async def check_llm(settings: Any) -> DependencyStatus:
     """Probe LLM providers — healthy iff ≥1 configured provider is reachable (LD5 / FR-019).
 

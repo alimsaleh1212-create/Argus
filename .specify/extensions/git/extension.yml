@@ -105,12 +105,12 @@ hooks:
     description: "Auto-commit after implementation planning"
   after_tasks:
     command: speckit.git.commit
-    optional: true
+    optional: false
     prompt: "Commit task changes?"
     description: "Auto-commit after task generation"
   after_implement:
     command: speckit.git.commit
-    optional: true
+    optional: false
     prompt: "Commit implementation changes?"
     description: "Auto-commit after implementation"
   after_checklist:

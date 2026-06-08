@@ -19,3 +19,7 @@ and I like to make it very clean and structured (you must suggest complete sruct
 - usually I prefer very clean structure where wach docker container has it's own docker file (to not make heavy one docker image for all containers)
 - also concerning the uv dependencies isn't better having venv for each docker container instead for heavy one uv venv?
 - in docker compose where are neo4j and nemo guardrails (tell me if nemo guardrails fits this project or not)
+
+what is the next spec /speckit-specify depending on  @docs/resources/SOAR_brief.md and @docs/resources/SOAR_plan.md
+
+/speckit-specify depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_plan.md make things simple and don't overengineer while working
