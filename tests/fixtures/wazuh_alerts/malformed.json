@@ -1,0 +1,7 @@
+{
+  "not_a_wazuh_alert": true,
+  "random_field": "some value",
+  "nested": {
+    "also_not_valid": 42
+  }
+}

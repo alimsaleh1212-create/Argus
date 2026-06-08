@@ -19,7 +19,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from backend.domain.llm import ProviderId
 
 _KNOWN_SENTINEL_SECTIONS = frozenset(
-    {"app", "vault", "postgres", "minio", "startup", "observability", "llm"}
+    {"app", "vault", "postgres", "minio", "startup", "observability", "llm", "redis", "ingest"}
 )
 _SENTINEL_PREFIX = "SENTINEL__"
 
@@ -118,6 +118,25 @@ class ObservabilitySettings(BaseSettings):
     trace_to_stdout: bool = False
 
 
+class RedisSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
+
+    url: str = "redis://redis:6379/0"
+    queue_key: str = "queue:incidents"
+    processing_key: str = "queue:processing"
+    dedup_prefix: str = "dedup:"
+    dequeue_block_s: float = 5.0
+
+
+class IngestSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
+
+    webhook_vault_path: str = "secret/ingest"
+    max_alert_bytes: int = 262_144
+    dedup_window_s: int = 300
+    max_attempts: int = 3
+
+
 class LlmSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="forbid")
 
@@ -169,9 +188,23 @@ class Settings(BaseSettings):
     startup: StartupSettings = Field(default_factory=StartupSettings)
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
     llm: LlmSettings = Field(default_factory=LlmSettings)
+    redis: RedisSettings = Field(default_factory=RedisSettings)
+    ingest: IngestSettings = Field(default_factory=IngestSettings)
 
     @model_validator(mode="after")
-    def _ensure_llm_vault_path_required(self) -> "Settings":
+    def _ensure_ingest_vault_path_required(self) -> Settings:
+        """Guarantee ingest webhook Vault path is in vault.required_paths (fail boot if absent)."""
+        ingest_path = self.ingest.webhook_vault_path
+        if ingest_path not in self.vault.required_paths:
+            object.__setattr__(
+                self.vault,
+                "required_paths",
+                list(self.vault.required_paths) + [ingest_path],
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _ensure_llm_vault_path_required(self) -> Settings:
         """Guarantee the Gemini Vault path is in vault.required_paths (fail-boot if absent)."""
         llm_path = self.llm.gemini_vault_path
         if llm_path not in self.vault.required_paths:
@@ -183,7 +216,7 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def _validate_fallback_primary_consistency(self) -> "Settings":
+    def _validate_fallback_primary_consistency(self) -> Settings:
         """Ensure fallback_order[0] == primary (data-model.md validation)."""
         if self.llm.fallback_order and self.llm.fallback_order[0] != self.llm.primary:
             raise ValueError(

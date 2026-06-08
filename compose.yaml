@@ -85,7 +85,8 @@ services:
     command: >
       sh -c "
         vault kv put secret/minio access_key=minioadmin secret_key=minioadmin &&
-        vault kv put secret/llm api_key=$${GEMINI_API_KEY:-placeholder}
+        vault kv put secret/llm api_key=$${GEMINI_API_KEY:-placeholder} &&
+        vault kv put secret/ingest token=$${INGEST_WEBHOOK_TOKEN:-dev-webhook-token}
       "
     restart: on-failure
 
@@ -139,10 +140,11 @@ services:
     environment:
       SENTINEL__VAULT__ADDR: http://vault:8200
       SENTINEL__VAULT__TOKEN: dev-root-token
-      SENTINEL__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm"]'
+      SENTINEL__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm","secret/ingest"]'
       SENTINEL__POSTGRES__DSN: postgresql+asyncpg://sentinel:sentinel@postgres:5432/sentinel
       SENTINEL__MINIO__ENDPOINT_URL: http://minio:9000
       SENTINEL__LLM__OLLAMA_BASE_URL: http://ollama:11434
+      SENTINEL__REDIS__URL: redis://redis:6379/0
     depends_on:
       postgres:
         condition: service_healthy
@@ -151,6 +153,8 @@ services:
       minio:
         condition: service_healthy
       ollama:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       vault-seed:
         condition: service_completed_successfully
@@ -165,32 +169,41 @@ services:
       retries: 10
       start_period: 30s
 
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  worker:
+    build:
+      context: .
+      dockerfile: deploy/api/Dockerfile
+    image: sentinel-backend:local
+    command: ["python", "-m", "backend.worker"]
+    environment:
+      SENTINEL__VAULT__ADDR: http://vault:8200
+      SENTINEL__VAULT__TOKEN: dev-root-token
+      SENTINEL__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm","secret/ingest"]'
+      SENTINEL__POSTGRES__DSN: postgresql+asyncpg://sentinel:sentinel@postgres:5432/sentinel
+      SENTINEL__MINIO__ENDPOINT_URL: http://minio:9000
+      SENTINEL__LLM__OLLAMA_BASE_URL: http://ollama:11434
+      SENTINEL__REDIS__URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      vault-seed:
+        condition: service_completed_successfully
+    restart: on-failure
+
   # ── Reserved — uncomment when the owning spec is implemented ──────────────────
-  #
-  # worker:                              # SPEC-ingestion (#4) — queue consumer
-  #   build:
-  #     context: .
-  #     dockerfile: deploy/api/Dockerfile
-  #   image: sentinel-backend:local
-  #   command: ["python", "-m", "backend.worker"]
-  #   environment:
-  #     SENTINEL__VAULT__ADDR: http://vault:8200
-  #     SENTINEL__VAULT__TOKEN: dev-root-token
-  #     SENTINEL__VAULT__REQUIRED_PATHS: '["secret/minio","secret/redis"]'
-  #     SENTINEL__POSTGRES__DSN: postgresql+asyncpg://sentinel:sentinel@postgres:5432/sentinel
-  #     SENTINEL__MINIO__ENDPOINT_URL: http://minio:9000
-  #   depends_on:
-  #     redis: { condition: service_healthy }
-  #     migrate: { condition: service_completed_successfully }
-  #
-  # redis:                               # SPEC-ingestion (#4) — cache / queue / dedup
-  #   image: redis:7
-  #   ports:
-  #     - "6379:6379"
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 5s
-  #     retries: 10
   #
   # neo4j:                               # SPEC-memory (#6) — Graphiti temporal memory
   #   image: neo4j:5

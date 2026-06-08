@@ -22,12 +22,12 @@ def _bootstrap_providers() -> None:
     (subsequent calls from tests that manage their own registry are fine — they
     call clear_registry() before registering their own providers).
     """
-    from backend.infra.container import get_registry, register_provider
-    from backend.infra.vault import register_vault_provider
-    from backend.infra.db import register_db_provider
     from backend.infra.blob import register_blob_provider
-    from backend.infra.observability import ObservabilityProvider
+    from backend.infra.container import get_registry, register_provider
+    from backend.infra.db import register_db_provider
     from backend.infra.llm import register_llm_provider
+    from backend.infra.observability import ObservabilityProvider
+    from backend.infra.vault import register_vault_provider
 
     existing_names = {p.name for p in get_registry()}
     if "vault_client" not in existing_names:
@@ -40,6 +40,14 @@ def _bootstrap_providers() -> None:
         register_provider(ObservabilityProvider())
     if "llm" not in existing_names:
         register_llm_provider()
+    if "cache" not in existing_names:
+        from backend.infra.cache import CacheProvider
+
+        register_provider(CacheProvider())
+    if "queue" not in existing_names:
+        from backend.infra.queue import QueueProvider
+
+        register_provider(QueueProvider())
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

@@ -13,7 +13,7 @@ from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 
 from backend.domain.health import DependencyStatus, Liveness, ReadinessReport
-from backend.infra.health import check_llm, check_minio, check_postgres, check_vault
+from backend.infra.health import check_llm, check_minio, check_postgres, check_redis, check_vault
 from backend.infra.logging import get_logger
 
 logger = get_logger(__name__)
@@ -33,6 +33,7 @@ async def run_readiness_probes(settings: Any) -> list[DependencyStatus]:
         check_postgres(settings),
         check_minio(settings),
         check_llm(settings),
+        check_redis(settings),
     )
     return list(results)
 

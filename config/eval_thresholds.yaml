@@ -52,6 +52,11 @@ gates:
         - type: credit_card
           example: "4111111111111111"
 
+  # Updated by SPEC-ingestion (#4): smoke gate now includes redis + worker services;
+  # redaction gate is exercised through the POST /ingest/wazuh path (alert payloads
+  # with planted secrets). No new gate is invented — triage/routing/retrieval gates
+  # land with their own components.
+
   llm_provider:
     description: >
       Both-providers gate (SPEC-llm-provider #3, seeded here; full harness owned by SPEC-eval #13).

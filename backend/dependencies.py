@@ -8,6 +8,7 @@ substitutes a double without touching consumer code (FR-020).
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from typing import Any
 
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,3 +58,22 @@ async def get_llm(request: Request):
     Substitutable in tests: app.dependency_overrides[get_llm] = lambda: FakeLlm().
     """
     return request.app.state.container.llm
+
+
+async def get_cache(request: Request):
+    """Return the Redis client singleton."""
+    return request.app.state.container.cache
+
+
+async def get_queue(request: Request):
+    """Return the RedisTaskQueue singleton."""
+    return request.app.state.container.queue
+
+
+async def get_incident_repo(request: Request):
+    """Return an IncidentRepository bound to the current request's DB session."""
+    from backend.repositories.incidents import IncidentRepository
+
+    db: Any = request.app.state.container.db_engine
+    async with db.session_factory() as session:
+        yield IncidentRepository(session)

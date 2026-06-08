@@ -371,3 +371,115 @@ only carry user secrets); YAML anchors (saves ~10 lines but at readability cost)
 **Rationale**: Each driver uses the provider's best-supported mechanism; callers describe tools/schema once and are provider-agnostic. Fail-closed validation catches weaker local-model failovers.
 
 **Rejected**: lowest-common-denominator JSON-in-text for both (wastes Gemini's native structured output); per-caller vendor branching (defeats the provider-agnostic seam).
+
+---
+
+## Component 004 — Alert Ingestion Pipeline
+
+### ID1 — Redis reliable-list queue (not a broker)
+
+**Decision**: `BLMOVE main→processing` for dequeue, `LREM` for ack, drain processing→main on worker startup. At-least-once delivery with bounded retry → `failed`.
+
+**Rationale**: The brief fixed the push-webhook→queue→worker shape. A minimal Redis-list pattern provides at-least-once delivery without adding a broker dependency. Idempotent grounding makes re-delivery harmless.
+
+**Rejected**: RabbitMQ/Kafka (over-engineered for single-SOC demo scale); in-memory queue (loses state across crashes); inline processing in the request handler (couples acknowledgment latency to grounding work).
+
+---
+
+### ID2 — Redis for dedup (SET NX EX), not Postgres
+
+**Decision**: `SET dedup:<fingerprint> <incident_id> NX EX window_s` for dedup. Fingerprint is SHA-256 over (rule_id, agent_id, content_signature), computed over redacted content.
+
+**Rationale**: Dedup is a short-lived, high-throughput operation. Redis SET NX EX is atomic and O(1). Postgres would require a unique-constraint upsert on every ingest, adding lock contention on the hot path.
+
+**Rejected**: Postgres unique constraint (lock contention, slower); Bloom filter (probabilistic, false positives unacceptable for incident dedup).
+
+---
+
+### ID3 — Fail-closed redaction before any persistence/logging/enqueue
+
+**Decision**: `redactor.redact_mapping(alert, Boundary.SNAPSHOT)` is called first in `intake.accept()`; any redaction error propagates and nothing is persisted or enqueued.
+
+**Rationale**: Alert text is untrusted, attacker-influenceable input. A failure to redact must never result in a raw secret appearing in Postgres, Redis, or logs. Fail-closed is the only safe default.
+
+**Rejected**: Persist first, redact later (a crash between persist and redact would leave a raw alert in the DB); best-effort redaction (partial redaction gives false safety confidence).
+
+---
+
+### ID4 — Atomic accept-and-enqueue (no orphan Incidents)
+
+**Decision**: If `queue.enqueue()` raises after `repo.create()`, the insert is immediately deleted and the exception re-raises to the router as a 503. No committed-but-never-queued Incidents.
+
+**Rationale**: An orphan `received` Incident with no queue entry would never reach `grounded` or `failed` — it would be permanently stuck. The constitution requires every Incident reaches a terminal state (SC-006).
+
+**Rejected**: Background cleanup job (eventually consistent, complex, still leaves a window); two-phase commit (over-engineered for single-worker demo scale).
+
+---
+
+### ID5 — Deterministic severity band (rule.level → Severity)
+
+**Decision**: 0–3→low, 4–7→medium, 8–11→high, 12–15→critical. Missing/unparseable level → medium + `severity_defaulted` flag.
+
+**Rationale**: Deterministic banding is a pure function with no I/O. It gives consistent, auditable triage severity without an LLM call on the hot ingest path (Constitution Principle IV).
+
+**Rejected**: LLM-assigned severity (non-deterministic, adds latency on every ingest, wastes the LLM budget on a lookup table problem).
+
+---
+
+### ID6 — WazuhAlert extra="ignore"
+
+**Decision**: `WazuhAlert` (and nested types) use `model_config = ConfigDict(extra="ignore")` so unknown Wazuh fields are silently dropped.
+
+**Rationale**: Wazuh alert schemas vary by version and rule set. Strict rejection would break on any field we haven't modelled, making the pipeline brittle to Wazuh upgrades. The important fields (rule, agent, timestamp, full_log) are explicitly modelled.
+
+**Rejected**: extra="forbid" (too brittle against Wazuh version drift); extra="allow" (pollutes the domain type with arbitrary vendor data).
+
+---
+
+### ID7 — Grounding is pure/deterministic, no LLM
+
+**Decision**: `services/grounding.py::ground()` is a pure function: assembles Evidence from the NormalizedEvent with no I/O and no LLM call.
+
+**Rationale**: Constitution Principle IV — "use determinism where it suffices." Grounding assembles the inputs for the triage agent (#8); it does not reason. A pure function is trivially testable, deterministic across re-runs, and adds zero latency.
+
+**Rejected**: LLM-assisted grounding (constitution violation at this stage; the triage agent owns the reasoning step).
+
+---
+
+### ID8 — One image, two containers (API + worker)
+
+**Decision**: `worker` compose service uses the same `sentinel-backend:local` image with `command: ["python", "-m", "backend.worker"]`.
+
+**Rationale**: No second Dockerfile, no separate dependency set to maintain. The worker uses the same provider/settings/observability infrastructure as the API — consistent behaviour, single build.
+
+**Rejected**: Separate worker image (two Dockerfiles to maintain, no meaningful benefit at demo scale).
+
+---
+
+### ID9 — Webhook shared-secret from Vault (required, fail-boot)
+
+**Decision**: `ingest.webhook_vault_path` is appended to `vault.required_paths` via a `model_validator`; missing secret → fail boot (same pattern as the LLM API key).
+
+**Rationale**: A webhook without authentication is a public endpoint for injecting arbitrary alerts. Failing boot on a missing secret is simpler and more reliable than checking at runtime.
+
+**Rejected**: Environment-variable token (not Vault-managed, leaks into process env); optional token (unauthenticated webhook is a security boundary violation).
+
+---
+
+### ID10 — Bounded retry → terminal `failed` (no stuck Incidents)
+
+**Decision**: Worker increments `attempts` on exception; at `ingest.max_attempts` (default 3), sets status to `failed` and acks the job (stops re-delivery). Idempotent grounding makes at-least-once safe.
+
+**Rationale**: Without a budget, a poison job (malformed normalised_event, grounding bug) would re-enqueue forever, consuming worker capacity. `failed` is a recoverable terminal state — operators can inspect and replay.
+
+**Rejected**: Infinite retry (poison jobs starve the queue); discard without marking failed (silent data loss, violates SC-006).
+
+---
+
+### ID11 — redis + worker compose activation (pre-reserved in #1)
+
+**Decision**: Both services were pre-reserved (commented-out) in #1's `compose.yaml`. This component activates them by uncommenting and wiring the `depends_on` chain.
+
+**Rationale**: The brief and #1 already committed to the push-webhook→queue→worker shape. Activating pre-reserved infrastructure is not a complexity deviation; it is the planned delivery.
+
+**Rejected**: Activate only redis and stub the worker (leaves the queue unconsumed, defeats the grounding milestone); add a third service type (out of scope).
