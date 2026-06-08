@@ -1,0 +1,20 @@
+{
+  "gold_label": "real",
+  "incident_id": "fix-real-002",
+  "description": "Lateral movement: credential dump tool executed after initial compromise",
+  "evidence": {
+    "verdict": "suspicious",
+    "severity": "high",
+    "normalized_event": {
+      "rule_id": "87105",
+      "rule_description": "Credential access tool executed (mimikatz pattern)",
+      "process_name": "lsass_dump.exe",
+      "parent_process": "cmd.exe",
+      "user": "CORP\\jsmith",
+      "host": "WORKSTATION-42",
+      "command_line": "lsass_dump.exe /dump /output:C:\\Temp\\creds.txt"
+    },
+    "summary": "Mimikatz-style credential dump tool executed by user jsmith on WORKSTATION-42. Process spawned from cmd.exe. Output file written to writable temp directory. Host had prior suspicious login 3 hours earlier.",
+    "retrieved_context": null
+  }
+}

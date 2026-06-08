@@ -19,7 +19,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from backend.domain.llm import ProviderId
 
 _KNOWN_SENTINEL_SECTIONS = frozenset(
-    {"app", "vault", "postgres", "minio", "startup", "observability", "llm", "redis", "ingest", "supervisor"}
+    {
+        "app", "vault", "postgres", "minio", "startup", "observability",
+        "llm", "redis", "ingest", "supervisor", "triage",
+    }
 )
 _SENTINEL_PREFIX = "SENTINEL__"
 
@@ -176,6 +179,25 @@ class SupervisorSettings(BaseSettings):
     fast_path_critical_severities: list[str] = Field(default_factory=lambda: ["critical"])
 
 
+class TriageSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
+
+    advance_min_confidence: Annotated[float, Field(ge=0.0, le=1.0)] = 0.6
+    resolve_min_confidence: Annotated[float, Field(ge=0.0, le=1.0)] = 0.7
+    max_output_tokens: Annotated[int, Field(gt=0)] = 512
+    temperature: Annotated[float, Field(ge=0.0)] = 0.0
+    prompt_version: str = "v1"
+
+    @model_validator(mode="after")
+    def _advance_le_resolve(self) -> TriageSettings:
+        if self.advance_min_confidence > self.resolve_min_confidence:
+            raise ValueError(
+                f"advance_min_confidence ({self.advance_min_confidence}) must be "
+                f"<= resolve_min_confidence ({self.resolve_min_confidence})"
+            )
+        return self
+
+
 class Settings(BaseSettings):
     """Root settings object — built once at startup, frozen thereafter.
 
@@ -201,6 +223,7 @@ class Settings(BaseSettings):
     redis: RedisSettings = Field(default_factory=RedisSettings)
     ingest: IngestSettings = Field(default_factory=IngestSettings)
     supervisor: SupervisorSettings = Field(default_factory=SupervisorSettings)
+    triage: TriageSettings = Field(default_factory=TriageSettings)
 
     @model_validator(mode="after")
     def _ensure_ingest_vault_path_required(self) -> Settings:

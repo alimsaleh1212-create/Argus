@@ -1,0 +1,20 @@
+{
+  "gold_label": "noise",
+  "incident_id": "fix-noise-001",
+  "description": "Known internal vulnerability scanner — expected background activity",
+  "evidence": {
+    "verdict": "suspicious",
+    "severity": "medium",
+    "normalized_event": {
+      "rule_id": "40101",
+      "rule_description": "Port scan detected from internal host",
+      "src_ip": "10.0.2.100",
+      "dest_ip": "10.0.0.0/24",
+      "ports_scanned": 1024,
+      "scanner_hostname": "vuln-scanner-01",
+      "scan_type": "nmap SYN scan"
+    },
+    "summary": "Port scan from 10.0.2.100 (hostname: vuln-scanner-01) against the internal /24 subnet. This host is the registered Nessus vulnerability scanner. Scans occur every Tuesday at 02:00 UTC per the security operations schedule.",
+    "retrieved_context": null
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "gold_label": "real",
+  "incident_id": "fix-real-003",
+  "description": "Anomalous outbound data transfer to external IP",
+  "evidence": {
+    "verdict": "suspicious",
+    "severity": "medium",
+    "normalized_event": {
+      "rule_id": "31530",
+      "rule_description": "Large outbound data transfer to unknown external IP",
+      "src_ip": "10.0.1.12",
+      "dest_ip": "203.0.113.99",
+      "dest_port": 443,
+      "bytes_sent": 524288000,
+      "protocol": "HTTPS",
+      "duration_s": 45,
+      "user": "svc_backup"
+    },
+    "summary": "Service account svc_backup sent 500MB over HTTPS to an external IP (203.0.113.99) not in the approved egress allowlist. Transfer completed in 45 seconds. No scheduled backup jobs were running at this time.",
+    "retrieved_context": null
+  }
+}

@@ -96,3 +96,19 @@ gates:
       min_content_length: 1
       max_credential_leaks: 0
       check_per_provider: true
+
+  triage:
+    description: >
+      Triage real-vs-noise gate (SPEC-triage-agent #8). Runs the committed labeled alert set through
+      the triage handler and scores macro-F1 on the real/noise decision. Abstentions (uncertain) are
+      reported and bounded, not scored as errors. MUST pass on BOTH configured providers (Gemini and
+      Ollama) — the first eval gate with an LLM dimension. Full harness owned by SPEC-eval (#13);
+      seeded here so CI gates from this component.
+    required: true
+    providers:
+      - gemini
+      - ollama
+    threshold:
+      min_macro_f1: 0.75
+      max_abstention_rate: 0.30
+      check_per_provider: true

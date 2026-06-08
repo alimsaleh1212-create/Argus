@@ -80,10 +80,11 @@ async def _main_async() -> None:
     from backend.infra.container import clear_registry, register_provider
     from backend.infra.db import register_db_provider
     from backend.infra.lifespan import sentinel_lifespan
+    from backend.infra.llm import register_llm_provider
     from backend.infra.observability import ObservabilityProvider
     from backend.infra.queue import QueueProvider
-    from backend.infra.supervisor_provider import SupervisorProvider
     from backend.infra.vault import register_vault_provider
+    from backend.supervisor_provider import SupervisorProvider
 
     settings = load_settings()
 
@@ -93,6 +94,7 @@ async def _main_async() -> None:
     register_provider(ObservabilityProvider())
     register_provider(CacheProvider())
     register_provider(QueueProvider())
+    register_llm_provider()  # must be before SupervisorProvider so container.llm exists
     register_provider(SupervisorProvider())
 
     from fastapi import FastAPI

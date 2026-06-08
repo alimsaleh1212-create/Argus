@@ -53,7 +53,8 @@ markers = [
 source = ["backend"]
 omit = [
     # Reserved stubs — not implemented yet, measured when their spec lands
-    "backend/agents/*",
+    "backend/agents/enrichment.py",
+    "backend/agents/response.py",
     "backend/routers/incidents.py",
     "backend/routers/approvals.py",
     "backend/infra/memory.py",

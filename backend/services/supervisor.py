@@ -9,11 +9,11 @@ from __future__ import annotations
 import uuid
 
 from backend.domain.incident import Incident, IncidentStatus
-from backend.domain.pipeline import StageName, StageHandler, StageOutcome, StageResult, ToolError
+from backend.domain.pipeline import StageHandler, StageName, StageOutcome, StageResult, ToolError
 from backend.domain.telemetry import SpanKind
 from backend.infra.config import SupervisorSettings
 from backend.infra.logging import bind_incident, get_logger
-from backend.infra.tracing import _Tracer, build_tracer, span
+from backend.infra.tracing import _Tracer, span
 
 logger = get_logger(__name__)
 
@@ -291,6 +291,7 @@ class Supervisor:
                     expected=current_status,
                     target=next_status,
                     disposition=final_disp,
+                    evidence_patch=result.evidence_patch,
                 )
                 if not advanced:
                     logger.info("supervisor_guard_lost_stage", incident_id=str(incident_id))

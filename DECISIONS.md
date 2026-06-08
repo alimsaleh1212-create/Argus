@@ -515,3 +515,39 @@ only carry user secrets); YAML anchors (saves ~10 lines but at readability cost)
 **Rationale**: All tuning knobs that affect routing behavior belong in config, not code, so they can be adjusted per environment without redeployment (Constitution II). `extra="forbid"` catches typos in env var names at startup rather than silently ignoring them. Typed lists for the severity bands mean adding/removing a severity (e.g. promoting "high" to a fast-path) is a one-line config change, provider-independent and testable.
 
 **Rejected**: Hardcoded constants in the supervisor body (untunable without code change, untestable isolation); environment variables read ad hoc in the supervisor (bypasses the validated settings graph, violates SC-007); mutable settings object (would allow stages to influence future routing decisions, breaking the single-writer contract).
+
+---
+
+## Component 006 — Triage Agent
+
+### TD3 — Two asymmetric confidence thresholds (`advance_min` ≤ `resolve_min`)
+
+**Decision**: `decide_outcome` uses two config-backed thresholds: `advance_min_confidence=0.6` (floor to advance to enrichment) and `resolve_min_confidence=0.7` (higher bar to auto-close). A `model_validator` in `TriageSettings` enforces `advance_min ≤ resolve_min` at boot; misconfiguration fails fast.
+
+**Rationale**: The two outcomes have asymmetric blast radius. Auto-resolving (closing) a real incident as noise silently drops a genuine threat — the highest-severity failure. Advancing a noise incident merely wastes one enrichment stage. Therefore auto-close must clear a stricter bar. One threshold would equate both risks; a per-severity matrix would be premature for v1.
+
+**Rejected**: Single threshold (ignores asymmetry); per-severity matrix (over-engineering for v1, can be added later); thresholds in the prompt (not config-backed, untestable, violates FR-004).
+
+### TD5 — DI by closure factory; worker registers LLM provider before supervisor
+
+**Decision**: `make_triage_handler(llm, cfg) -> StageHandler` returns a closure that captures the `LlmClient` and `TriageSettings` without changing the frozen `StageHandler` signature. `SupervisorProvider.build` reads `container.llm` and `settings.triage`. `worker.py` calls `register_llm_provider()` before `register_provider(SupervisorProvider())`.
+
+**Rationale**: The closure injects dependencies without widening the interface, preserving the structural no-session/no-action-client boundary (Constitution III). The worker previously had no LLM provider registered; the ordering fix is the minimal change needed. Tests substitute a fake `LlmClient` trivially.
+
+**Rejected**: Widening `StageHandler` to take extra args (breaks the frozen seam that #9/#10 also fill); building `LlmClient` inside triage (breaks singleton DI, defeats mocking); module-level singleton (untestable, not disposed on shutdown).
+
+### TD7 — Fail-closed error map: `LlmError` → `ToolError`, never crash
+
+**Decision**: Triage maps all `LlmError` kinds to typed `ToolError`: `TRANSIENT`/`EXHAUSTED` → `retryable=True`; `AUTH`/`INVALID_REQUEST`/`CONTENT_REFUSAL` → `retryable=False`; `CONTRACT_UNSATISFIED` and local Pydantic/OOV validation failure → `ToolError(retryable=False, kind="malformed_output")`. Triage never returns `RESOLVED`/`ADVANCE` on any unvalidated or errored output.
+
+**Rationale**: Satisfies FR-007 (fail-closed) and FR-008 (worker never crashes). Treating malformed output as permanent (non-retryable) keeps behavior predictable — a stochastic re-roll against the token cap is not worth the added complexity or the risk of burning retries on a broken model response.
+
+**Rejected**: Retrying malformed output (burns cap for a nondeterministic maybe); auto-resolve on provider failure (silently drops real threats — explicitly forbidden); letting exceptions propagate uncaught (supervisor catches them but typed `ToolError` gives clean disposition reasons).
+
+### TD8 — Supervisor JSONB-merges `evidence_patch` in the same guarded `advance_status` call
+
+**Decision**: Triage returns `evidence_patch={"triage": judgment.model_dump(mode="json")}` in its `StageResult`. The supervisor passes it to `repo.advance_status(..., evidence_patch=...)`, which JSONB-merges `evidence = COALESCE(evidence, '{}'::jsonb) || :patch::jsonb` in the same guarded `WHERE status = :expected` UPDATE. No new table, no extra round-trip, no migration.
+
+**Rationale**: FR-010 scopes this as "a small extension to the existing transition step." The `evidence` JSONB column already exists (#4 `0003`). The `||` merge is non-destructive (adds `evidence.triage`, leaves sibling keys untouched). The supervisor remains the single writer; triage still writes nothing. A separate `judgments` table would be premature.
+
+**Rejected**: Separate `judgments` table (premature; evidence JSONB is already the established home for stage outputs); triage writing its own slice (violates single-writer and Constitution III); stuffing the judgment into `disposition` (disposition is coarse outcome text, not a structured object).

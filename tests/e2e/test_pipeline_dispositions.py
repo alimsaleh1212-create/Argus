@@ -45,7 +45,7 @@ class FakeRepo:
             return self._incident
         return None
 
-    async def advance_status(self, incident_id, *, expected, target, disposition=None) -> bool:
+    async def advance_status(self, incident_id, *, expected, target, disposition=None, evidence_patch=None) -> bool:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
         self.advances.append({"from": expected, "to": target, "disposition": disposition})
@@ -53,10 +53,14 @@ class FakeRepo:
         return True
 
 
+async def _stub_triage(incident):
+    from backend.domain.pipeline import StageName, StageOutcome, StageResult
+    return StageResult(stage=StageName.TRIAGE, outcome=StageOutcome.ADVANCE, tokens_consumed=0)
+
+
 def _make_supervisor(stages=None):
     from backend.agents.enrichment import run_enrichment
     from backend.agents.response import run_response
-    from backend.agents.triage import run_triage
     from backend.domain.pipeline import StageName
     from backend.infra.config import SupervisorSettings
     from backend.infra.tracing import build_tracer
@@ -64,7 +68,7 @@ def _make_supervisor(stages=None):
 
     return Supervisor(
         stages=stages or {
-            StageName.TRIAGE: run_triage,
+            StageName.TRIAGE: _stub_triage,
             StageName.ENRICHMENT: run_enrichment,
             StageName.RESPONSE: run_response,
         },
