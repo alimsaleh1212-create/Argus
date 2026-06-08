@@ -1,0 +1,22 @@
+{
+  "id": "00000000-0000-0000-0000-000000000002",
+  "status": "grounded",
+  "severity": "critical",
+  "correlation_id": "corr-critical",
+  "dedup_fingerprint": "fp-critical",
+  "source": "wazuh",
+  "raw_alert": {"rule": {"level": 14}},
+  "evidence": {
+    "verdict": "critical",
+    "severity": "critical",
+    "normalized_event": {},
+    "summary": "Critical alert — obvious critical, route to response",
+    "flags": [],
+    "retrieved_context": []
+  },
+  "_expected": {
+    "first_stage": "response",
+    "triage_calls": 0,
+    "enrichment_calls": 0
+  }
+}

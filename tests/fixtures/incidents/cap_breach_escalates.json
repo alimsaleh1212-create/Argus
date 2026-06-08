@@ -1,0 +1,22 @@
+{
+  "id": "00000000-0000-0000-0000-000000000008",
+  "status": "grounded",
+  "severity": "medium",
+  "correlation_id": "corr-cap-breach",
+  "dedup_fingerprint": "fp-cap-breach",
+  "source": "wazuh",
+  "raw_alert": {"rule": {"level": 8}},
+  "evidence": {
+    "verdict": "ambiguous",
+    "severity": "medium",
+    "normalized_event": {},
+    "summary": "Incident where stages loop ADVANCE past max_steps cap",
+    "flags": ["inject_advance_loop"],
+    "retrieved_context": []
+  },
+  "_expected": {
+    "final_status": "escalated",
+    "disposition": "escalated_step_cap",
+    "worker_survives": true
+  }
+}

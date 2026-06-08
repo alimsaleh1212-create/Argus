@@ -14,7 +14,7 @@ from backend.infra.logging import get_logger
 logger = get_logger(__name__)
 
 
-async def _run(settings, queue, repo, tracer) -> None:
+async def _run(settings, queue, repo, tracer, supervisor=None) -> None:
     """Inner consume loop (extracted for testability)."""
     await queue.recover()
     logger.info("worker_started")
@@ -54,7 +54,9 @@ async def _run(settings, queue, repo, tracer) -> None:
             ne = NormalizedEvent.model_validate(ne_data) if isinstance(ne_data, dict) else ne_data
 
             await repo.set_grounded(incident_id, ne, evidence, evidence.severity)
-            await dispatch_to_pipeline(incident)
+            # Reload the incident so the supervisor sees grounded status
+            incident = await repo.get(incident_id) or incident
+            await dispatch_to_pipeline(incident, repo=repo, supervisor=supervisor)
             await queue.ack(incident_id_str)
             logger.info("worker_grounded", incident_id=incident_id_str)
 
@@ -80,6 +82,7 @@ async def _main_async() -> None:
     from backend.infra.lifespan import sentinel_lifespan
     from backend.infra.observability import ObservabilityProvider
     from backend.infra.queue import QueueProvider
+    from backend.infra.supervisor_provider import SupervisorProvider
     from backend.infra.vault import register_vault_provider
 
     settings = load_settings()
@@ -90,6 +93,7 @@ async def _main_async() -> None:
     register_provider(ObservabilityProvider())
     register_provider(CacheProvider())
     register_provider(QueueProvider())
+    register_provider(SupervisorProvider())
 
     from fastapi import FastAPI
 
@@ -101,6 +105,7 @@ async def _main_async() -> None:
         db_engine = container.db_engine
         queue = container.queue
         tracer = container.observability.tracer
+        supervisor = container.supervisor
 
         from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -109,7 +114,7 @@ async def _main_async() -> None:
             from backend.repositories.incidents import IncidentRepository
 
             repo = IncidentRepository(session)
-            await _run(settings, queue, repo, tracer)
+            await _run(settings, queue, repo, tracer, supervisor=supervisor)
 
 
 def main() -> None:

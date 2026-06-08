@@ -124,6 +124,54 @@ class IncidentRepository:
         row = result.first()
         return row[0] if row else 0
 
+    async def advance_status(
+        self,
+        incident_id: uuid.UUID,
+        *,
+        expected: IncidentStatus,
+        target: IncidentStatus,
+        disposition: str | None = None,
+    ) -> bool:
+        """Atomic guarded transition: UPDATE … WHERE status = :expected.
+
+        Returns True iff the row was updated (i.e., the guard held).
+        Returns False if another worker already moved the row.
+        """
+        now = datetime.now(UTC)
+        if disposition is not None:
+            result = await self._session.execute(
+                sa.text(
+                    "UPDATE incidents "
+                    "SET status = :target, disposition = :disposition, updated_at = :now "
+                    "WHERE id = :id AND status = :expected "
+                    "RETURNING id"
+                ),
+                {
+                    "id": str(incident_id),
+                    "target": target.value,
+                    "disposition": disposition,
+                    "expected": expected.value,
+                    "now": now,
+                },
+            )
+        else:
+            result = await self._session.execute(
+                sa.text(
+                    "UPDATE incidents "
+                    "SET status = :target, updated_at = :now "
+                    "WHERE id = :id AND status = :expected "
+                    "RETURNING id"
+                ),
+                {
+                    "id": str(incident_id),
+                    "target": target.value,
+                    "expected": expected.value,
+                    "now": now,
+                },
+            )
+        await self._session.commit()
+        return result.first() is not None
+
     async def mark_failed(self, incident_id: uuid.UUID, reason: str = "") -> None:
         now = datetime.now(UTC)
         await self._session.execute(
@@ -163,6 +211,7 @@ def _row_to_incident(row: Any) -> Incident:
         raw_alert=row["raw_alert"] if row["raw_alert"] is not None else {},
         normalized_event=row["normalized_event"],
         evidence=row["evidence"],
+        disposition=row.get("disposition"),
         attempts=row["attempts"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
