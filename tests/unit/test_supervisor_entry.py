@@ -57,6 +57,7 @@ class FakeRepo:
         expected: IncidentStatus,
         target: IncidentStatus,
         disposition: str | None = None,
+        evidence_patch: dict | None = None,
     ) -> bool:
         self.advance_calls += 1
         if self._guard_fails:

@@ -51,6 +51,7 @@ class FakeRepo:
         expected: IncidentStatus,
         target: IncidentStatus,
         disposition: str | None = None,
+        evidence_patch: dict | None = None,
     ) -> bool:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False

@@ -1,0 +1,22 @@
+{
+  "gold_label": "real",
+  "incident_id": "fix-real-001",
+  "description": "SSH brute-force with successful auth from unusual country",
+  "evidence": {
+    "verdict": "suspicious",
+    "severity": "high",
+    "normalized_event": {
+      "rule_id": "5763",
+      "rule_description": "SSH brute force attack then success",
+      "src_ip": "198.51.100.42",
+      "dest_ip": "10.0.1.5",
+      "user": "root",
+      "country": "Unknown",
+      "event_count": 847,
+      "time_window_s": 120,
+      "action": "login_success"
+    },
+    "summary": "847 failed SSH login attempts in 2 minutes followed by a successful root login from IP 198.51.100.42 (country: Unknown). No prior activity from this IP in the last 30 days.",
+    "retrieved_context": null
+  }
+}

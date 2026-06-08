@@ -1,0 +1,21 @@
+{
+  "gold_label": "noise",
+  "incident_id": "fix-noise-003",
+  "description": "Developer running a local port scan tool during authorised pentest window",
+  "evidence": {
+    "verdict": "suspicious",
+    "severity": "medium",
+    "normalized_event": {
+      "rule_id": "40101",
+      "rule_description": "Port scan detected",
+      "src_ip": "10.0.5.22",
+      "src_hostname": "dev-laptop-alice",
+      "dest_ip": "10.0.5.0/24",
+      "tool": "nmap",
+      "scan_args": "-sV -p 80,443,8080",
+      "user": "alice"
+    },
+    "summary": "Developer workstation dev-laptop-alice ran nmap against the dev subnet (10.0.5.0/24) targeting web ports only. This occurred during the approved pentest window (2026-06-08 09:00-17:00 UTC) authorised by change ticket CHG-4421. Activity is consistent with approved security testing.",
+    "retrieved_context": null
+  }
+}

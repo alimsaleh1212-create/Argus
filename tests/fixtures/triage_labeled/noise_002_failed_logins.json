@@ -1,0 +1,21 @@
+{
+  "gold_label": "noise",
+  "incident_id": "fix-noise-002",
+  "description": "Repeated failed logins from a misconfigured service account — known issue",
+  "evidence": {
+    "verdict": "suspicious",
+    "severity": "medium",
+    "normalized_event": {
+      "rule_id": "5710",
+      "rule_description": "Multiple authentication failures",
+      "user": "svc_legacy_etl",
+      "src_ip": "10.0.3.50",
+      "host": "db-primary-01",
+      "failure_count": 42,
+      "time_window_s": 300,
+      "error_code": "invalid_password"
+    },
+    "summary": "Service account svc_legacy_etl generated 42 authentication failures in 5 minutes against db-primary-01. This account is flagged in the known-issues tracker as using a stale password. No successful logins. Ticket ETL-2024-0311 is open for credential rotation.",
+    "retrieved_context": null
+  }
+}

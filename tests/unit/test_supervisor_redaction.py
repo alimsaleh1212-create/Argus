@@ -47,7 +47,7 @@ class RecordingRepo:
             return self._incident
         return None
 
-    async def advance_status(self, incident_id, *, expected, target, disposition=None) -> bool:
+    async def advance_status(self, incident_id, *, expected, target, disposition=None, evidence_patch=None) -> bool:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
         self.advances.append({"from": expected, "to": target, "disposition": disposition})

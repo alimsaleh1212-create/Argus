@@ -131,44 +131,40 @@ class IncidentRepository:
         expected: IncidentStatus,
         target: IncidentStatus,
         disposition: str | None = None,
+        evidence_patch: dict[str, Any] | None = None,
     ) -> bool:
         """Atomic guarded transition: UPDATE … WHERE status = :expected.
 
         Returns True iff the row was updated (i.e., the guard held).
         Returns False if another worker already moved the row.
+        When evidence_patch is provided it is JSONB-merged in the same guarded UPDATE.
         """
+        import json
+
         now = datetime.now(UTC)
+        params: dict[str, Any] = {
+            "id": str(incident_id),
+            "target": target.value,
+            "expected": expected.value,
+            "now": now,
+        }
+
+        set_clauses = ["status = :target", "updated_at = :now"]
         if disposition is not None:
-            result = await self._session.execute(
-                sa.text(
-                    "UPDATE incidents "
-                    "SET status = :target, disposition = :disposition, updated_at = :now "
-                    "WHERE id = :id AND status = :expected "
-                    "RETURNING id"
-                ),
-                {
-                    "id": str(incident_id),
-                    "target": target.value,
-                    "disposition": disposition,
-                    "expected": expected.value,
-                    "now": now,
-                },
+            set_clauses.append("disposition = :disposition")
+            params["disposition"] = disposition
+        if evidence_patch is not None:
+            set_clauses.append(
+                "evidence = COALESCE(evidence, '{}'::jsonb) || :evidence_patch::jsonb"
             )
-        else:
-            result = await self._session.execute(
-                sa.text(
-                    "UPDATE incidents "
-                    "SET status = :target, updated_at = :now "
-                    "WHERE id = :id AND status = :expected "
-                    "RETURNING id"
-                ),
-                {
-                    "id": str(incident_id),
-                    "target": target.value,
-                    "expected": expected.value,
-                    "now": now,
-                },
-            )
+            params["evidence_patch"] = json.dumps(evidence_patch)
+
+        sql = (
+            f"UPDATE incidents SET {', '.join(set_clauses)} "
+            "WHERE id = :id AND status = :expected "
+            "RETURNING id"
+        )
+        result = await self._session.execute(sa.text(sql), params)
         await self._session.commit()
         return result.first() is not None
 
