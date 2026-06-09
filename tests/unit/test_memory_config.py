@@ -18,7 +18,8 @@ def test_memory_settings_defaults() -> None:
     assert s.neo4j_vault_path == "secret/memory"
     assert s.retrieval_k == 5
     assert s.retrieval_timeout_s == 5.0
-    assert s.embedding_model == "text-embedding-004"
+    assert s.gemini_embedding_model == "text-embedding-004"
+    assert s.embedder_provider == "gemini"
 
 
 def test_memory_settings_extra_forbid() -> None:

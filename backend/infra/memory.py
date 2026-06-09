@@ -287,7 +287,7 @@ class MemoryProvider:
 
         graphiti = None
         try:
-            # Resolve Neo4j and Gemini credentials from Vault (required-path at boot)
+            # Resolve Neo4j credentials from Vault
             from backend.infra.vault import VaultClient
 
             vault = VaultClient(settings.vault)
@@ -296,16 +296,52 @@ class MemoryProvider:
             neo4j_password = creds.get("password", "")
             neo4j_uri = creds.get("uri", mem_settings.neo4j_uri)
 
-            llm_key_secret = await vault.get_secret(settings.llm.gemini_vault_path)
-            gemini_key = llm_key_secret.get("api_key", "")
+            # Build embedder — chosen once at deploy time via embedder_provider setting.
+            # WARNING: do not change embedder_provider after data has been written;
+            # vectors from different models are not compatible and would corrupt search.
+            if mem_settings.embedder_provider == "ollama":
+                from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
 
-            llm_client = GeminiClient(config=LLMConfig(api_key=gemini_key))
-            embedder = GeminiEmbedder(
-                config=GeminiEmbedderConfig(
-                    api_key=gemini_key,
-                    embedding_model=mem_settings.embedding_model,
+                embedder = OpenAIEmbedder(
+                    config=OpenAIEmbedderConfig(
+                        api_key="ollama",  # Ollama ignores the key but the field is required
+                        base_url=f"{mem_settings.ollama_embedder_base_url}/v1",
+                        embedding_model=mem_settings.ollama_embedder_model,
+                        embedding_dim=mem_settings.ollama_embedder_dim,
+                    )
                 )
-            )
+                # Ollama also provides an OpenAI-compatible chat endpoint for the Graphiti LLM
+                from graphiti_core.llm_client.config import LLMConfig as GenericLLMConfig
+                from graphiti_core.llm_client.openai_generic_client import OpenAIGenericClient
+
+                llm_client = OpenAIGenericClient(
+                    config=GenericLLMConfig(
+                        api_key="ollama",
+                        base_url=f"{mem_settings.ollama_embedder_base_url}/v1",
+                        model=settings.llm.ollama_model,
+                    )
+                )
+                logger.info(
+                    "memory_embedder_ollama",
+                    model=mem_settings.ollama_embedder_model,
+                    base_url=mem_settings.ollama_embedder_base_url,
+                )
+            else:
+                # Default: Gemini — shares the api_key already in Vault at secret/llm
+                llm_key_secret = await vault.get_secret(settings.llm.gemini_vault_path)
+                gemini_key = llm_key_secret.get("api_key", "")
+                llm_client = GeminiClient(config=LLMConfig(api_key=gemini_key))
+                embedder = GeminiEmbedder(
+                    config=GeminiEmbedderConfig(
+                        api_key=gemini_key,
+                        embedding_model=mem_settings.gemini_embedding_model,
+                    )
+                )
+                logger.info(
+                    "memory_embedder_gemini",
+                    model=mem_settings.gemini_embedding_model,
+                )
+
             graphiti = Graphiti(
                 uri=neo4j_uri,
                 user=neo4j_user,

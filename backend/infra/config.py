@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Annotated
-
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -209,7 +207,16 @@ class MemorySettings(BaseSettings):
     neo4j_vault_path: str = "secret/memory"
     retrieval_k: Annotated[int, Field(gt=0)] = 5
     retrieval_timeout_s: Annotated[float, Field(gt=0)] = 5.0
-    embedding_model: str = "text-embedding-004"
+
+    # Embedder — chosen once at deploy time; do NOT change after data is written
+    # (vectors from different models are incompatible; switching mid-stream corrupts search).
+    embedder_provider: Literal["gemini", "ollama"] = "gemini"
+    # Gemini embedder (embedder_provider="gemini")
+    gemini_embedding_model: str = "text-embedding-004"
+    # Ollama embedder (embedder_provider="ollama") — uses OpenAI-compatible /v1/embeddings
+    ollama_embedder_base_url: str = "http://ollama:11434"
+    ollama_embedder_model: str = "nomic-embed-text"
+    ollama_embedder_dim: Annotated[int, Field(gt=0)] = 768
 
 
 class Settings(BaseSettings):
