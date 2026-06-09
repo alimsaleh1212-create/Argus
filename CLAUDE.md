@@ -2,34 +2,40 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
-**Active component**: `008-knowledge-corpus` (Component #5 — seeded reference corpus + optional on-demand
-intel; depends on #1, #6; **unblocks enrichment #9**). Realizes Constitution VI's "seeded corpus makes the
-agent competent on the first incident."
-- Plan: `specs/008-knowledge-corpus/plan.md`
-- Spec: `specs/008-knowledge-corpus/spec.md`
-- Design: `specs/008-knowledge-corpus/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
+**Active component**: `009-enrichment-agent` (Component #9 — retrieval-only cross-correlation stage;
+depends on #5, #6, #3 — all done; **unblocks response #10 + dashboard #12 evidence**). Realizes the brief's
+"assemble both directions and correlate" deliverable.
+- Plan: `specs/009-enrichment-agent/plan.md`
+- Spec: `specs/009-enrichment-agent/spec.md`
+- Design: `specs/009-enrichment-agent/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
-Stack (this component): gives the empty #6 store **knowledge to reason over**, kept deliberately small.
-**Two stores, each for what it fits, no new service, no LLM in the retrieval path (CD1):** static
-reference docs (MITRE technique→mitigation + runbooks) → **new Postgres `reference_corpus` table**
-(`0006`, deterministic **keyed/lexical** retrieval, embeddings reserved-not-built); temporal reputation
-(seed IOC set + on-demand intel verdicts) → **`TemporalFact`s in #6** via one minimal **anticipated**
-`MemoryStore.write_fact` addition (CD2; intel is a *fact*, not an `IncidentEpisode` — keeps `search_similar`
-clean), read via existing `query_fact(as_of=…)` → invalidate-not-delete supersession. New pure types
-`domain/corpus.py` (`ReferenceCorpusEntry`/`ReferenceHit`/`ReferenceQuery`/`IntelVerdict` + `CorpusRetriever`
-Protocol, consumed by #9). **On-demand intel** (`infra/intel.py`, `ThreatIntelClient`) is **optional /
-config-gated / fail-closed / off-path**: single source, `httpx`, Redis-cached (negative caching), missing
-creds → **disabled not fail-boot**, outage/timeout → `unknown` (CD3). **Untrusted-input boundary** —
-redact (`Boundary.MEMORY_WRITE`) + the reserved `Guardrail` seam (#11) **before any write**; the seam
-**no-ops gracefully until #11 lands** so #5 isn't blocked (CD5). **Idempotent one-shot** `seed-corpus`
-(`python -m backend.seed_corpus`, mirrors `migrate`) loads `backend/data/corpus/*.json` after migrate +
-neo4j healthy (CD4). New `CorpusSettings`/`IntelSettings` (`extra="forbid"`; intel key Vault path
-**optional**). **No new external LLM path** (unlike #6). Eval: extends the existing **`retrieval`**
-gate with a corpus fixture set (cold-start, provider-independent) — **no new gate** (CD7). Milestones
-**(a) seed→retrieve → (b) intel→temporal-fact** (commit at each). Enrichment/dashboard wiring is #9/#12;
-live/streaming feeds are roadmap §v2/v3, out of v1.
+Stack (this component): replaces the `run_enrichment` ADVANCE stub with the **second LLM stage**, mirroring
+triage — a **bounded retrieval fan-out (`asyncio.gather`) + exactly one** structured `LlmClient` call (ED1).
+Reads **both directions** via existing contracts: external = `CorpusRetriever.search_reference` (#5) +
+optional `ThreatIntelClient.lookup`→`IntelVerdict` (#5); internal = `MemoryStore.search_similar` (priors) +
+`query_fact(as_of=…)` time-valid facts (#6, the temporal differentiator). One call **cross-correlates** →
+validated `EnrichmentReport` (`domain/enrichment.py`: `assessment` confirmed/benign/inconclusive + confidence
++ `correlation_summary` + external/internal findings + cited evidence) → pure `decide_outcome` → ADVANCE
+(→response, primary) / RESOLVED (exonerated) / ESCALATE (conflict/low-confidence) (ED3). **Closure-factory
+DI** `make_enrichment_handler(llm, corpus, memory, intel, cfg)` (retrievers may be `None` → best-effort)
+preserves the frozen `StageHandler`; **retrieval-only, no action tools, no incident-state write** (calls only
+memory READ methods; ED5). **Best-effort retrieval** — backend down/empty, intel disabled/`unknown`/timeout →
+partial context, never blocks (FR-008); **fail-closed** reasoning → ESCALATE. Reads already-redacted evidence
++ retrieved text → **no in-stage redactor**. **Zero change to `services/supervisor.py`/`repositories/`/
+schema** — #7 already wired the `ENRICHING` transitions + `evidence_patch` merge (ED6); only wiring: register
+worker-absent `CorpusProvider`/`IntelProvider` + order memory/corpus/intel before `SupervisorProvider`. New
+`EnrichmentSettings` (`extra="forbid"`). Eval: extends the existing **`retrieval`** gate with an enrichment
+fixture set — **no new gate** (ED7); correlation LLM-judge deferred to #13. Live feeds roadmap §v2/v3.
 
-Prior components (done): `007-incident-memory` — **temporal incident-memory layer** (Constitution VI):
+Prior components (done): `008-knowledge-corpus` — **seeded reference corpus + optional on-demand intel**
+(Constitution VI cold-start): static MITRE technique→mitigation + runbooks → Postgres `reference_corpus`
+(`0006`, deterministic keyed/lexical, embeddings reserved); temporal reputation (seed IOC + intel verdicts) →
+`TemporalFact`s in #6 via the anticipated `MemoryStore.write_fact` (intel is a *fact*, not an episode — keeps
+`search_similar` clean). Pure `domain/corpus.py` (`CorpusRetriever` Protocol, consumed by #9);
+`infra/intel.py` `ThreatIntelClient` optional/config-gated/fail-closed (missing creds → disabled not
+fail-boot; outage → `unknown`). Idempotent one-shot `seed-corpus`. Extends the **`retrieval`** gate with
+corpus fixtures — no new gate. Plan: `specs/008-knowledge-corpus/plan.md`.
+`007-incident-memory` — **temporal incident-memory layer** (Constitution VI):
 **Graphiti on Neo4j 5.26** behind the `MemoryStore` Protocol (`domain/memory.py`:
 `write_episode`/`search_similar`/`query_fact`), decided pgvector fallback (MD9). The **worker** writes one
 redacted, idempotent `IncidentEpisode` per incident after terminal — off-path, best-effort (memory outage

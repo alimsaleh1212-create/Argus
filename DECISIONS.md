@@ -665,3 +665,98 @@ only carry user secrets); YAML anchors (saves ~10 lines but at readability cost)
 **Rationale**: Constitution VI mandates the fallback be decided at the spike. Specifying it now (Protocol drop-in) without building dead code is the disciplined middle ground.
 
 **Rejected**: Build both stores in v1 (dead code); leave fallback undecided (violates VI).
+
+---
+
+## SPEC-enrichment-agent #9
+
+### ED1 — One LLM call per incident; bounded concurrent retrieval fan-out
+
+**Decision**: Exactly one `LlmClient.generate` call per enriched incident. All retrieval runs
+concurrently via `asyncio.gather` (`CorpusRetriever.search_reference` + `MemoryStore.search_similar`
++ per-entity `query_fact` + `ThreatIntelClient.lookup`), each individually guarded so backend failures
+degrade to empty context rather than blocking the call.
+
+**Why**: Cost bound (SC-006) + supervisor token cap; a second call would double cost with minimal
+additional signal — the assembled context is already richer than any single stage.
+
+**Rejected**: Multiple LLM calls (agentic loop) — violates Principle IV determinism-first;
+sequential retrieval — no async advantage; single retrieval source — misses the cross-correlation deliverable.
+
+### ED2 — Closure-factory DI; `make_enrichment_handler(llm, corpus, memory, intel, cfg) → StageHandler`
+
+**Decision**: Same closure-factory pattern as triage (#6). The frozen `StageHandler` signature
+(`Incident → StageResult`) is preserved; dependencies are closed over, not imported inside the handler.
+`corpus`/`memory`/`intel` may be `None` (best-effort: None → skip that source).
+
+**Why**: Enforces the no-DB-session/no-action-client structural boundary (Principle III) at the type level.
+Every dependency is mockable in tests without monkeypatching.
+
+**Rejected**: Direct infra imports inside the handler (violates layering + makes mocking impossible);
+a class-based handler (more boilerplate, same semantics).
+
+### ED3 — Three outcomes reuse #7's existing `ENRICHING` edges; no new transition table
+
+**Decision**: `decide_outcome` returns one of `{ADVANCE, RESOLVED, ESCALATE}` — the same
+`StageOutcome` values #7 already maps to `responding / resolved / escalated` via its `ENRICHING`
+transition table and disposition constants (`auto_resolved_enrichment`, `escalated_enrichment`).
+
+**Why**: Zero change to `services/supervisor.py` or `repositories/` (the biggest simplicity win
+of this component). The three edges were pre-wired precisely to allow this.
+
+**Rejected**: A new outcome kind; adding a fourth outcome (e.g. NEEDS_ESCALATION); extending the
+supervisor for enrichment-specific routing.
+
+### ED4 — Deterministic entity/query extraction; guarded concurrent fan-out
+
+**Decision**: `build_reference_query` and `extract_entities` are pure functions over the already-redacted
+`normalized_event` dict. They never call the LLM. `extract_entities` is capped at `max_indicators`
+and de-duplicates by `(kind, value)`. Each retrieval coroutine is individually guarded with `_safe`
+so a single backend failure never poisons the entire fan-out.
+
+**Why**: Deterministic extraction is independently testable (unit tier, no mocks for LLM) and
+keeps the retrieval gate provider-independent. Individual guards preserve the best-effort contract
+even when a subset of backends are down.
+
+**Rejected**: LLM-driven entity extraction (nondeterministic, adds a second call); bulk-gather
+without per-source guards (a single timeout kills all retrieval).
+
+### ED5 — Read-only memory; no in-stage redactor
+
+**Decision**: Enrichment calls only `MemoryStore.search_similar` and `MemoryStore.query_fact`
+(read methods). It never calls `write_episode` or `write_fact`. No redactor is instantiated in
+the stage because evidence arrives already redacted (by the worker before dispatch_to_pipeline).
+
+**Why**: Single-writer principle (Principle IV / supervisor owns all writes). The in-stage redactor
+of triage was only needed because triage is the first stage to see raw-ish evidence; by enrichment,
+the evidence is redacted. Adding a redundant redactor would be defensive noise.
+
+**Rejected**: Writing enrichment-derived facts in-stage (violates single-writer); calling
+`write_episode` on partial evidence (corrupts the memory store with unapproved data).
+
+### ED6 — Worker DI ordering: memory/corpus/intel registered BEFORE SupervisorProvider
+
+**Decision**: `worker.py` registers `MemoryProvider`, `CorpusProvider`, `IntelProvider` in order
+before `SupervisorProvider`. `SupervisorProvider.build` reads `container.corpus`/`container.intel`/
+`container.memory` at build time to close over the enrichment handler.
+
+**Why**: The container is populated by providers in registration order. If `SupervisorProvider`
+built first, `corpus`/`intel` would be absent from the container and the handler would fall back
+to `None` (best-effort but unintentional).
+
+**Rejected**: Lazy resolution at call time (would require the handler to hold a reference to the
+container, coupling agent code to infra); separate enrichment provider (over-engineering for DI).
+
+### ED7 — Eval: extend the existing `retrieval` gate; no new gate
+
+**Decision**: The enrichment fixture set (`tests/fixtures/enrichment/cases.json`) is added under
+the existing `gates.retrieval.enrichment_fixtures` block in `config/eval_thresholds.yaml`.
+The gate scores deterministic retrieval assembly (`build_reference_query` + `extract_entities`
++ retriever calls, not the LLM call) with `min_hit_at_k: 0.80 k: 5`. No new gate name.
+
+**Why**: The retrieval surface is deterministic (keyed/lexical corpus + keyword-overlap memory),
+exactly like #6's and #8's fixtures — same gate type, same fast CI gate. A new gate would fragment
+CI without adding signal. Correlation quality (LLM-judge) is deferred to the SPEC-eval (#13) harness.
+
+**Rejected**: New `enrichment_correlation` gate (premature; #13 owns LLM-judge gates);
+skipping eval entirely (violates Constitution II eval-gated requirement).
