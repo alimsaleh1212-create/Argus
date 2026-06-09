@@ -133,6 +133,11 @@ gates:
       queries_file: queries.json
       min_hit_at_k: 1.0
       k: 5
+    enrichment_fixtures:
+      fixture_dir: tests/fixtures/enrichment
+      cases_file: cases.json
+      min_hit_at_k: 0.80
+      k: 5
 
   temporal_memory:
     description: >

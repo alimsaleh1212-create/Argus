@@ -22,7 +22,7 @@ _KNOWN_SENTINEL_SECTIONS = frozenset(
     {
         "app", "vault", "postgres", "minio", "startup", "observability",
         "llm", "redis", "ingest", "supervisor", "triage", "memory",
-        "corpus", "intel",
+        "corpus", "intel", "enrichment",
     }
 )
 _SENTINEL_PREFIX = "SENTINEL__"
@@ -199,6 +199,29 @@ class TriageSettings(BaseSettings):
         return self
 
 
+class EnrichmentSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
+
+    advance_min_confidence: Annotated[float, Field(ge=0.0, le=1.0)] = 0.6
+    resolve_min_confidence: Annotated[float, Field(ge=0.0, le=1.0)] = 0.7
+    corpus_k: Annotated[int, Field(gt=0)] = 5
+    memory_k: Annotated[int, Field(gt=0)] = 5
+    consult_intel: bool = True
+    max_indicators: Annotated[int, Field(gt=0)] = 5
+    max_output_tokens: Annotated[int, Field(gt=0)] = 768
+    temperature: Annotated[float, Field(ge=0.0)] = 0.0
+    prompt_version: str = "v1"
+
+    @model_validator(mode="after")
+    def _advance_le_resolve(self) -> EnrichmentSettings:
+        if self.advance_min_confidence > self.resolve_min_confidence:
+            raise ValueError(
+                f"advance_min_confidence ({self.advance_min_confidence}) must be "
+                f"<= resolve_min_confidence ({self.resolve_min_confidence})"
+            )
+        return self
+
+
 class CorpusSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="forbid")
 
@@ -265,6 +288,7 @@ class Settings(BaseSettings):
     ingest: IngestSettings = Field(default_factory=IngestSettings)
     supervisor: SupervisorSettings = Field(default_factory=SupervisorSettings)
     triage: TriageSettings = Field(default_factory=TriageSettings)
+    enrichment: EnrichmentSettings = Field(default_factory=EnrichmentSettings)
     memory: MemorySettings = Field(default_factory=MemorySettings)
     corpus: CorpusSettings = Field(default_factory=CorpusSettings)
     intel: IntelSettings = Field(default_factory=IntelSettings)

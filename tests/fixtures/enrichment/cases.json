@@ -1,0 +1,93 @@
+[
+  {
+    "id": "enr-001",
+    "description": "Brute-force login — corpus T1110 + runbook should be found; prior incident with same host",
+    "incident": {
+      "verdict": "suspicious",
+      "severity": "high",
+      "normalized_event": {
+        "rule_id": "5551",
+        "rule_description": "Multiple authentication failures from single IP",
+        "rule_groups": ["authentication", "T1110"],
+        "agent_name": "auth-server-01",
+        "agent_ip": "10.0.0.20",
+        "fields": {
+          "srcip": "198.51.100.45",
+          "user": "admin"
+        }
+      },
+      "summary": "Multiple failed login attempts from 198.51.100.45 targeting admin on auth-server-01",
+      "triage": {"verdict": "real", "confidence": 0.88}
+    },
+    "expected_corpus_keys": ["T1110", "rb-brute-force"],
+    "expected_prior_ids": ["prior-brute-01"]
+  },
+  {
+    "id": "enr-002",
+    "description": "Phishing attachment — corpus T1566 should be found; prior phishing incident on same host",
+    "incident": {
+      "verdict": "suspicious",
+      "severity": "high",
+      "normalized_event": {
+        "rule_id": "60100",
+        "rule_description": "Suspicious email attachment opened T1566",
+        "rule_groups": ["phishing", "T1566", "initial_access"],
+        "agent_name": "workstation-07",
+        "agent_ip": "10.0.1.7",
+        "fields": {
+          "md5": "5d41402abc4b2a76b9719d911017c592",
+          "user": "jdoe"
+        }
+      },
+      "summary": "User jdoe opened a suspicious attachment on workstation-07",
+      "triage": {"verdict": "real", "confidence": 0.91}
+    },
+    "expected_corpus_keys": ["T1566", "rb-phishing-response"],
+    "expected_prior_ids": ["prior-phishing-01"]
+  },
+  {
+    "id": "enr-003",
+    "description": "Command execution — corpus T1059 should be found; no prior incident (cold start case)",
+    "incident": {
+      "verdict": "suspicious",
+      "severity": "medium",
+      "normalized_event": {
+        "rule_id": "100200",
+        "rule_description": "Suspicious script execution T1059.001",
+        "rule_groups": ["execution", "T1059.001"],
+        "agent_name": "webserver-03",
+        "agent_ip": "10.0.2.3",
+        "fields": {
+          "user": "www-data"
+        }
+      },
+      "summary": "PowerShell execution detected on webserver-03 as www-data",
+      "triage": {"verdict": "real", "confidence": 0.80}
+    },
+    "expected_corpus_keys": ["T1059"],
+    "expected_prior_ids": []
+  },
+  {
+    "id": "enr-004",
+    "description": "Valid account abuse — corpus T1078; prior incident on same source IP",
+    "incident": {
+      "verdict": "suspicious",
+      "severity": "critical",
+      "normalized_event": {
+        "rule_id": "40101",
+        "rule_description": "Anomalous login from new location T1078",
+        "rule_groups": ["defense_evasion", "T1078"],
+        "agent_name": "vpn-gateway",
+        "agent_ip": "10.0.3.1",
+        "fields": {
+          "srcip": "203.0.113.99",
+          "user": "bob.smith"
+        }
+      },
+      "summary": "bob.smith logged in from unexpected IP 203.0.113.99 via VPN",
+      "triage": {"verdict": "real", "confidence": 0.94}
+    },
+    "expected_corpus_keys": ["T1078"],
+    "expected_prior_ids": ["prior-valid-account-01"]
+  }
+]

@@ -270,6 +270,110 @@ async def test_corpus_retrieval_gate() -> None:
     )
 
 
+# ── Enrichment retrieval gate (SPEC-enrichment-agent #9) ─────────────────────
+
+ENRICHMENT_FIXTURES = Path(__file__).parent.parent / "fixtures" / "enrichment"
+
+
+def _load_enrichment_config() -> dict[str, Any]:
+    with open(CONFIG) as f:
+        gate = yaml.safe_load(f)["gates"]["retrieval"]
+        return gate.get("enrichment_fixtures", {})
+
+
+def _load_enrichment_cases() -> list[dict]:
+    with open(ENRICHMENT_FIXTURES / "cases.json") as f:
+        return json.load(f)
+
+
+@pytest.mark.asyncio
+async def test_enrichment_retrieval_gate() -> None:
+    """Enrichment retrieval gate: corpus + memory directions scored against fixture labels."""
+    from backend.agents.enrichment import build_reference_query, extract_entities
+    from backend.domain.corpus import ReferenceQuery
+
+    cfg = _load_enrichment_config()
+    k = cfg.get("k", 5)
+    min_hit = cfg.get("min_hit_at_k", 0.80)
+
+    cases = _load_enrichment_cases()
+    entries = _seed_in_memory_corpus()
+    corpus_store = _InMemoryCorpusStore(entries)
+
+    # Seed memory store with minimal priors keyed from fixture expected_prior_ids
+    # (summary text chosen so keyword overlap finds them via extract_entities entities).
+    mem_store = _InMemoryStore()
+    _prior_seed = [
+        IncidentEpisode(
+            incident_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            observed_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            summary="Multiple authentication failures brute force admin auth-server-01 T1110",
+            verdict="real",
+            severity=Severity.HIGH,
+            disposition="escalated",
+        ),
+        IncidentEpisode(
+            incident_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+            observed_at=datetime(2025, 2, 1, tzinfo=timezone.utc),
+            summary="Phishing email attachment opened jdoe workstation-07 T1566",
+            verdict="real",
+            severity=Severity.HIGH,
+            disposition="escalated",
+        ),
+        IncidentEpisode(
+            incident_id=uuid.UUID("00000000-0000-0000-0000-000000000004"),
+            observed_at=datetime(2025, 3, 1, tzinfo=timezone.utc),
+            summary="Anomalous login valid account bob.smith vpn-gateway T1078 203.0.113.99",
+            verdict="real",
+            severity=Severity.CRITICAL,
+            disposition="escalated",
+        ),
+    ]
+    _prior_id_map = {
+        "prior-brute-01": uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        "prior-phishing-01": uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        "prior-valid-account-01": uuid.UUID("00000000-0000-0000-0000-000000000004"),
+    }
+    for ep in _prior_seed:
+        await mem_store.write_episode(ep)
+
+    hits_list: list[bool] = []
+
+    for case in cases:
+        inc_evidence = case["incident"]
+        expected_corpus_keys: list[str] = case.get("expected_corpus_keys", [])
+        expected_prior_label_ids: list[str] = case.get("expected_prior_ids", [])
+        expected_prior_uuids = [
+            _prior_id_map[pid] for pid in expected_prior_label_ids if pid in _prior_id_map
+        ]
+
+        # Corpus direction
+        if expected_corpus_keys:
+            query = build_reference_query(inc_evidence)
+            corpus_results = await corpus_store.search_reference(query, k=k)
+            if corpus_results:
+                result_keys = {h.entry.key for h in corpus_results}
+                hit = any(ek in result_keys for ek in expected_corpus_keys)
+                hits_list.append(hit)
+
+        # Memory direction
+        if expected_prior_uuids:
+            summary = inc_evidence.get("summary", "")
+            entities = extract_entities(inc_evidence)
+            eq = EpisodeQuery(text=summary, entities=entities)
+            mem_results = await mem_store.search_similar(eq, k=k)
+            if mem_results:
+                found_ids = {h.incident_id for h in mem_results}
+                hit = any(pid in found_ids for pid in expected_prior_uuids)
+                hits_list.append(hit)
+
+    assert hits_list, "No enrichment fixture cases produced retrieval results — check fixtures"
+    hit_rate = sum(hits_list) / len(hits_list)
+    assert hit_rate >= min_hit, (
+        f"enrichment retrieval hit@{k} = {hit_rate:.2f} < threshold {min_hit:.2f}"
+    )
+
+
 @pytest.mark.asyncio
 async def test_corpus_retrieval_unseeded_returns_empty() -> None:
     """An empty (unseeded) store returns [] for any query (demonstrating seed value)."""

@@ -118,7 +118,9 @@ async def _main_async() -> None:
     from backend.infra.cache import CacheProvider
     from backend.infra.config import load_settings
     from backend.infra.container import clear_registry, register_provider
+    from backend.infra.corpus import CorpusProvider
     from backend.infra.db import register_db_provider
+    from backend.infra.intel import IntelProvider
     from backend.infra.lifespan import sentinel_lifespan
     from backend.infra.llm import register_llm_provider
     from backend.infra.memory import MemoryProvider
@@ -136,8 +138,12 @@ async def _main_async() -> None:
     register_provider(CacheProvider())
     register_provider(QueueProvider())
     register_llm_provider()  # must be before SupervisorProvider so container.llm exists
-    register_provider(SupervisorProvider())
+    # memory/corpus/intel must be registered before SupervisorProvider so the
+    # enrichment handler closure can read them from the container at build time
     register_provider(MemoryProvider())
+    register_provider(CorpusProvider())
+    register_provider(IntelProvider())
+    register_provider(SupervisorProvider())
 
     from fastapi import FastAPI
 
