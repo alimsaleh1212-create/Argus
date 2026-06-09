@@ -115,17 +115,24 @@ gates:
 
   retrieval:
     description: >
-      Similar-incident retrieval gate (SPEC-memory #6). Pre-seeds the memory store with a labeled set
-      of prior incidents (tests/fixtures/memory_retrieval/priors.json), then issues each held-out
-      "new" incident query (queries.json) and checks that its labeled prior surfaces within top-k.
-      Scores hit@k and MRR. Store-logic gate — provider-independent (embedder pinned to
-      text-embedding-004). Cold-start (empty store) queries return [] and are excluded from scoring,
-      not counted as misses. Full harness owned by SPEC-eval (#13).
+      Similar-incident retrieval gate (SPEC-memory #6) extended with corpus fixtures
+      (SPEC-knowledge-corpus #8). Pre-seeds the memory store with labeled prior incidents
+      (tests/fixtures/memory_retrieval/priors.json), issues held-out queries and checks
+      labeled priors surface within top-k. Also scores a corpus fixture set
+      (tests/fixtures/corpus_retrieval/queries.json) for cold-start competence:
+      technique-keyed and tag/lexical queries against a freshly seeded reference_corpus.
+      Store-logic gate — provider-independent (deterministic keyed/lexical retrieval, no LLM).
+      Cold-start queries returning [] are excluded from scoring. Full harness owned by SPEC-eval (#13).
     required: true
     threshold:
       min_hit_at_k: 0.80
       k: 5
       min_mrr: 0.60
+    corpus_fixtures:
+      fixture_dir: tests/fixtures/corpus_retrieval
+      queries_file: queries.json
+      min_hit_at_k: 1.0
+      k: 5
 
   temporal_memory:
     description: >

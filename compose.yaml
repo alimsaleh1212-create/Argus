@@ -103,7 +103,8 @@ services:
         vault kv put secret/minio access_key=minioadmin secret_key=minioadmin &&
         vault kv put secret/llm api_key=$${GEMINI_API_KEY:-placeholder} &&
         vault kv put secret/ingest token=$${INGEST_WEBHOOK_TOKEN:-dev-webhook-token} &&
-        vault kv put secret/memory username=neo4j password=dev-neo4j-password uri=bolt://neo4j:7687
+        vault kv put secret/memory username=neo4j password=dev-neo4j-password uri=bolt://neo4j:7687 &&
+        if [ -n \"$${INTEL_API_KEY:-}\" ]; then vault kv put secret/intel api_key=$${INTEL_API_KEY}; fi
       "
     restart: on-failure
 
@@ -219,6 +220,26 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      vault-seed:
+        condition: service_completed_successfully
+    restart: on-failure
+
+  # One-shot: seeds the reference corpus (MITRE techniques + runbooks) and IOC reputation facts.
+  # api/worker do NOT depend on it — knowledge is additive; the spine boots without a seeded corpus.
+  seed-corpus:
+    image: sentinel-backend:local
+    command: ["python", "-m", "backend.seed_corpus"]
+    environment:
+      SENTINEL__POSTGRES__DSN: postgresql+asyncpg://sentinel:sentinel@postgres:5432/sentinel
+      SENTINEL__VAULT__ADDR: http://vault:8200
+      SENTINEL__VAULT__TOKEN: dev-root-token
+      SENTINEL__VAULT__REQUIRED_PATHS: '["secret/memory"]'
+      SENTINEL__MEMORY__NEO4J_URI: bolt://neo4j:7687
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      neo4j:
+        condition: service_healthy
       vault-seed:
         condition: service_completed_successfully
     restart: on-failure

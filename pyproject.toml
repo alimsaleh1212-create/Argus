@@ -61,6 +61,8 @@ omit = [
     "backend/infra/guardrails.py",
     # backend/infra/llm.py + llm_drivers.py + backend/domain/llm.py are now measured
     # (SPEC-llm-provider #3 — removed from omit list)
+    # backend/infra/intel.py, repositories/corpus.py, services/corpus.py, seed_corpus.py
+    # are measured (SPEC-knowledge-corpus #8 — not in omit list)
 ]
 
 [tool.coverage.report]

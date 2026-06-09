@@ -5,6 +5,68 @@ Each entry: what was chosen, why, and what alternatives were considered and reje
 
 ---
 
+## SPEC-knowledge-corpus #8
+
+### CD1 — Two stores: Postgres `reference_corpus` + #6 temporal reputation; no new service
+
+**Decision**: Static reference docs → Postgres `reference_corpus` table (deterministic keyed/lexical
+retrieval, no LLM, no embeddings in v1). Temporal reputation → existing #6 memory store (Neo4j/Graphiti)
+as `TemporalFact`s, reusing `valid_from`/`valid_until`, invalidate-not-delete, and `as_of` time-scoping.
+Both stores already run; no new service. Refines FR-009 from "no second substrate" → "no second service."
+
+**Rejected**: Everything in Graphiti (LLM over static docs — overengineering, nondeterministic, Principle IV
+violation). A new dedicated corpus service (exactly what FR-009 forbids).
+
+### CD2 — `write_fact(TemporalFact)` addition to the `MemoryStore` Protocol
+
+**Decision**: `async def write_fact(self, fact: TemporalFact) -> None` added to Protocol. `NullMemory`
+no-ops (degradation preserved). `GraphitiMemory` writes a time-bounded edge with `valid_from`; invalidates
+(not deletes) any open prior fact of the same `(entity, fact_type)`. Read path unchanged via `query_fact`.
+
+**Why**: #6 FR-010 names #5 as a writer of intel knowledge; `write_episode` is incident-shaped and would
+pollute `search_similar` with fake incidents.
+
+**Rejected**: Synthesise `IncidentEpisode` per intel datum. Parallel temporal table in #5 (DRY violation).
+
+### CD3 — On-demand intel: optional, single-source, Redis-cached, fail-closed
+
+**Decision**: `IntelSettings.enabled=False` by default. Missing Vault path → disabled, not fail-boot.
+Any error/timeout → `verdict="unknown"` (fail-closed). Redis-cached with negative caching. Single source v1.
+
+**Rejected**: Fail-boot on missing intel creds. Multiple/federated sources (roadmap §v2/v3).
+
+### CD4 — Idempotent one-shot `seed-corpus` mirroring `migrate`
+
+**Decision**: `python -m backend.seed_corpus` as a compose `seed-corpus` service (same image, different
+command). `depends_on: migrate + neo4j healthy + vault-seed`. `api`/`worker` do NOT depend on it.
+Upsert on `(kind, key)` makes re-runs idempotent.
+
+**Rejected**: Seed inside lifespan (startup cost; replica races). Fold into Alembic (wrong layer; Neo4j facts ≠ Postgres schema).
+
+### CD5 — Untrusted-input boundary + #11 dependency ordering
+
+**Decision**: All externally-sourced text redacted (`Boundary.MEMORY_WRITE`) and routed through the
+reserved `Guardrail` seam (`infra/guardrails.py`, #11). Call site catches `NotImplementedError` and
+no-ops (debug log) — #5 is not blocked; #11 drops in with no #5 change.
+
+**Rejected**: Block #5 on #11. Skip the guardrail call (leaves seam un-wired).
+
+### CD6 — `CorpusRetriever` as a read service; #5 ships + tests standalone
+
+**Decision**: #5 delivers `CorpusRepository(CorpusRetriever)` and optional `ThreatIntelClient` as DI
+singletons. Enrichment (#9) imports the Protocol and consumes later.
+
+**Rejected**: Wire enrichment here (bloats PR; couples two components).
+
+### CD7 — Extend the existing `retrieval` gate with corpus fixtures; no new gate
+
+**Decision**: Corpus fixture set (`tests/fixtures/corpus_retrieval/queries.json`) scored through the
+existing provider-independent `retrieval` gate (hit@k/MRR). No new gate invented.
+
+**Rejected**: New `corpus_retrieval` gate (redundant with `retrieval`; more CI surface for no new signal).
+
+---
+
 ## Component 001 — Platform & Infrastructure Foundation
 
 ### D1 — Python 3.12 pin

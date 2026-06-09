@@ -1,0 +1,32 @@
+[
+  {
+    "indicator": "203.0.113.10",
+    "kind": "address",
+    "reputation": "malicious",
+    "as_of": "2026-01-01T00:00:00Z"
+  },
+  {
+    "indicator": "198.51.100.42",
+    "kind": "address",
+    "reputation": "suspicious",
+    "as_of": "2026-01-15T00:00:00Z"
+  },
+  {
+    "indicator": "192.0.2.100",
+    "kind": "address",
+    "reputation": "malicious",
+    "as_of": "2026-02-01T00:00:00Z"
+  },
+  {
+    "indicator": "malware-c2.example.invalid",
+    "kind": "host",
+    "reputation": "malicious",
+    "as_of": "2026-01-01T00:00:00Z"
+  },
+  {
+    "indicator": "10.0.0.1",
+    "kind": "address",
+    "reputation": "benign",
+    "as_of": "2026-01-01T00:00:00Z"
+  }
+]

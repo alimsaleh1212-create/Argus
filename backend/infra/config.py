@@ -22,6 +22,7 @@ _KNOWN_SENTINEL_SECTIONS = frozenset(
     {
         "app", "vault", "postgres", "minio", "startup", "observability",
         "llm", "redis", "ingest", "supervisor", "triage", "memory",
+        "corpus", "intel",
     }
 )
 _SENTINEL_PREFIX = "SENTINEL__"
@@ -198,6 +199,25 @@ class TriageSettings(BaseSettings):
         return self
 
 
+class CorpusSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
+
+    enabled: bool = True
+    data_dir: str = "backend/data/corpus"
+    retrieval_k: Annotated[int, Field(gt=0)] = 5
+
+
+class IntelSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
+
+    enabled: bool = False
+    source_name: str = "demo-intel"
+    base_url: str = ""
+    api_key_vault_path: str = "secret/intel"
+    timeout_s: Annotated[float, Field(gt=0)] = 5.0
+    cache_ttl_s: Annotated[int, Field(gt=0)] = 3600
+
+
 class MemorySettings(BaseSettings):
     model_config = SettingsConfigDict(extra="forbid")
 
@@ -246,6 +266,8 @@ class Settings(BaseSettings):
     supervisor: SupervisorSettings = Field(default_factory=SupervisorSettings)
     triage: TriageSettings = Field(default_factory=TriageSettings)
     memory: MemorySettings = Field(default_factory=MemorySettings)
+    corpus: CorpusSettings = Field(default_factory=CorpusSettings)
+    intel: IntelSettings = Field(default_factory=IntelSettings)
 
     @model_validator(mode="after")
     def _ensure_memory_vault_path_required(self) -> Settings:

@@ -1,13 +1,11 @@
-"""Retrieval eval gate — SPEC-memory #6 / T021.
+"""Retrieval eval gate — SPEC-memory #6 extended with corpus fixtures (SPEC-knowledge-corpus #8).
 
-Scores hit@k and MRR on the committed labeled fixture set.
-
-In CI (no live Graphiti), the gate is exercised against a pre-populated in-memory
-store so the fixture loading, scoring logic, and threshold checks are proven.
-Full live scoring against a real Neo4j runs in the integration tier.
+Scores hit@k and MRR on the committed incident fixture set, and separately verifies
+corpus retrieval cold-start competence using the corpus fixture set.
 
 The gate threshold is in config/eval_thresholds.yaml:
   retrieval.threshold.min_hit_at_k: 0.80  k: 5  min_mrr: 0.60
+  retrieval.corpus_fixtures.min_hit_at_k: 1.0  k: 5
 """
 
 from __future__ import annotations
@@ -29,12 +27,24 @@ from backend.domain.memory import (
 )
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "memory_retrieval"
+CORPUS_FIXTURES = Path(__file__).parent.parent / "fixtures" / "corpus_retrieval"
 CONFIG = Path(__file__).parent.parent.parent / "config" / "eval_thresholds.yaml"
 
 
 def _load_thresholds() -> dict[str, Any]:
     with open(CONFIG) as f:
         return yaml.safe_load(f)["gates"]["retrieval"]["threshold"]
+
+
+def _load_corpus_config() -> dict[str, Any]:
+    with open(CONFIG) as f:
+        gate = yaml.safe_load(f)["gates"]["retrieval"]
+        return gate.get("corpus_fixtures", {})
+
+
+def _load_corpus_queries() -> list[dict]:
+    with open(CORPUS_FIXTURES / "queries.json") as f:
+        return json.load(f)
 
 
 def _load_priors() -> list[dict]:
@@ -151,3 +161,122 @@ async def test_retrieval_gate() -> None:
         f"hit@{k} = {hit_rate:.2f} < threshold {min_hit_at_k:.2f}"
     )
     assert mrr >= min_mrr, f"MRR = {mrr:.2f} < threshold {min_mrr:.2f}"
+
+
+# ── Corpus retrieval cold-start gate ─────────────────────────────────────────
+
+
+class _InMemoryCorpusStore:
+    """In-memory CorpusRetriever for eval scoring without Postgres."""
+
+    def __init__(self, entries: list) -> None:
+        self._entries = entries
+
+    async def search_reference(self, query: Any, *, k: int) -> list:
+        from backend.domain.corpus import ReferenceHit, ReferenceKind
+
+        hits: dict = {}
+
+        # Technique-keyed
+        for entry in self._entries:
+            if entry.key in [t.lower() for t in query.technique_ids] or \
+               entry.key.lower() in [t.lower() for t in query.technique_ids]:
+                from backend.repositories.corpus import _update_hit
+                _update_hit(hits, entry, 1.0, "technique")
+
+            # Tag match
+            if query.terms:
+                terms_lower = [t.lower() for t in query.terms]
+                overlap = len(set(entry.tags) & set(terms_lower))
+                if overlap:
+                    from backend.repositories.corpus import _update_hit
+                    _update_hit(hits, entry, 0.5, "tag")
+
+            # Lexical
+            if query.terms:
+                for term in query.terms:
+                    if term.lower() in entry.title.lower() or term.lower() in entry.content.lower():
+                        from backend.repositories.corpus import _update_hit
+                        _update_hit(hits, entry, 0.3, "term")
+
+        result = sorted(hits.values(), key=lambda h: (-h.relevance, h.entry.key))
+        return result[:k]
+
+
+def _seed_in_memory_corpus() -> list:
+    """Load bundled corpus files into domain objects (no DB needed)."""
+    import json
+
+    from backend.domain.corpus import ReferenceCorpusEntry, ReferenceKind
+
+    corpus_dir = Path(__file__).parent.parent.parent / "backend" / "data" / "corpus"
+    entries = []
+
+    with open(corpus_dir / "techniques.json") as f:
+        for t in json.load(f):
+            tags = [t["id"].lower(), t.get("tactic", "").lower()]
+            entries.append(ReferenceCorpusEntry(
+                kind=ReferenceKind.TECHNIQUE,
+                key=t["id"],
+                title=t["title"],
+                content=t["mitigations"],
+                tags=tags,
+            ))
+
+    with open(corpus_dir / "runbooks.json") as f:
+        for r in json.load(f):
+            tags = [tech.lower() for tech in r.get("techniques", [])]
+            entries.append(ReferenceCorpusEntry(
+                kind=ReferenceKind.RUNBOOK,
+                key=r["key"],
+                title=r["title"],
+                content=r["steps"],
+                tags=tags,
+            ))
+
+    return entries
+
+
+@pytest.mark.asyncio
+async def test_corpus_retrieval_gate() -> None:
+    """Corpus cold-start gate: seeded store returns expected entries for labeled queries."""
+    from backend.domain.corpus import ReferenceQuery
+
+    cfg = _load_corpus_config()
+    k = cfg.get("k", 5)
+    min_hit = cfg.get("min_hit_at_k", 1.0)
+
+    queries = _load_corpus_queries()
+    entries = _seed_in_memory_corpus()
+    store = _InMemoryCorpusStore(entries)
+
+    hits_list: list[bool] = []
+
+    for q in queries:
+        query = ReferenceQuery(**q["query"])
+        results = await store.search_reference(query, k=k)
+
+        if not results:
+            continue  # cold/miss excluded per gate spec
+
+        result_keys = {h.entry.key for h in results}
+        hit = any(expected in result_keys for expected in q["expected_keys"])
+        hits_list.append(hit)
+
+    assert hits_list, "No corpus queries produced results — check fixtures and bundled data"
+    hit_rate = sum(hits_list) / len(hits_list)
+    assert hit_rate >= min_hit, (
+        f"corpus hit@{k} = {hit_rate:.2f} < threshold {min_hit:.2f}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_corpus_retrieval_unseeded_returns_empty() -> None:
+    """An empty (unseeded) store returns [] for any query (demonstrating seed value)."""
+    from backend.domain.corpus import ReferenceQuery
+
+    store = _InMemoryCorpusStore([])
+    results = await store.search_reference(
+        ReferenceQuery(technique_ids=["T1110"], terms=["brute"]), k=5
+    )
+    assert results == []

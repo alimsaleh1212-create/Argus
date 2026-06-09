@@ -1,0 +1,26 @@
+[
+  {
+    "id": "q1",
+    "query": {"technique_ids": ["T1110"], "terms": ["brute", "credential"]},
+    "expected_keys": ["T1110", "rb-brute-force"],
+    "description": "Brute force technique + runbook should surface"
+  },
+  {
+    "id": "q2",
+    "query": {"technique_ids": ["T1566"], "terms": ["phishing"]},
+    "expected_keys": ["T1566", "rb-phishing-response"],
+    "description": "Phishing technique + runbook should surface"
+  },
+  {
+    "id": "q3",
+    "query": {"technique_ids": ["T1078"], "terms": ["account", "credential"]},
+    "expected_keys": ["T1078"],
+    "description": "Valid accounts technique should surface"
+  },
+  {
+    "id": "q4",
+    "query": {"technique_ids": [], "terms": ["ransomware", "encrypt"]},
+    "expected_keys": ["rb-ransomware-response"],
+    "description": "Lexical match on ransomware runbook"
+  }
+]

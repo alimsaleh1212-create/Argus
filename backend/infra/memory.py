@@ -52,6 +52,9 @@ class NullMemory:
     ) -> FactState:
         return FactState()
 
+    async def write_fact(self, fact: TemporalFact) -> None:
+        pass
+
 
 # ── GraphitiMemory ───────────────────────────────────────────────────────────
 
@@ -151,6 +154,57 @@ class GraphitiMemory:
 
         hits.sort(key=lambda h: h.relevance, reverse=True)
         return hits[:k]
+
+    # -- write fact -----------------------------------------------------------
+
+    async def write_fact(self, fact: TemporalFact) -> None:
+        """Write a time-bounded reputation edge; invalidate any open prior fact of same (entity, fact_type)."""
+        await asyncio.wait_for(
+            self._write_fact_inner(fact),
+            timeout=self._settings.retrieval_timeout_s,
+        )
+
+    async def _write_fact_inner(self, fact: TemporalFact) -> None:
+        now = datetime.now(UTC)
+
+        # Invalidate (not delete) any currently-open fact of the same (entity, fact_type).
+        invalidate_cypher = """
+        MATCH (src:Entity)-[r:RELATES_TO]-(tgt:Entity)
+        WHERE (src.name = $entity_val OR tgt.name = $entity_val)
+          AND r.invalid_at IS NULL
+          AND (toLower(r.name) CONTAINS toLower($fact_type)
+               OR toLower(r.fact) CONTAINS toLower($fact_type))
+        SET r.invalid_at = $now
+        """
+        await self._graphiti.driver.execute_query(
+            invalidate_cypher,
+            entity_val=fact.entity.value,
+            fact_type=fact.fact_type,
+            now=now,
+        )
+
+        # Write the new fact as an episode so Graphiti indexes it.
+        import json as _json
+        body = _json.dumps(
+            {
+                "entity_kind": fact.entity.kind,
+                "entity_value": fact.entity.value,
+                "fact_type": fact.fact_type,
+                "value": fact.value,
+                "valid_from": fact.valid_from.isoformat(),
+            }
+        )
+        from graphiti_core.nodes import EpisodeType
+
+        episode_name = f"fact:{fact.entity.value}:{fact.fact_type}:{fact.valid_from.isoformat()}"
+        await self._graphiti.add_episode(
+            name=episode_name,
+            episode_body=body,
+            source_description=f"sentinel-{fact.fact_type}",
+            reference_time=fact.valid_from,
+            source=EpisodeType.json,
+            uuid=episode_name,
+        )
 
     # -- temporal fact --------------------------------------------------------
 

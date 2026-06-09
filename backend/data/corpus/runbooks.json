@@ -1,0 +1,26 @@
+[
+  {
+    "key": "rb-brute-force",
+    "title": "Brute-Force Response Runbook",
+    "techniques": ["T1110"],
+    "steps": "1) Confirm the source IP and targeted account from authentication logs. 2) Lock the targeted account immediately to prevent further compromise. 3) Block the source IP at the perimeter firewall or WAF. 4) Notify the account owner and reset credentials. 5) Review logs for successful logins from the source to assess potential compromise. 6) Escalate to incident response if account was accessed successfully."
+  },
+  {
+    "key": "rb-phishing-response",
+    "title": "Phishing Email Response Runbook",
+    "techniques": ["T1566"],
+    "steps": "1) Quarantine the phishing email across all affected mailboxes. 2) Identify all recipients and assess click/download activity. 3) Block sender domain and URLs at email gateway and DNS. 4) Check endpoint logs for payload execution or credential entry. 5) Reset credentials for users who interacted with the email. 6) Brief users on the campaign pattern."
+  },
+  {
+    "key": "rb-valid-accounts",
+    "title": "Compromised Credential Response Runbook",
+    "techniques": ["T1078"],
+    "steps": "1) Identify the compromised account from alert context. 2) Immediately disable the account or force a password reset. 3) Revoke active sessions and OAuth tokens. 4) Review recent activity: logins, data accessed, files modified. 5) Determine how credentials were obtained (phishing, breach, reuse). 6) Enable MFA if not already active. 7) Document findings and remediation."
+  },
+  {
+    "key": "rb-ransomware-response",
+    "title": "Ransomware Containment Runbook",
+    "techniques": ["T1486"],
+    "steps": "1) Immediately isolate affected hosts from the network. 2) Identify the ransomware variant using file extension and ransom note. 3) Check backup integrity and recoverability. 4) Notify legal, management, and if required law enforcement. 5) Do not pay ransom without legal/management approval. 6) Restore from clean backups after confirming the infection vector is remediated. 7) Conduct a post-incident review."
+  }
+]
