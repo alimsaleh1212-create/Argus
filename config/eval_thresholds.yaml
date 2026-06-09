@@ -112,3 +112,32 @@ gates:
       min_macro_f1: 0.75
       max_abstention_rate: 0.30
       check_per_provider: true
+
+  retrieval:
+    description: >
+      Similar-incident retrieval gate (SPEC-memory #6). Pre-seeds the memory store with a labeled set
+      of prior incidents (tests/fixtures/memory_retrieval/priors.json), then issues each held-out
+      "new" incident query (queries.json) and checks that its labeled prior surfaces within top-k.
+      Scores hit@k and MRR. Store-logic gate — provider-independent (embedder pinned to
+      text-embedding-004). Cold-start (empty store) queries return [] and are excluded from scoring,
+      not counted as misses. Full harness owned by SPEC-eval (#13).
+    required: true
+    threshold:
+      min_hit_at_k: 0.80
+      k: 5
+      min_mrr: 0.60
+
+  temporal_memory:
+    description: >
+      Temporal-validity gate (SPEC-memory #6) — the Graphiti differentiator. Records a fact as
+      benign at t1, a conflicting fact as malicious at t2, then asserts query_fact(as_of=t1)=benign
+      (superseded), query_fact(now)=malicious (current), and the benign fact is RETAINED
+      (invalidated, not deleted). 100% required — this is store logic, not a probabilistic judgment.
+      Provider-independent. Fixtures in tests/fixtures/memory_temporal/scenarios.json.
+    required: true
+    threshold:
+      pass_rate: 1.0
+      cases:
+        - reputation_flip
+        - host_role_change
+        - no_destructive_delete

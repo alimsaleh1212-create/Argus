@@ -1,0 +1,66 @@
+[
+  {
+    "incident_id": "11111111-1111-1111-1111-111111111001",
+    "observed_at": "2024-01-10T09:00:00Z",
+    "summary": "SSH brute-force attempt from 203.0.113.10 against web-server-01 — 500 failed logins",
+    "verdict": "real",
+    "severity": "high",
+    "disposition": "escalated_enrichment",
+    "entities": [
+      {"kind": "address", "value": "203.0.113.10"},
+      {"kind": "host",    "value": "web-server-01"}
+    ],
+    "fields": {"srcip": "203.0.113.10", "dstip": "10.0.0.1"}
+  },
+  {
+    "incident_id": "11111111-1111-1111-1111-111111111002",
+    "observed_at": "2024-01-11T10:30:00Z",
+    "summary": "Port scan detected from 198.51.100.20 sweeping internal subnet on ports 22,80,443",
+    "verdict": "real",
+    "severity": "medium",
+    "disposition": "auto_resolved_triage",
+    "entities": [
+      {"kind": "address", "value": "198.51.100.20"}
+    ],
+    "fields": {"srcip": "198.51.100.20"}
+  },
+  {
+    "incident_id": "11111111-1111-1111-1111-111111111003",
+    "observed_at": "2024-01-12T14:00:00Z",
+    "summary": "Repeated failed sudo privilege escalation by user db-admin on db-server-02",
+    "verdict": "real",
+    "severity": "high",
+    "disposition": "escalated_enrichment",
+    "entities": [
+      {"kind": "host", "value": "db-server-02"},
+      {"kind": "user", "value": "db-admin"}
+    ],
+    "fields": {"user": "db-admin"}
+  },
+  {
+    "incident_id": "11111111-1111-1111-1111-111111111004",
+    "observed_at": "2024-01-13T08:00:00Z",
+    "summary": "Known benign vulnerability scanner probe on port 80 from 192.0.2.100",
+    "verdict": "noise",
+    "severity": "low",
+    "disposition": "auto_resolved_noise",
+    "entities": [
+      {"kind": "address", "value": "192.0.2.100"}
+    ],
+    "fields": {"srcip": "192.0.2.100"}
+  },
+  {
+    "incident_id": "11111111-1111-1111-1111-111111111005",
+    "observed_at": "2024-01-14T16:00:00Z",
+    "summary": "Malware hash a1b2c3d4 detected in download from 203.0.113.55 on workstation-07",
+    "verdict": "real",
+    "severity": "critical",
+    "disposition": "escalated_enrichment",
+    "entities": [
+      {"kind": "host",      "value": "workstation-07"},
+      {"kind": "address",   "value": "203.0.113.55"},
+      {"kind": "indicator", "value": "a1b2c3d4"}
+    ],
+    "fields": {"srcip": "203.0.113.55", "md5": "a1b2c3d4"}
+  }
+]

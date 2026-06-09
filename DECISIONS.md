@@ -551,3 +551,55 @@ only carry user secrets); YAML anchors (saves ~10 lines but at readability cost)
 **Rationale**: FR-010 scopes this as "a small extension to the existing transition step." The `evidence` JSONB column already exists (#4 `0003`). The `||` merge is non-destructive (adds `evidence.triage`, leaves sibling keys untouched). The supervisor remains the single writer; triage still writes nothing. A separate `judgments` table would be premature.
 
 **Rejected**: Separate `judgments` table (premature; evidence JSONB is already the established home for stage outputs); triage writing its own slice (violates single-writer and Constitution III); stuffing the judgment into `disposition` (disposition is coarse outcome text, not a structured object).
+
+---
+
+## Component 007 — Incident Memory (Temporal)
+
+### MD0 — Day-1 Graphiti spike: GO
+
+**Decision**: The Graphiti + Neo4j 5.26 stack is **accepted (GO)**. The user confirmed the architecture before the spec was written; `scripts/memory_spike.py` exists for live measurement. The `MemoryStore` Protocol ensures the pgvector fallback (MD9) remains a drop-in at any time.
+
+**Rationale**: Graphiti provides native temporal invalidation-not-deletion, hybrid similarity search, and Gemini-native LLM/embedder — directly delivering all three milestones (write / retrieve / temporal) with minimal custom code. The pgvector fallback is fully specified (data-model §fallback schema) so no-go would be a config toggle, not a rewrite.
+
+**Rejected**: pgvector-first without spike (would miss Graphiti's native temporal edge management); defer decision (violates Constitution VI mandate to decide at Milestone 0).
+
+---
+
+### MD2 — Graphiti native Gemini LLM+embedder: justified VII deviation
+
+**Decision**: `GraphitiMemory` configures Graphiti with `GeminiClient` + `GeminiEmbedder` using the Vault-resolved Gemini API key. These calls do **not** route through the #3 `LlmClient` adapter (which is `generate()`-only, no embeddings). Redaction runs before every `write_episode` call so Graphiti's model only sees already-redacted text. Graph-construction tokens are logged on a best-effort span.
+
+**Rationale**: The #3 adapter has no embedding method; adding one would scope-creep a frozen, shipped seam. `graphiti-core[google-genai]` is the smallest thing that works and reuses Gemini-in-CI. Deviation is confined to infrastructure graph-construction, never an agent reasoning call. Mitigations: pre-write redaction (Constitution III preserved), off-path execution (FR-006), token logging (visibility).
+
+**Rejected**: Wrapping `LlmClient` as a Graphiti `LLMClient`+`Embedder` shim (fragile across Graphiti versions, adds embeddings to frozen seam); Ollama for extraction (tiny `qwen2:0.5b` cannot do graph extraction faithfully).
+
+---
+
+### MD3 — Worker best-effort off-path episode write
+
+**Decision**: In `worker._run`, after `dispatch_to_pipeline` returns, reload the incident and if it reached a terminal status call `record_episode(incident, store, redactor)` inside a `try/except` that logs and swallows any error. The write never blocks the disposition acknowledgement and is never re-raised.
+
+**Rationale**: FR-006 requires memory writes be off the synchronous disposition-critical path. Putting the write in the worker (after disposition is persisted by the supervisor) ensures memory failure = missing episode, not lost disposition. Idempotent on `incident_id` so retry is safe.
+
+**Rejected**: Write inside supervisor transition (pollutes pure FSM with external dep + LLM cost); dedicated memory queue (more infrastructure than v1 needs).
+
+---
+
+### MD7 — Memory eval gates are provider-independent (no `check_per_provider`)
+
+**Decision**: The `retrieval` (hit@k/MRR) and `temporal_memory` gates have no `check_per_provider` dimension, like the existing `smoke` and `supervisor_routing` gates.
+
+**Rationale**: Retrieval ranking is an embedding-similarity property (embedder pinned to Gemini `text-embedding-004`) and temporal validity is store logic — neither is a chat-LLM judgment dimension. The tiny `qwen2:0.5b` Ollama model cannot perform Graphiti graph extraction faithfully, so forcing a per-provider run would produce a dishonest gate. The exemption is explicit here so it is not a silent omission.
+
+**Rejected**: Force both providers (dishonest with the local model; adds CI cost for no signal); skip temporal gate (it is the differentiator that justifies Graphiti).
+
+---
+
+### MD9 — Decided pgvector + relational fallback (specified, not built)
+
+**Decision**: `PgVectorMemory(MemoryStore)` over Postgres with migration `0005_memory_fallback` is fully specified in `data-model.md` (schema + similarity/invalidation/time-scoped-read queries) but **not built** unless the Milestone-0 spike returns no-go. Flip `SENTINEL__MEMORY__BACKEND=pgvector` to activate.
+
+**Rationale**: Constitution VI mandates the fallback be decided at the spike. Specifying it now (Protocol drop-in) without building dead code is the disciplined middle ground.
+
+**Rejected**: Build both stores in v1 (dead code); leave fallback undecided (violates VI).

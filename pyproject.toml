@@ -23,6 +23,7 @@ dependencies = [
     "google-genai>=2.8.0",
     "ollama>=0.6.2",
     "redis>=5",
+    "graphiti-core[google-genai]>=0.3",
 ]
 
 [dependency-groups]
@@ -30,7 +31,7 @@ dev = [
     "pytest>=8.2",
     "pytest-asyncio>=0.23",
     "pytest-cov>=5.0",
-    "testcontainers[postgres,minio]>=4.8",
+    "testcontainers[postgres,minio,neo4j]>=4.8",
     "import-linter>=2.1",
     "ruff>=0.4",
     "pre-commit>=3.7",
@@ -57,7 +58,6 @@ omit = [
     "backend/agents/response.py",
     "backend/routers/incidents.py",
     "backend/routers/approvals.py",
-    "backend/infra/memory.py",
     "backend/infra/guardrails.py",
     # backend/infra/llm.py + llm_drivers.py + backend/domain/llm.py are now measured
     # (SPEC-llm-provider #3 — removed from omit list)

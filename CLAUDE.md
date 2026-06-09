@@ -2,36 +2,38 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
-**Active component**: `006-triage-agent` (Component #8 — first LLM-backed stage; depends on #7, #4, #3).
-- Plan: `specs/006-triage-agent/plan.md`
-- Spec: `specs/006-triage-agent/spec.md`
-- Design: `specs/006-triage-agent/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
+**Active component**: `007-incident-memory` (Component #6 — temporal incident memory; depends on #1, #2, #3;
+unblocks enrichment #9 + corpus #5).
+- Plan: `specs/007-incident-memory/plan.md`
+- Spec: `specs/007-incident-memory/spec.md`
+- Design: `specs/007-incident-memory/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
-Stack (this component): replaces the #7 `agents/triage.py` **stub** with a real handler — the **first and
-only LLM call in the pipeline so far** — runs **in the existing `worker`**, **no new service/dependency/
-migration**. Triage fires **only** on the ambiguous incidents the supervisor fast-path routed to it
-(`medium`/`high`/severity-undetermined). Makes **exactly one** structured-output call via the shared
-`LlmClient` (#3, `response_schema`, no tools, no loop), validates the response into a pure `TriageJudgment`
-(`domain/triage.py`: `TriageVerdict` real/noise/uncertain + `confidence` + `assessed_severity` +
-evidence-citing `rationale` + `cited_evidence`), then a **pure, config-threshold-gated** `decide_outcome`
-maps it to one `StageOutcome`: **ADVANCE** (real→enrichment), **RESOLVED** (confident noise→auto-close,
-`auto_resolved_triage`, zero further stages), or **ESCALATE** (uncertain / `confidence<advance_min` / noise
-`<resolve_min` → `escalated_triage`). Two config knobs (`TriageSettings`: `advance_min_confidence=0.6` ≤
-`resolve_min_confidence=0.7` — auto-close is the higher-blast-radius bar). **Fail-closed everywhere** (TD7):
-`LlmError`/malformed/OOV → typed `ToolError` (transient=retryable→supervisor retries then escalates;
-permanent→escalate) — never auto-resolves on bad output, worker never crashes. **Structural Constitution III
-boundary preserved**: DI by **closure factory** `make_triage_handler(llm, cfg)` keeps the frozen
-`StageHandler` signature (no session, no action client, no write capability ever reaches triage); reasons
-**only over already-redacted supplied evidence** (never priors, FR-005), reports `tokens_consumed` into the
-supervisor cap (one call, SC-006). Records `assessed_severity` but **never** overwrites canonical severity.
-One spec-scoped persistence extension (TD8): supervisor passes `StageResult.evidence_patch` to
-`advance_status(evidence_patch=…)`, which **JSONB-merges** `{"triage": judgment}` into `evidence` in the same
-guarded transition (single-writer; no migration). Wiring: `worker.py` registers `register_llm_provider()`
-**before** `SupervisorProvider`; the provider builds the real triage handler from `container.llm`. Lands the
-**triage real-vs-noise** eval gate (committed labeled set, macro-F1, abstention-bounded, **both providers** —
-first eval with an LLM dimension).
+Stack (this component): fills the reserved `infra/memory.py` seam with the **temporal incident-memory layer**
+(this spec *is* Constitution VI). **Graphiti on Neo4j 5.26** (`graphiti-core[google-genai]`) behind a small
+**`MemoryStore` Protocol** (`domain/memory.py`: `write_episode`/`search_similar`/`query_fact`) so the
+**decided pgvector fallback** (`valid_from`/`valid_to`, MD9) is a config-toggle swap. The **worker** writes
+one **redacted, idempotent** `IncidentEpisode` per incident **after** `run_incident` reaches terminal —
+**off the synchronous path, best-effort** (a memory outage never blocks a disposition or crashes the worker,
+FR-006); the **supervisor stays pure** (no memory dep). `search_similar` surfaces the closest prior incidents
++ dispositions (hit@k/MRR); `query_fact(as_of=…)` returns the **time-valid** state (current vs. superseded)
+via Graphiti's native **invalidate-not-delete** edges → `FactState`. **Redaction before every write** (#2
+`Redactor`; the `redaction` gate's `memory_write` boundary goes live). Graphiti uses its **native Gemini**
+LLM+embedder (Vault key) — the one **documented Constitution VII deviation** (the #3 adapter is
+`generate()`-only, no embeddings; recorded in `DECISIONS.md`/Complexity Tracking). `MemoryProvider` lifespan
+singleton **degrades to `NullMemory`** if Neo4j is down; **worker-only** wiring (api/#12 read-wiring
+deferred). New: `neo4j:5.26` compose service (creds via `vault-seed` → `secret/memory`), `MemorySettings`
+(`backend` toggle / `retrieval_k` / timeout), dep `graphiti-core[google-genai]` + dev `testcontainers[neo4j]`.
+**Big spec** → milestones **0 spike → a write → b retrieve → c temporal** (commit at each). Lands the
+**retrieval** (hit@k/MRR) + **temporal-validity** eval gates (deterministic **store-logic**,
+**provider-independent** like smoke/routing). §v2c feedback loop is roadmap (T2), out of v1.
 
-Prior components (done): `005-incident-state-machine` — **deterministic supervisor** (`services/supervisor.py`,
+Prior components (done): `006-triage-agent` — **first LLM stage**: replaces the triage stub with **one**
+structured-output `LlmClient` call → validated `TriageJudgment` (`domain/triage.py`: real/noise/uncertain +
+confidence + evidence-cited rationale) → pure config-gated `decide_outcome` → ADVANCE/RESOLVED/ESCALATE;
+**fail-closed** (bad output → escalate, worker never crashes); **no tools / no write** (closure-factory DI
+preserves the frozen `StageHandler`); supervisor JSONB-merges `evidence_patch`; **triage F1** gate on both
+providers. Plan: `specs/006-triage-agent/plan.md`.
+`005-incident-state-machine` — **deterministic supervisor** (`services/supervisor.py`,
 plain async state machine, no LLM/LangGraph); config-backed fast-path routing + adaptive depth; hard
 step+token cap → `escalated`; graceful degradation; **single-writer** over pure stage handlers; pure types
 `domain/pipeline.py` (`StageName`/`StageOutcome`/`StageResult`/`ToolError`); extends `IncidentStatus` (text,

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,7 +21,7 @@ from backend.domain.llm import ProviderId
 _KNOWN_SENTINEL_SECTIONS = frozenset(
     {
         "app", "vault", "postgres", "minio", "startup", "observability",
-        "llm", "redis", "ingest", "supervisor", "triage",
+        "llm", "redis", "ingest", "supervisor", "triage", "memory",
     }
 )
 _SENTINEL_PREFIX = "SENTINEL__"
@@ -198,6 +198,27 @@ class TriageSettings(BaseSettings):
         return self
 
 
+class MemorySettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
+
+    enabled: bool = True
+    backend: Literal["graphiti", "pgvector"] = "graphiti"
+    neo4j_uri: str = "bolt://neo4j:7687"
+    neo4j_vault_path: str = "secret/memory"
+    retrieval_k: Annotated[int, Field(gt=0)] = 5
+    retrieval_timeout_s: Annotated[float, Field(gt=0)] = 5.0
+
+    # Embedder — chosen once at deploy time; do NOT change after data is written
+    # (vectors from different models are incompatible; switching mid-stream corrupts search).
+    embedder_provider: Literal["gemini", "ollama"] = "gemini"
+    # Gemini embedder (embedder_provider="gemini")
+    gemini_embedding_model: str = "text-embedding-004"
+    # Ollama embedder (embedder_provider="ollama") — uses OpenAI-compatible /v1/embeddings
+    ollama_embedder_base_url: str = "http://ollama:11434"
+    ollama_embedder_model: str = "nomic-embed-text"
+    ollama_embedder_dim: Annotated[int, Field(gt=0)] = 768
+
+
 class Settings(BaseSettings):
     """Root settings object — built once at startup, frozen thereafter.
 
@@ -224,6 +245,21 @@ class Settings(BaseSettings):
     ingest: IngestSettings = Field(default_factory=IngestSettings)
     supervisor: SupervisorSettings = Field(default_factory=SupervisorSettings)
     triage: TriageSettings = Field(default_factory=TriageSettings)
+    memory: MemorySettings = Field(default_factory=MemorySettings)
+
+    @model_validator(mode="after")
+    def _ensure_memory_vault_path_required(self) -> Settings:
+        """Guarantee Neo4j Vault path is in vault.required_paths (fail-boot if unseeded)."""
+        if not self.memory.enabled:
+            return self
+        mem_path = self.memory.neo4j_vault_path
+        if mem_path not in self.vault.required_paths:
+            object.__setattr__(
+                self.vault,
+                "required_paths",
+                list(self.vault.required_paths) + [mem_path],
+            )
+        return self
 
     @model_validator(mode="after")
     def _ensure_ingest_vault_path_required(self) -> Settings:

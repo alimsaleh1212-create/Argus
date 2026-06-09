@@ -1,0 +1,90 @@
+[
+  {
+    "case": "reputation_flip",
+    "description": "IP address assessed as benign at t1 then reclassified malicious at t2",
+    "entity": {"kind": "address", "value": "198.51.100.5"},
+    "fact_type": "reputation",
+    "episodes": [
+      {
+        "incident_id": "22222222-2222-2222-2222-222222222001",
+        "observed_at": "2024-01-15T09:00:00Z",
+        "summary": "Address 198.51.100.5 verified as a benign automated scanner — reputation: benign",
+        "verdict": "noise",
+        "severity": "low",
+        "disposition": "auto_resolved_noise",
+        "entities": [{"kind": "address", "value": "198.51.100.5"}],
+        "fields": {}
+      },
+      {
+        "incident_id": "22222222-2222-2222-2222-222222222002",
+        "observed_at": "2024-01-15T14:00:00Z",
+        "summary": "Address 198.51.100.5 confirmed as malicious C2 infrastructure — reputation: malicious",
+        "verdict": "real",
+        "severity": "critical",
+        "disposition": "escalated_enrichment",
+        "entities": [{"kind": "address", "value": "198.51.100.5"}],
+        "fields": {}
+      }
+    ],
+    "checks": [
+      {
+        "as_of": "2024-01-15T09:00:00Z",
+        "expected_value_contains": "benign",
+        "expected_is_current": false
+      },
+      {
+        "as_of": null,
+        "expected_value_contains": "malicious",
+        "expected_is_current": true
+      }
+    ]
+  },
+  {
+    "case": "host_role_change",
+    "description": "Server role changes from honeypot to payroll server",
+    "entity": {"kind": "host", "value": "server-05"},
+    "fact_type": "role",
+    "episodes": [
+      {
+        "incident_id": "22222222-2222-2222-2222-222222222003",
+        "observed_at": "2024-01-15T09:00:00Z",
+        "summary": "server-05 is designated as a honeypot — role: honeypot",
+        "verdict": "noise",
+        "severity": "low",
+        "disposition": "auto_resolved_noise",
+        "entities": [{"kind": "host", "value": "server-05"}],
+        "fields": {}
+      },
+      {
+        "incident_id": "22222222-2222-2222-2222-222222222004",
+        "observed_at": "2024-01-15T14:00:00Z",
+        "summary": "server-05 repurposed as payroll processing server — role: payroll",
+        "verdict": "noise",
+        "severity": "low",
+        "disposition": "auto_resolved_noise",
+        "entities": [{"kind": "host", "value": "server-05"}],
+        "fields": {}
+      }
+    ],
+    "checks": [
+      {
+        "as_of": "2024-01-15T09:00:00Z",
+        "expected_value_contains": "honeypot",
+        "expected_is_current": false
+      },
+      {
+        "as_of": null,
+        "expected_value_contains": "payroll",
+        "expected_is_current": true
+      }
+    ]
+  },
+  {
+    "case": "no_destructive_delete",
+    "description": "Superseded fact must still be queryable — invalidation preserves history",
+    "entity": {"kind": "address", "value": "198.51.100.5"},
+    "fact_type": "reputation",
+    "check": "The benign fact written at t1 must still be accessible via query_fact(as_of=t1) after the malicious fact is written at t2",
+    "episodes_ref": "Same episodes as reputation_flip"
+  }
+]
