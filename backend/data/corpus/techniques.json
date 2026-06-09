@@ -1,0 +1,50 @@
+[
+  {
+    "id": "T1110",
+    "title": "Brute Force",
+    "tactic": "credential-access",
+    "mitigations": "Enforce account lockout policies. Require multi-factor authentication (MFA) on all accounts. Monitor and alert on repeated failed authentication attempts. Use CAPTCHA to slow automated attacks. Restrict access from unusual geographies or IP ranges."
+  },
+  {
+    "id": "T1078",
+    "title": "Valid Accounts",
+    "tactic": "defense-evasion",
+    "mitigations": "Audit account usage and privileges regularly. Enforce least-privilege principles. Monitor for anomalous login times and locations. Implement privileged access management (PAM). Rotate credentials on compromise suspicion. Disable inactive accounts promptly."
+  },
+  {
+    "id": "T1566",
+    "title": "Phishing",
+    "tactic": "initial-access",
+    "mitigations": "Deploy email filtering and anti-phishing controls. Train users to identify suspicious emails. Use DMARC, DKIM, SPF to authenticate email senders. Sandbox email attachments before delivery. Block known malicious domains at DNS and proxy layers."
+  },
+  {
+    "id": "T1059",
+    "title": "Command and Scripting Interpreter",
+    "tactic": "execution",
+    "mitigations": "Restrict script execution via application allow-listing. Disable or limit interpreter access where not required. Log and monitor interpreter invocations. Use endpoint detection to alert on suspicious script usage."
+  },
+  {
+    "id": "T1021",
+    "title": "Remote Services",
+    "tactic": "lateral-movement",
+    "mitigations": "Limit remote service exposure to the internet. Require MFA for remote access. Audit remote access logs. Use VPN with strong authentication. Apply network segmentation to isolate sensitive systems."
+  },
+  {
+    "id": "T1486",
+    "title": "Data Encrypted for Impact",
+    "tactic": "impact",
+    "mitigations": "Maintain offline and offsite backups. Test backups regularly. Deploy endpoint protection with ransomware detection. Use file integrity monitoring. Isolate infected hosts immediately. Have an incident response plan ready."
+  },
+  {
+    "id": "T1190",
+    "title": "Exploit Public-Facing Application",
+    "tactic": "initial-access",
+    "mitigations": "Keep public-facing applications patched and up-to-date. Deploy a web application firewall (WAF). Perform regular vulnerability scanning. Reduce the attack surface by disabling unused services. Use intrusion detection on perimeter traffic."
+  },
+  {
+    "id": "T1053",
+    "title": "Scheduled Task/Job",
+    "tactic": "persistence",
+    "mitigations": "Audit scheduled tasks and cron jobs regularly. Monitor for new or modified scheduled tasks. Restrict permissions to create scheduled tasks. Alert on scheduled task creation by non-privileged users."
+  }
+]

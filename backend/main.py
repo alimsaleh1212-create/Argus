@@ -48,6 +48,10 @@ def _bootstrap_providers() -> None:
         from backend.infra.queue import QueueProvider
 
         register_provider(QueueProvider())
+    if "corpus" not in existing_names:
+        from backend.infra.corpus import CorpusProvider
+
+        register_provider(CorpusProvider())
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

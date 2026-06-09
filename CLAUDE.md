@@ -2,32 +2,42 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
-**Active component**: `007-incident-memory` (Component #6 — temporal incident memory; depends on #1, #2, #3;
-unblocks enrichment #9 + corpus #5).
-- Plan: `specs/007-incident-memory/plan.md`
-- Spec: `specs/007-incident-memory/spec.md`
-- Design: `specs/007-incident-memory/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
+**Active component**: `008-knowledge-corpus` (Component #5 — seeded reference corpus + optional on-demand
+intel; depends on #1, #6; **unblocks enrichment #9**). Realizes Constitution VI's "seeded corpus makes the
+agent competent on the first incident."
+- Plan: `specs/008-knowledge-corpus/plan.md`
+- Spec: `specs/008-knowledge-corpus/spec.md`
+- Design: `specs/008-knowledge-corpus/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
-Stack (this component): fills the reserved `infra/memory.py` seam with the **temporal incident-memory layer**
-(this spec *is* Constitution VI). **Graphiti on Neo4j 5.26** (`graphiti-core[google-genai]`) behind a small
-**`MemoryStore` Protocol** (`domain/memory.py`: `write_episode`/`search_similar`/`query_fact`) so the
-**decided pgvector fallback** (`valid_from`/`valid_to`, MD9) is a config-toggle swap. The **worker** writes
-one **redacted, idempotent** `IncidentEpisode` per incident **after** `run_incident` reaches terminal —
-**off the synchronous path, best-effort** (a memory outage never blocks a disposition or crashes the worker,
-FR-006); the **supervisor stays pure** (no memory dep). `search_similar` surfaces the closest prior incidents
-+ dispositions (hit@k/MRR); `query_fact(as_of=…)` returns the **time-valid** state (current vs. superseded)
-via Graphiti's native **invalidate-not-delete** edges → `FactState`. **Redaction before every write** (#2
-`Redactor`; the `redaction` gate's `memory_write` boundary goes live). Graphiti uses its **native Gemini**
-LLM+embedder (Vault key) — the one **documented Constitution VII deviation** (the #3 adapter is
-`generate()`-only, no embeddings; recorded in `DECISIONS.md`/Complexity Tracking). `MemoryProvider` lifespan
-singleton **degrades to `NullMemory`** if Neo4j is down; **worker-only** wiring (api/#12 read-wiring
-deferred). New: `neo4j:5.26` compose service (creds via `vault-seed` → `secret/memory`), `MemorySettings`
-(`backend` toggle / `retrieval_k` / timeout), dep `graphiti-core[google-genai]` + dev `testcontainers[neo4j]`.
-**Big spec** → milestones **0 spike → a write → b retrieve → c temporal** (commit at each). Lands the
-**retrieval** (hit@k/MRR) + **temporal-validity** eval gates (deterministic **store-logic**,
-**provider-independent** like smoke/routing). §v2c feedback loop is roadmap (T2), out of v1.
+Stack (this component): gives the empty #6 store **knowledge to reason over**, kept deliberately small.
+**Two stores, each for what it fits, no new service, no LLM in the retrieval path (CD1):** static
+reference docs (MITRE technique→mitigation + runbooks) → **new Postgres `reference_corpus` table**
+(`0006`, deterministic **keyed/lexical** retrieval, embeddings reserved-not-built); temporal reputation
+(seed IOC set + on-demand intel verdicts) → **`TemporalFact`s in #6** via one minimal **anticipated**
+`MemoryStore.write_fact` addition (CD2; intel is a *fact*, not an `IncidentEpisode` — keeps `search_similar`
+clean), read via existing `query_fact(as_of=…)` → invalidate-not-delete supersession. New pure types
+`domain/corpus.py` (`ReferenceCorpusEntry`/`ReferenceHit`/`ReferenceQuery`/`IntelVerdict` + `CorpusRetriever`
+Protocol, consumed by #9). **On-demand intel** (`infra/intel.py`, `ThreatIntelClient`) is **optional /
+config-gated / fail-closed / off-path**: single source, `httpx`, Redis-cached (negative caching), missing
+creds → **disabled not fail-boot**, outage/timeout → `unknown` (CD3). **Untrusted-input boundary** —
+redact (`Boundary.MEMORY_WRITE`) + the reserved `Guardrail` seam (#11) **before any write**; the seam
+**no-ops gracefully until #11 lands** so #5 isn't blocked (CD5). **Idempotent one-shot** `seed-corpus`
+(`python -m backend.seed_corpus`, mirrors `migrate`) loads `backend/data/corpus/*.json` after migrate +
+neo4j healthy (CD4). New `CorpusSettings`/`IntelSettings` (`extra="forbid"`; intel key Vault path
+**optional**). **No new external LLM path** (unlike #6). Eval: extends the existing **`retrieval`**
+gate with a corpus fixture set (cold-start, provider-independent) — **no new gate** (CD7). Milestones
+**(a) seed→retrieve → (b) intel→temporal-fact** (commit at each). Enrichment/dashboard wiring is #9/#12;
+live/streaming feeds are roadmap §v2/v3, out of v1.
 
-Prior components (done): `006-triage-agent` — **first LLM stage**: replaces the triage stub with **one**
+Prior components (done): `007-incident-memory` — **temporal incident-memory layer** (Constitution VI):
+**Graphiti on Neo4j 5.26** behind the `MemoryStore` Protocol (`domain/memory.py`:
+`write_episode`/`search_similar`/`query_fact`), decided pgvector fallback (MD9). The **worker** writes one
+redacted, idempotent `IncidentEpisode` per incident after terminal — off-path, best-effort (memory outage
+never blocks disposition); supervisor stays pure. `query_fact(as_of=…)` → time-valid `FactState` via
+invalidate-not-delete. Graphiti's native Gemini LLM+embedder is the one documented VII deviation.
+`MemoryProvider` degrades to `NullMemory`. Lands **retrieval** (hit@k/MRR) + **temporal_memory** gates
+(provider-independent). Plan: `specs/007-incident-memory/plan.md`.
+`006-triage-agent` — **first LLM stage**: replaces the triage stub with **one**
 structured-output `LlmClient` call → validated `TriageJudgment` (`domain/triage.py`: real/noise/uncertain +
 confidence + evidence-cited rationale) → pure config-gated `decide_outcome` → ADVANCE/RESOLVED/ESCALATE;
 **fail-closed** (bad output → escalate, worker never crashes); **no tools / no write** (closure-factory DI
