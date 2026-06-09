@@ -1,0 +1,26 @@
+[
+  {
+    "query_id": "q-001",
+    "text": "Multiple failed SSH login attempts from external IP on web server — looks like brute force",
+    "expected_prior_incident_id": "11111111-1111-1111-1111-111111111001",
+    "label": "ssh_brute_force"
+  },
+  {
+    "query_id": "q-002",
+    "text": "Network port scan from single IP targeting multiple hosts on common ports",
+    "expected_prior_incident_id": "11111111-1111-1111-1111-111111111002",
+    "label": "port_scan"
+  },
+  {
+    "query_id": "q-003",
+    "text": "Linux user repeatedly trying sudo commands without authorization on database host",
+    "expected_prior_incident_id": "11111111-1111-1111-1111-111111111003",
+    "label": "privilege_escalation"
+  },
+  {
+    "query_id": "q-004",
+    "text": "Suspicious file with known malware hash downloaded from internet on endpoint",
+    "expected_prior_incident_id": "11111111-1111-1111-1111-111111111005",
+    "label": "malware_download"
+  }
+]

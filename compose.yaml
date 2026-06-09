@@ -69,6 +69,22 @@ services:
       retries: 10
       start_period: 10s
 
+  neo4j:
+    image: neo4j:5.26
+    environment:
+      NEO4J_AUTH: neo4j/dev-neo4j-password
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
   # One-shot: seeds dev credentials and any user API keys from .env into Vault KV v2.
   # .env is optional — only needed when the user has real API keys to provide.
   vault-seed:
@@ -86,7 +102,8 @@ services:
       sh -c "
         vault kv put secret/minio access_key=minioadmin secret_key=minioadmin &&
         vault kv put secret/llm api_key=$${GEMINI_API_KEY:-placeholder} &&
-        vault kv put secret/ingest token=$${INGEST_WEBHOOK_TOKEN:-dev-webhook-token}
+        vault kv put secret/ingest token=$${INGEST_WEBHOOK_TOKEN:-dev-webhook-token} &&
+        vault kv put secret/memory username=neo4j password=dev-neo4j-password uri=bolt://neo4j:7687
       "
     restart: on-failure
 
@@ -189,13 +206,16 @@ services:
     environment:
       SENTINEL__VAULT__ADDR: http://vault:8200
       SENTINEL__VAULT__TOKEN: dev-root-token
-      SENTINEL__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm","secret/ingest"]'
+      SENTINEL__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm","secret/ingest","secret/memory"]'
       SENTINEL__POSTGRES__DSN: postgresql+asyncpg://sentinel:sentinel@postgres:5432/sentinel
       SENTINEL__MINIO__ENDPOINT_URL: http://minio:9000
       SENTINEL__LLM__OLLAMA_BASE_URL: http://ollama:11434
       SENTINEL__REDIS__URL: redis://redis:6379/0
+      SENTINEL__MEMORY__NEO4J_URI: bolt://neo4j:7687
     depends_on:
       redis:
+        condition: service_healthy
+      neo4j:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
@@ -204,12 +224,6 @@ services:
     restart: on-failure
 
   # ── Reserved — uncomment when the owning spec is implemented ──────────────────
-  #
-  # neo4j:                               # SPEC-memory (#6) — Graphiti temporal memory
-  #   image: neo4j:5
-  #   ports:
-  #     - "7474:7474"
-  #     - "7687:7687"
   #
   # guardrails:                          # SPEC-safety (#11) — self-hosted sidecar only
   #   build:
@@ -225,3 +239,4 @@ volumes:
   postgres_data:
   minio_data:
   ollama_data:
+  neo4j_data:

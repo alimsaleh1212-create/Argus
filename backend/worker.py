@@ -14,7 +14,7 @@ from backend.infra.logging import get_logger
 logger = get_logger(__name__)
 
 
-async def _run(settings, queue, repo, tracer, supervisor=None) -> None:
+async def _run(settings, queue, repo, tracer, supervisor=None, memory=None) -> None:
     """Inner consume loop (extracted for testability)."""
     await queue.recover()
     logger.info("worker_started")
@@ -60,6 +60,10 @@ async def _run(settings, queue, repo, tracer, supervisor=None) -> None:
             await queue.ack(incident_id_str)
             logger.info("worker_grounded", incident_id=incident_id_str)
 
+            # Best-effort memory write: off the disposition path, never blocks/raises
+            if memory is not None:
+                _maybe_record_episode(incident_id, incident_id_str, repo, memory, settings)
+
         except Exception as exc:
             logger.error(
                 "worker_error",
@@ -74,6 +78,42 @@ async def _run(settings, queue, repo, tracer, supervisor=None) -> None:
                 logger.warning("worker_failed_terminal", incident_id=incident_id_str)
 
 
+def _maybe_record_episode(incident_id, incident_id_str, repo, memory, settings):
+    """Schedule best-effort episode write as a fire-and-forget asyncio task."""
+    import asyncio
+
+    async def _do_record():
+        try:
+            from backend.domain.incident import IncidentStatus
+            from backend.infra.redaction import build_redactor
+            from backend.services.memory import record_episode
+
+            incident = await repo.get(incident_id)
+            if incident is None:
+                return
+            # Only write for terminal incidents
+            terminal = {IncidentStatus.RESOLVED, IncidentStatus.ESCALATED, IncidentStatus.FAILED}
+            if incident.status not in terminal:
+                return
+
+            obs_settings = settings.observability
+            redactor = build_redactor(presidio_enabled=obs_settings.presidio_enabled)
+            await record_episode(incident, memory, redactor)
+            logger.info("memory_episode_recorded", incident_id=incident_id_str)
+        except Exception as exc:
+            logger.warning(
+                "memory_episode_error",
+                incident_id=incident_id_str,
+                error=str(exc),
+            )
+
+    try:
+        loop = asyncio.get_event_loop()
+        loop.create_task(_do_record())
+    except Exception as exc:
+        logger.warning("memory_schedule_error", error=str(exc))
+
+
 async def _main_async() -> None:
     from backend.infra.cache import CacheProvider
     from backend.infra.config import load_settings
@@ -81,6 +121,7 @@ async def _main_async() -> None:
     from backend.infra.db import register_db_provider
     from backend.infra.lifespan import sentinel_lifespan
     from backend.infra.llm import register_llm_provider
+    from backend.infra.memory import MemoryProvider
     from backend.infra.observability import ObservabilityProvider
     from backend.infra.queue import QueueProvider
     from backend.infra.vault import register_vault_provider
@@ -96,6 +137,7 @@ async def _main_async() -> None:
     register_provider(QueueProvider())
     register_llm_provider()  # must be before SupervisorProvider so container.llm exists
     register_provider(SupervisorProvider())
+    register_provider(MemoryProvider())
 
     from fastapi import FastAPI
 
@@ -108,6 +150,7 @@ async def _main_async() -> None:
         queue = container.queue
         tracer = container.observability.tracer
         supervisor = container.supervisor
+        memory = getattr(container, "memory", None)
 
         from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -116,7 +159,7 @@ async def _main_async() -> None:
             from backend.repositories.incidents import IncidentRepository
 
             repo = IncidentRepository(session)
-            await _run(settings, queue, repo, tracer, supervisor=supervisor)
+            await _run(settings, queue, repo, tracer, supervisor=supervisor, memory=memory)
 
 
 def main() -> None:
