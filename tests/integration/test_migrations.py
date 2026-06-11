@@ -18,7 +18,7 @@ class TestAlembicMigrations:
         """Baseline migration is reversible with no schema drift."""
         import os
 
-        env = {**os.environ, "SENTINEL__POSTGRES__DSN": postgres_container.get_dsn()}
+        env = {**os.environ, "ARGUS__POSTGRES__DSN": postgres_container.get_dsn()}
 
         result = subprocess.run(
             ["uv", "run", "alembic", "-c", "config/alembic.ini", "upgrade", "head"],

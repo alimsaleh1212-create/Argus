@@ -22,7 +22,7 @@ class TestSecretRedaction:
 
     def test_settings_repr_masks_vault_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Settings.__repr__ must not expose vault.token value."""
-        monkeypatch.setenv("SENTINEL__VAULT__TOKEN", SENTINEL_SECRET_VALUE)
+        monkeypatch.setenv("ARGUS__VAULT__TOKEN", SENTINEL_SECRET_VALUE)
         from backend.infra.config import Settings
 
         s = Settings()
@@ -32,7 +32,7 @@ class TestSecretRedaction:
     def test_settings_repr_masks_postgres_dsn(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Settings.__repr__ must not expose postgres.dsn value."""
         monkeypatch.setenv(
-            "SENTINEL__POSTGRES__DSN",
+            "ARGUS__POSTGRES__DSN",
             f"postgresql+asyncpg://user:{SENTINEL_SECRET_VALUE}@host:5432/db",
         )
         from backend.infra.config import Settings
@@ -45,8 +45,8 @@ class TestSecretRedaction:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Unknown-key error message must not contain the actual secret value (FR-005)."""
-        monkeypatch.setenv("SENTINEL__VAULT__TOKEN", SENTINEL_SECRET_VALUE)
-        monkeypatch.setenv("SENTINEL__UNKNOWN_KEY", "boom")
+        monkeypatch.setenv("ARGUS__VAULT__TOKEN", SENTINEL_SECRET_VALUE)
+        monkeypatch.setenv("ARGUS__UNKNOWN_KEY", "boom")
         from backend.infra.config import load_settings
 
         with pytest.raises(ValueError) as exc_info:
@@ -54,5 +54,5 @@ class TestSecretRedaction:
 
         error_text = str(exc_info.value)
         # Error must name the offending key, never the vault token value
-        assert "SENTINEL__UNKNOWN_KEY" in error_text
+        assert "ARGUS__UNKNOWN_KEY" in error_text
         assert SENTINEL_SECRET_VALUE not in error_text

@@ -196,7 +196,7 @@ backend/
 │                             #       set_grounded already exists; list_non_terminal reused for resume scan
 ├── infra/
 │   ├── config.py            # EDIT: add SupervisorSettings; register on Settings; add "supervisor" to
-│   │                         #       _KNOWN_SENTINEL_SECTIONS
+│   │                         #       _KNOWN_ARGUS_SECTIONS
 │   └── container.py / lifespan.py  # EDIT: add SupervisorProvider singleton (mirrors QueueProvider); expose container.supervisor
 ├── dependencies.py          # EDIT: add get_supervisor() (request-path, for #12/tests); worker reads container.supervisor
 └── worker.py                # EDIT: call container.supervisor via the pipeline seam, passing the session-bound repo

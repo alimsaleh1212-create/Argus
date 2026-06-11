@@ -61,14 +61,14 @@ With a **fake `LlmClient`** you can drive each path deterministically:
 - Confirm `tokens_consumed > 0` is reported and feeds the supervisor cap; confirm exactly **one**
   `llm.generate` call per incident.
 
-## Config knobs (`SENTINEL__TRIAGE__*`)
+## Config knobs (`ARGUS__TRIAGE__*`)
 
 ```bash
-SENTINEL__TRIAGE__ADVANCE_MIN_CONFIDENCE=0.6   # below ⇒ abstain/escalate
-SENTINEL__TRIAGE__RESOLVE_MIN_CONFIDENCE=0.7   # higher bar to auto-close noise (must be ≥ advance)
-SENTINEL__TRIAGE__MAX_OUTPUT_TOKENS=512
-SENTINEL__TRIAGE__TEMPERATURE=0.0
-SENTINEL__TRIAGE__PROMPT_VERSION=v1
+ARGUS__TRIAGE__ADVANCE_MIN_CONFIDENCE=0.6   # below ⇒ abstain/escalate
+ARGUS__TRIAGE__RESOLVE_MIN_CONFIDENCE=0.7   # higher bar to auto-close noise (must be ≥ advance)
+ARGUS__TRIAGE__MAX_OUTPUT_TOKENS=512
+ARGUS__TRIAGE__TEMPERATURE=0.0
+ARGUS__TRIAGE__PROMPT_VERSION=v1
 ```
 
 Changing `RESOLVE_MIN_CONFIDENCE` shifts the resolve/escalate boundary **without touching reasoning code**

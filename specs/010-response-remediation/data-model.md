@@ -116,7 +116,7 @@ stage only** — the structural action-tool boundary (Constitution III / RD9). R
 ## 6. `ResponseSettings` (settings) — `infra/config.py` (EXTEND)
 
 Mirrors `EnrichmentSettings`; `extra="forbid"`; registered as the `"response"` section, added as
-`Settings.response`, and `"response"` added to `_KNOWN_SENTINEL_SECTIONS`.
+`Settings.response`, and `"response"` added to `_KNOWN_ARGUS_SECTIONS`.
 
 | Field | Type | Default | Purpose |
 |-------|------|---------|---------|

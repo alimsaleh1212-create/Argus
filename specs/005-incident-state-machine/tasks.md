@@ -8,7 +8,7 @@ description: "Task list for Incident State Machine (Supervisor) — Component #7
 
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/
 
-**Tests**: REQUIRED (Sentinel constitution Principle II — Test-First, Three-Tier, Eval-Gated, NON-NEGOTIABLE).
+**Tests**: REQUIRED (Argus constitution Principle II — Test-First, Three-Tier, Eval-Gated, NON-NEGOTIABLE).
 Each user story carries the tiers it owns: US1 → unit; US2 → unit + integration; US3 → unit + e2e + eval.
 Tests are written **before** the implementation in each story and must fail first.
 
@@ -50,7 +50,7 @@ guarded transition, and the `supervisor` settings section.
 - [x] T003 Extend `IncidentStatus` in `backend/domain/incident.py` with `triaging`, `enriching`, `responding`, `awaiting_approval`, `resolved`, `escalated` (keep existing `received`/`grounding`/`grounded`/`failed`), and add the optional `disposition: str | None = None` field to `Incident` per data-model.md §1–§2
 - [x] T004 [P] Add migration `backend/db/migrations/versions/0004_incident_disposition.py` (revision `0004`, down_revision `0003`) adding a nullable `disposition text` column to `incidents`; reversible `downgrade` drops it; no status DDL (status stays `text`) per data-model.md §9
 - [x] T005 Add the guarded transition `advance_status(incident_id, *, expected: IncidentStatus, target: IncidentStatus, disposition: str | None = None) -> bool` to `backend/repositories/incidents.py` (atomic `UPDATE … SET status=:target[, disposition=:disp] WHERE id=:id AND status=:expected RETURNING id`, returns True iff applied) and map the new `disposition` column in `_row_to_incident` (depends on T003) per data-model.md §8
-- [x] T006 [P] Add `SupervisorSettings` to `backend/infra/config.py` (`extra="forbid"`: `max_steps=8`, `max_tokens=40_000`, `max_stage_retries=2`, `fast_path_autoclose_severities=["low"]`, `fast_path_critical_severities=["critical"]`), register it on `Settings` as `supervisor`, and add `"supervisor"` to `_KNOWN_SENTINEL_SECTIONS` per data-model.md §7
+- [x] T006 [P] Add `SupervisorSettings` to `backend/infra/config.py` (`extra="forbid"`: `max_steps=8`, `max_tokens=40_000`, `max_stage_retries=2`, `fast_path_autoclose_severities=["low"]`, `fast_path_critical_severities=["critical"]`), register it on `Settings` as `supervisor`, and add `"supervisor"` to `_KNOWN_ARGUS_SECTIONS` per data-model.md §7
 
 **Checkpoint**: Contract types, lifecycle, migration, guarded transition, and settings exist — the supervisor and stages can now be built against a stable seam.
 

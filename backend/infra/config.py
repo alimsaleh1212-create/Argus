@@ -4,7 +4,7 @@ Rules enforced here:
 - ``extra="forbid"``: any unknown key → ValidationError → refuse boot.
 - ``SecretStr`` for all sensitive fields; ``__repr__`` never emits values.
 - Frozen after construction (immutable once loaded at startup).
-- Env var naming: ``SENTINEL__<SECTION>__<FIELD>``.
+- Env var naming: ``ARGUS__<SECTION>__<FIELD>``.
 """
 
 from __future__ import annotations
@@ -18,18 +18,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.domain.llm import ProviderId
 
-_KNOWN_SENTINEL_SECTIONS = frozenset(
+_KNOWN_ARGUS_SECTIONS = frozenset(
     {
         "app", "vault", "postgres", "minio", "startup", "observability",
         "llm", "redis", "ingest", "supervisor", "triage", "memory",
         "corpus", "intel", "enrichment", "response",
     }
 )
-_SENTINEL_PREFIX = "SENTINEL__"
+_ARGUS_PREFIX = "ARGUS__"
 
 
 def _check_unknown_env_sections() -> None:
-    """Raise ValueError if any SENTINEL__ env var has an unknown section.
+    """Raise ValueError if any ARGUS__ env var has an unknown section.
 
     pydantic-settings v2 silently ignores env vars not matching known fields;
     ``extra="forbid"`` alone cannot catch unknown section keys (FR-002).
@@ -38,13 +38,13 @@ def _check_unknown_env_sections() -> None:
     """
     unknown = []
     for key in os.environ:
-        if key.upper().startswith(_SENTINEL_PREFIX):
-            section = key[len(_SENTINEL_PREFIX) :].split("__")[0].lower()
-            if section and section not in _KNOWN_SENTINEL_SECTIONS:
+        if key.upper().startswith(_ARGUS_PREFIX):
+            section = key[len(_ARGUS_PREFIX) :].split("__")[0].lower()
+            if section and section not in _KNOWN_ARGUS_SECTIONS:
                 unknown.append(key)
     if unknown:
         raise ValueError(
-            f"Unknown SENTINEL__ environment variable(s): {sorted(unknown)}. "
+            f"Unknown ARGUS__ environment variable(s): {sorted(unknown)}. "
             "Remove unrecognised keys or check for typos (Settings extra='forbid')."
         )
 
@@ -86,7 +86,7 @@ class VaultSettings(BaseSettings):
 class PostgresSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="forbid")
 
-    dsn: SecretStr = SecretStr("postgresql+asyncpg://sentinel:sentinel@postgres:5432/sentinel")
+    dsn: SecretStr = SecretStr("postgresql+asyncpg://argus:argus@postgres:5432/argus")
 
 
 class MinioSettings(BaseSettings):
@@ -286,7 +286,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         extra="forbid",
-        env_prefix="SENTINEL__",
+        env_prefix="ARGUS__",
         env_nested_delimiter="__",
         env_file=".env",
         frozen=True,

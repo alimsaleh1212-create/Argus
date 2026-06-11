@@ -34,7 +34,7 @@ assert await retriever.search_reference(ReferenceQuery(technique_ids=["T9999"], 
 Enable intel (off by default):
 ```bash
 # .env: provide the intel API key → vault-seed writes secret/intel; set enabled
-export SENTINEL__INTEL__ENABLED=true
+export ARGUS__INTEL__ENABLED=true
 ```
 ```python
 from backend.domain.memory import EntityKind, EntityRef

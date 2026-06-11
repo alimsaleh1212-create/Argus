@@ -61,14 +61,14 @@ def test_intel_vault_path_not_injected(monkeypatch: pytest.MonkeyPatch) -> None:
 
     Contrast with memory.neo4j_vault_path which IS injected.
     """
-    monkeypatch.delenv("SENTINEL__VAULT__REQUIRED_PATHS", raising=False)
+    monkeypatch.delenv("ARGUS__VAULT__REQUIRED_PATHS", raising=False)
     s = Settings()
     # The intel vault path is optional — must NOT appear unless explicitly added
     assert s.intel.api_key_vault_path not in s.vault.required_paths
 
 
 def test_memory_vault_path_is_injected_but_not_intel(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("SENTINEL__VAULT__REQUIRED_PATHS", raising=False)
+    monkeypatch.delenv("ARGUS__VAULT__REQUIRED_PATHS", raising=False)
     s = Settings()
     assert s.memory.neo4j_vault_path in s.vault.required_paths
     assert s.intel.api_key_vault_path not in s.vault.required_paths

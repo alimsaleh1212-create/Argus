@@ -82,7 +82,7 @@ The query shape for similarity retrieval (built from a new incident's evidence).
 
 ## Configuration (`backend/infra/config.py`)
 
-### `MemorySettings` (env `SENTINEL__MEMORY__*`, `extra="forbid"`)
+### `MemorySettings` (env `ARGUS__MEMORY__*`, `extra="forbid"`)
 
 | Field | Type / default | Notes |
 |-------|----------------|-------|
@@ -94,7 +94,7 @@ The query shape for similarity retrieval (built from a new incident's evidence).
 | `retrieval_timeout_s` | `float = 5.0` (`gt=0`) | latency budget (SC-006) |
 | `embedding_model` | `str = "text-embedding-004"` | Gemini embedder model |
 
-Registered in `_KNOWN_SENTINEL_SECTIONS` (`"memory"`) and added as `memory: MemorySettings` on `Settings`.
+Registered in `_KNOWN_ARGUS_SECTIONS` (`"memory"`) and added as `memory: MemorySettings` on `Settings`.
 A `model_validator` appends `neo4j_vault_path` to `vault.required_paths` (fail-boot if unseeded) — mirrors
 `_ensure_llm_vault_path_required`.
 

@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 
 
 @asynccontextmanager
-async def sentinel_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def argus_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """FastAPI lifespan that builds providers in registration order."""
     settings = app.state.settings
     container = AppContainer()
@@ -53,7 +53,7 @@ async def sentinel_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 logger.info("provider_ready", provider=provider.name)
 
             app.state.container = container
-            logger.info("sentinel_ready", providers=entered)
+            logger.info("argus_ready", providers=entered)
             yield
 
     except SystemExit:
@@ -62,7 +62,7 @@ async def sentinel_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.error("lifespan_error", error=str(exc))
         sys.exit(1)
     finally:
-        logger.info("sentinel_shutdown", providers=list(reversed(entered)))
+        logger.info("argus_shutdown", providers=list(reversed(entered)))
         _assert_no_leaks(container)
 
 

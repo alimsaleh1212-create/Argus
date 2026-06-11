@@ -7,22 +7,22 @@ service. It consumes the corpus (#5), memory (#6), and LLM (#3) singletons alrea
 
 - The stack is up (`docker compose up`) with `migrate` + `seed-corpus` completed and `neo4j` healthy.
 - An `LlmClient` provider is configured (Gemini or Ollama) — without it, the worker keeps the ADVANCE stub.
-- (Optional) On-demand intel: set `SENTINEL__INTEL__ENABLED=true` and seed `secret/intel` with an `api_key`.
+- (Optional) On-demand intel: set `ARGUS__INTEL__ENABLED=true` and seed `secret/intel` with an `api_key`.
   Left disabled, enrichment runs on corpus + memory alone (intel verdicts come back `unknown`).
 
 ## Configuration (typed, `extra="forbid"`)
 
-`EnrichmentSettings` (section `SENTINEL__ENRICHMENT__*`):
+`EnrichmentSettings` (section `ARGUS__ENRICHMENT__*`):
 
 | Env | Default | Meaning |
 |-----|---------|---------|
-| `SENTINEL__ENRICHMENT__ADVANCE_MIN_CONFIDENCE` | `0.6` | below → ESCALATE |
-| `SENTINEL__ENRICHMENT__RESOLVE_MIN_CONFIDENCE` | `0.7` | `benign` needs ≥ this to auto-resolve |
-| `SENTINEL__ENRICHMENT__CORPUS_K` | `5` | top-k reference hits |
-| `SENTINEL__ENRICHMENT__MEMORY_K` | `5` | top-k similar priors |
-| `SENTINEL__ENRICHMENT__CONSULT_INTEL` | `true` | enrichment-side intel toggle |
-| `SENTINEL__ENRICHMENT__MAX_INDICATORS` | `5` | cap on intel/`query_fact` calls |
-| `SENTINEL__ENRICHMENT__PROMPT_VERSION` | `v1` | pinned system prompt |
+| `ARGUS__ENRICHMENT__ADVANCE_MIN_CONFIDENCE` | `0.6` | below → ESCALATE |
+| `ARGUS__ENRICHMENT__RESOLVE_MIN_CONFIDENCE` | `0.7` | `benign` needs ≥ this to auto-resolve |
+| `ARGUS__ENRICHMENT__CORPUS_K` | `5` | top-k reference hits |
+| `ARGUS__ENRICHMENT__MEMORY_K` | `5` | top-k similar priors |
+| `ARGUS__ENRICHMENT__CONSULT_INTEL` | `true` | enrichment-side intel toggle |
+| `ARGUS__ENRICHMENT__MAX_INDICATORS` | `5` | cap on intel/`query_fact` calls |
+| `ARGUS__ENRICHMENT__PROMPT_VERSION` | `v1` | pinned system prompt |
 
 ## Verify (the three behaviors)
 
@@ -50,7 +50,7 @@ docker compose logs -f worker | grep -E "supervisor_transition|enrichment"
 
 ### 3. Graceful degradation + bounded (US3)
 
-- Disable memory (`SENTINEL__MEMORY__ENABLED=false`) and intel → enrichment still produces a report from
+- Disable memory (`ARGUS__MEMORY__ENABLED=false`) and intel → enrichment still produces a report from
   corpus-only context; the incident is not failed by the outage.
 - Force a provider timeout / malformed output (in tests, via a faked driver) → the incident ESCALATEs after
   policy retries; the worker keeps consuming.

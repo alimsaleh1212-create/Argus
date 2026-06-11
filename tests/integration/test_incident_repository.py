@@ -25,7 +25,7 @@ def pg_container():
             f"@{pg.get_container_host_ip()}:{pg.get_exposed_port(5432)}/{pg.dbname}"
         )
         # Run migrations
-        env = {**os.environ, "SENTINEL__POSTGRES__DSN": pg.get_dsn()}
+        env = {**os.environ, "ARGUS__POSTGRES__DSN": pg.get_dsn()}
         subprocess.run(
             ["uv", "run", "alembic", "-c", "config/alembic.ini", "upgrade", "head"],
             env=env,

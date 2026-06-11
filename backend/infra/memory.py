@@ -87,7 +87,7 @@ class GraphitiMemory:
         await self._graphiti.add_episode(
             name=str(episode.incident_id),
             episode_body=body,
-            source_description="sentinel-incident",
+            source_description="argus-incident",
             reference_time=episode.observed_at,
             source=EpisodeType.json,
             uuid=str(episode.incident_id),
@@ -200,7 +200,7 @@ class GraphitiMemory:
         await self._graphiti.add_episode(
             name=episode_name,
             episode_body=body,
-            source_description=f"sentinel-{fact.fact_type}",
+            source_description=f"argus-{fact.fact_type}",
             reference_time=fact.valid_from,
             source=EpisodeType.json,
             uuid=episode_name,

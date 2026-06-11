@@ -10,7 +10,7 @@
 
 ## Overview
 
-This component is the **spine** of Sentinel's incident pipeline. It picks up where ingestion (#4) left
+This component is the **spine** of Argus's incident pipeline. It picks up where ingestion (#4) left
 off: the worker grounds an Incident and hands it to a frozen seam (`dispatch_to_pipeline`), which today
 just logs. This component **fills that seam** with a **deterministic supervisor** — a state machine that
 drives each grounded Incident through an explicit lifecycle to a terminal disposition, deciding *which*

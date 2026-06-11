@@ -148,7 +148,7 @@ The fields bound into `structlog.contextvars` for every line: `correlation_id` (
 
 ## Settings additions (`backend/infra/config.py`, `extra="forbid"`)
 
-A new `ObservabilitySettings` section (registered on `Settings`, keeping the `_KNOWN_SENTINEL_SECTIONS`
+A new `ObservabilitySettings` section (registered on `Settings`, keeping the `_KNOWN_ARGUS_SECTIONS`
 set in sync):
 
 | Field | Default | Purpose |

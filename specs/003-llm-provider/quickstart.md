@@ -18,9 +18,9 @@ GEMINI_API_KEY=...            # seeded into Vault at secret/llm; Ollama needs no
 Defaults already target the pair (override in `.env` for local non-Docker runs):
 
 ```bash
-SENTINEL__LLM__PRIMARY=gemini
-SENTINEL__LLM__FALLBACK_ORDER=["gemini","ollama"]
-SENTINEL__LLM__OLLAMA_BASE_URL=http://ollama:11434
+ARGUS__LLM__PRIMARY=gemini
+ARGUS__LLM__FALLBACK_ORDER=["gemini","ollama"]
+ARGUS__LLM__OLLAMA_BASE_URL=http://ollama:11434
 ```
 
 ## 2. Bring up the stack (now includes `ollama`)
@@ -68,7 +68,7 @@ assert resp.provider == "ollama"                 # secondary served it; the call
 Switch the primary with **no code change** and confirm order flips:
 
 ```bash
-SENTINEL__LLM__PRIMARY=ollama SENTINEL__LLM__FALLBACK_ORDER='["ollama","gemini"]'  # restart → ollama first
+ARGUS__LLM__PRIMARY=ollama ARGUS__LLM__FALLBACK_ORDER='["ollama","gemini"]'  # restart → ollama first
 ```
 
 ## 6. Verify fail-closed contract (FR-004 / SC-009)

@@ -47,7 +47,7 @@ The structured assessment triage produces for one incident. Pure Pydantic v2 (`e
 
 ## 3. `TriageSettings` (config) — `backend/infra/config.py`
 
-New typed section; env prefix `SENTINEL__TRIAGE__*`. Add `"triage"` to `_KNOWN_SENTINEL_SECTIONS` and a
+New typed section; env prefix `ARGUS__TRIAGE__*`. Add `"triage"` to `_KNOWN_ARGUS_SECTIONS` and a
 `triage: TriageSettings = Field(default_factory=TriageSettings)` field on `Settings`.
 
 | Field | Type | Default | Rules |

@@ -165,7 +165,7 @@ backend/
 │   ├── cache.py          # FILL: CacheProvider — redis.asyncio pool (lifespan singleton); dedup helpers
 │   ├── queue.py          # FILL: QueueProvider + RedisTaskQueue — enqueue / BLMOVE-dequeue / ack / recover
 │   ├── config.py         # EDIT: add RedisSettings + IngestSettings; register on Settings; extend
-│   │                     #       _KNOWN_SENTINEL_SECTIONS with "redis","ingest"; require secret/ingest path
+│   │                     #       _KNOWN_ARGUS_SECTIONS with "redis","ingest"; require secret/ingest path
 │   └── health.py         # EDIT: add check_redis() — PING the pool
 ├── worker.py             # FILL: recover() → consume loop: dequeue → load → ground → handoff → grounded
 ├── dependencies.py        # EDIT: add get_cache(), get_queue(), get_incident_repo(), get_intake_service()

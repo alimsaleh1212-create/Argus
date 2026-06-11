@@ -62,7 +62,7 @@ class EnrichmentReport(BaseModel):
 ## 3. `EnrichmentSettings` (settings) — `infra/config.py` (EXTEND)
 
 Mirrors `TriageSettings`; `extra="forbid"`; registered as the `"enrichment"` section and added as
-`Settings.enrichment`. `"enrichment"` is added to `_KNOWN_SENTINEL_SECTIONS`.
+`Settings.enrichment`. `"enrichment"` is added to `_KNOWN_ARGUS_SECTIONS`.
 
 | Field | Type | Default | Purpose |
 |-------|------|---------|---------|

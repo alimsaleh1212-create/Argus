@@ -40,9 +40,9 @@ fills the #1-reserved seam `backend/infra/llm.py`; it adds **one** new compose s
 **Purpose**: Dependencies, the local-fallback runtime, and build/coverage config — no adapter behavior yet.
 
 - [x] T001 Add LLM deps via `uv add`: `google-genai`, `ollama`; regenerate the committed `uv.lock` (in `pyproject.toml`)
-- [x] T002 [P] Add an `ollama` service (official `ollama/ollama` image, port `11434`, named volume) plus a one-shot tiny-model pull, reachable by api/worker at `SENTINEL__LLM__OLLAMA_BASE_URL`, in `compose.yaml`
+- [x] T002 [P] Add an `ollama` service (official `ollama/ollama` image, port `11434`, named volume) plus a one-shot tiny-model pull, reachable by api/worker at `ARGUS__LLM__OLLAMA_BASE_URL`, in `compose.yaml`
 - [x] T003 [P] Update `pyproject.toml` coverage: remove `backend/infra/llm.py` from `[tool.coverage.run] omit`; confirm `backend/infra/llm_drivers.py` and `backend/domain/llm.py` are measured
-- [x] T004 [P] Update `.env.example`: add a `GEMINI_API_KEY` placeholder (seeded into Vault at `secret/llm`, replacing the legacy `OPENAI_API_KEY` line) and document the `SENTINEL__LLM__*` section (no secret values)
+- [x] T004 [P] Update `.env.example`: add a `GEMINI_API_KEY` placeholder (seeded into Vault at `secret/llm`, replacing the legacy `OPENAI_API_KEY` line) and document the `ARGUS__LLM__*` section (no secret values)
 
 **Checkpoint**: `uv sync` resolves; `docker compose up` brings up `ollama` and pulls the tiny model; coverage targets the new modules.
 
@@ -53,7 +53,7 @@ fills the #1-reserved seam `backend/infra/llm.py`; it adds **one** new compose s
 **Purpose**: Shared pure types + the typed settings section every story imports. **No user story can begin until this phase is complete.**
 
 - [x] T005 Define LLM domain types (`ProviderId`, `StopReason`, `LlmErrorKind`, `LlmMessage`, `ToolSpec`, `LlmRequest`, `ToolCall`, `TokenUsage`, `LlmResponse`, `ProviderCapability`, `LlmError`) in `backend/domain/llm.py` per [data-model.md](./data-model.md) — pure types, no outward deps; `TokenUsage` exposes `prompt_tokens`/`completion_tokens` to match #2's `record_llm_usage`
-- [x] T006 Add `LlmSettings` (fields per [data-model.md](./data-model.md) §Configuration: `primary`, `fallback_order`, `request_timeout_s`, `max_retries`, `gemini_model`, `gemini_vault_path`, `ollama_base_url`, `ollama_model`; validator: `fallback_order[0] == primary`) to `backend/infra/config.py`, register it on `Settings`, add `"llm"` to `_KNOWN_SENTINEL_SECTIONS`, and ensure the Gemini Vault path joins `vault.required_paths` (fail-boot if absent)
+- [x] T006 Add `LlmSettings` (fields per [data-model.md](./data-model.md) §Configuration: `primary`, `fallback_order`, `request_timeout_s`, `max_retries`, `gemini_model`, `gemini_vault_path`, `ollama_base_url`, `ollama_model`; validator: `fallback_order[0] == primary`) to `backend/infra/config.py`, register it on `Settings`, add `"llm"` to `_KNOWN_ARGUS_SECTIONS`, and ensure the Gemini Vault path joins `vault.required_paths` (fail-boot if absent)
 
 **Checkpoint**: `Settings` validates with the new `llm` section; domain types import with no outward deps; `import-linter` contracts still pass.
 

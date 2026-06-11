@@ -24,7 +24,7 @@ def _make_app(redis_up: bool = True):
     """Build a minimal test app with providers stubbed out."""
     import os
 
-    os.environ.setdefault("SENTINEL__REDIS__URL", "redis://localhost:6379/0")
+    os.environ.setdefault("ARGUS__REDIS__URL", "redis://localhost:6379/0")
 
     from backend.infra.container import AppContainer, clear_registry
     from backend.infra.config import load_settings

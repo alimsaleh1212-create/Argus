@@ -16,11 +16,11 @@ Bootstrap config is plain compose `environment:`; the webhook token is a Vault s
 # .env (read only by vault-seed) — the webhook shared secret
 INGEST_WEBHOOK_TOKEN=dev-ingest-token        # vault-seed writes this to secret/ingest
 
-# Optional tunables (defaults shown) — SENTINEL__<SECTION>__<FIELD>
-SENTINEL__REDIS__URL=redis://redis:6379/0
-SENTINEL__INGEST__MAX_ALERT_BYTES=262144     # 256 KiB → 413 above this
-SENTINEL__INGEST__DEDUP_WINDOW_S=300         # duplicate window
-SENTINEL__INGEST__MAX_ATTEMPTS=3             # worker retry budget → failed
+# Optional tunables (defaults shown) — ARGUS__<SECTION>__<FIELD>
+ARGUS__REDIS__URL=redis://redis:6379/0
+ARGUS__INGEST__MAX_ALERT_BYTES=262144     # 256 KiB → 413 above this
+ARGUS__INGEST__DEDUP_WINDOW_S=300         # duplicate window
+ARGUS__INGEST__MAX_ATTEMPTS=3             # worker retry budget → failed
 ```
 
 A missing `secret/ingest` **fails boot** (it's in `vault.required_paths`).

@@ -135,7 +135,7 @@ shapes the seam produces/consumes.
 ## Configuration — `LlmSettings` (`backend/infra/config.py`)
 
 A new typed section (`extra="forbid"`), registered on `Settings` and added to
-`_KNOWN_SENTINEL_SECTIONS` as `"llm"`. Env vars: `SENTINEL__LLM__<FIELD>`.
+`_KNOWN_ARGUS_SECTIONS` as `"llm"`. Env vars: `ARGUS__LLM__<FIELD>`.
 
 | Field | Type / default | Notes |
 |-------|----------------|-------|

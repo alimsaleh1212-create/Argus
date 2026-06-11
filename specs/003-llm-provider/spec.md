@@ -10,7 +10,7 @@
 
 ## Overview
 
-Sentinel is an AI-driven SOAR platform built spec-by-spec in dependency order. This component delivers
+Argus is an AI-driven SOAR platform built spec-by-spec in dependency order. This component delivers
 the **one seam through which every model call in the system is made**. The three reasoning agents
 (triage → enrichment → response), the memory layer's reference reasoning, and the eval harness all
 talk to a large language model; this component is the single, provider-agnostic adapter they call so

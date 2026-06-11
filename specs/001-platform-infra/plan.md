@@ -6,7 +6,7 @@
 
 ## Summary
 
-Stand up the runnable, fail-fast backend foundation that every later Sentinel component plugs into:
+Stand up the runnable, fail-fast backend foundation that every later Argus component plugs into:
 a Docker Compose stack, a single typed configuration object, Vault-resolved secrets that refuse to
 boot when missing, a MinIO object store, a versioned Postgres (pgvector) relational store via async
 Alembic, a layered `app/` skeleton, and a **lifespan-managed singleton container with a registration

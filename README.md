@@ -1,4 +1,4 @@
-# Sentinel — AI-driven SOAR Platform
+# Argus — AI-driven SOAR Platform
 
 **Component #1: Platform & Infrastructure Foundation**
 
@@ -11,7 +11,7 @@ enforced code hygiene gates.
 ## Quick start (fresh clone)
 
 ```bash
-git clone <repo-url> sentinel && cd sentinel
+git clone <repo-url> argus && cd argus
 cp .env.example .env            # only manual step; defaults work for local dev
 docker compose up -d
 ```
@@ -91,7 +91,7 @@ plus reserved compose slots for redis/neo4j/guardrails/frontend.
 ## Architecture
 
 ```
-sentinel/
+argus/
 ├── backend/                    # the Python package (one image; api + worker + migrate)
 │   ├── main.py                 # thin app factory
 │   ├── worker.py               # reserved: queue consumer (#4/#5)

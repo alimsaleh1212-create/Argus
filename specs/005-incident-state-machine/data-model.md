@@ -162,11 +162,11 @@ Pure function of the grounded incident + config → unit-testable, reproducible,
 
 ## 7. `SupervisorSettings` (in `infra/config.py`)
 
-New typed section (`extra="forbid"`), registered on `Settings`; `_KNOWN_SENTINEL_SECTIONS` gains
-`"supervisor"`. Env vars: `SENTINEL__SUPERVISOR__MAX_STEPS`, etc.
+New typed section (`extra="forbid"`), registered on `Settings`; `_KNOWN_ARGUS_SECTIONS` gains
+`"supervisor"`. Env vars: `ARGUS__SUPERVISOR__MAX_STEPS`, etc.
 
 ```python
-class SupervisorSettings(BaseSettings):          # SENTINEL__SUPERVISOR__*
+class SupervisorSettings(BaseSettings):          # ARGUS__SUPERVISOR__*
     model_config = SettingsConfigDict(extra="forbid")
     max_steps: Annotated[int, Field(gt=0)] = 8                 # hard step cap → escalated
     max_tokens: Annotated[int, Field(gt=0)] = 40_000          # hard per-incident token cap → escalated
