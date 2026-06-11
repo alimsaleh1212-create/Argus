@@ -33,7 +33,10 @@ DISP_AUTO_RESOLVED_NOISE = "auto_resolved_noise"
 DISP_AUTO_RESOLVED_TRIAGE = "auto_resolved_triage"
 DISP_AUTO_RESOLVED_ENRICHMENT = "auto_resolved_enrichment"
 DISP_AUTO_REMEDIATED = "auto_remediated"
+DISP_REMEDIATED = "remediated"
 DISP_REJECTED_BY_HUMAN = "rejected_by_human"
+DISP_APPROVAL_EXPIRED = "approval_expired"
+DISP_REMEDIATION_UNVERIFIED = "remediation_unverified"  # RESERVED §v2c — unused in v1
 DISP_ESCALATED_TRIAGE = "escalated_triage"
 DISP_ESCALATED_ENRICHMENT = "escalated_enrichment"
 DISP_ESCALATED_RESPONSE = "escalated_response"
@@ -60,8 +63,8 @@ TRANSITIONS: dict[tuple[IncidentStatus, str], tuple[IncidentStatus, str | None]]
     (IncidentStatus.ENRICHING, StageOutcome.ADVANCE): (IncidentStatus.RESPONDING, None),
     (IncidentStatus.ENRICHING, StageOutcome.RESOLVED): (IncidentStatus.RESOLVED, DISP_AUTO_RESOLVED_ENRICHMENT),
     (IncidentStatus.ENRICHING, StageOutcome.ESCALATE): (IncidentStatus.ESCALATED, DISP_ESCALATED_ENRICHMENT),
-    # Response outcomes
-    (IncidentStatus.RESPONDING, StageOutcome.RESOLVED): (IncidentStatus.RESOLVED, DISP_AUTO_REMEDIATED),
+    # Response outcomes — disposition=None so handler-proposed value passes through (RD8)
+    (IncidentStatus.RESPONDING, StageOutcome.RESOLVED): (IncidentStatus.RESOLVED, None),
     (IncidentStatus.RESPONDING, StageOutcome.NEEDS_APPROVAL): (IncidentStatus.AWAITING_APPROVAL, DISP_AWAITING_APPROVAL),
     (IncidentStatus.RESPONDING, StageOutcome.ESCALATE): (IncidentStatus.ESCALATED, DISP_ESCALATED_RESPONSE),
 }
@@ -312,29 +315,112 @@ class Supervisor:
         incident_id: uuid.UUID,
         decision: str,
         repo: object,
-    ) -> None:
-        """Reserved seam for #10: apply awaiting_approval resume edges.
+        audit_repo: object | None = None,
+        actor: str = "admin",
+    ) -> str | None:
+        """Apply the human approve/reject decision to a parked incident.
 
-        decision='approve' → responding (re-run response to execute);
-        decision='reject' → resolved (rejected_by_human).
-        Interrupt vehicle, timeout, audit rows, and action execution are Component #10.
+        approve → AWAITING_APPROVAL → RESPONDING, then re-drives run_incident to execute.
+        reject  → AWAITING_APPROVAL → RESOLVED (rejected_by_human) + audit row.
+        Returns the final disposition string (for the API response).
         """
         if decision == "approve":
-            await repo.advance_status(
+            advanced = await repo.advance_status(
                 incident_id,
                 expected=IncidentStatus.AWAITING_APPROVAL,
                 target=IncidentStatus.RESPONDING,
             )
+            if not advanced:
+                logger.info(
+                    "supervisor_resume_guard_lost",
+                    decision=decision,
+                    incident_id=str(incident_id),
+                )
+                incident = await repo.get(incident_id)
+                return getattr(incident, "disposition", None) if incident else None
+
+            logger.info(
+                "supervisor_resume_approved",
+                incident_id=str(incident_id),
+            )
+            # Re-drive to execute the approved plan through the response stage (RD3)
+            await self.run_incident(incident_id, repo)
+            incident = await repo.get(incident_id)
+            return getattr(incident, "disposition", None) if incident else None
+
         elif decision == "reject":
-            await repo.advance_status(
+            advanced = await repo.advance_status(
                 incident_id,
                 expected=IncidentStatus.AWAITING_APPROVAL,
                 target=IncidentStatus.RESOLVED,
                 disposition=DISP_REJECTED_BY_HUMAN,
             )
+            if not advanced:
+                logger.info(
+                    "supervisor_resume_guard_lost",
+                    decision=decision,
+                    incident_id=str(incident_id),
+                )
+                incident = await repo.get(incident_id)
+                return getattr(incident, "disposition", None) if incident else None
+
+            logger.info(
+                "supervisor_resume_rejected",
+                incident_id=str(incident_id),
+            )
+            # Write audit row for the rejection
+            if audit_repo is not None:
+                try:
+                    await audit_repo.append(
+                        incident_id=incident_id,
+                        actor=actor,
+                        action="approval_rejected",
+                        target=None,
+                        outcome="not_executed",
+                    )
+                except Exception:
+                    pass
+            return DISP_REJECTED_BY_HUMAN
+
         else:
             logger.warning(
                 "supervisor_unknown_resume_decision",
                 decision=decision,
                 incident_id=str(incident_id),
             )
+            return None
+
+    async def expire_incident(
+        self,
+        incident_id: uuid.UUID,
+        repo: object,
+        audit_repo: object | None = None,
+    ) -> bool:
+        """Expire a parked incident whose approval deadline has elapsed (RD7).
+
+        AWAITING_APPROVAL → ESCALATED (approval_expired). Nothing executes.
+        Returns True iff the transition succeeded.
+        """
+        advanced = await repo.advance_status(
+            incident_id,
+            expected=IncidentStatus.AWAITING_APPROVAL,
+            target=IncidentStatus.ESCALATED,
+            disposition=DISP_APPROVAL_EXPIRED,
+        )
+        if not advanced:
+            logger.info("supervisor_expire_guard_lost", incident_id=str(incident_id))
+            return False
+
+        logger.info("supervisor_incident_expired", incident_id=str(incident_id))
+        if audit_repo is not None:
+            try:
+                await audit_repo.append(
+                    incident_id=incident_id,
+                    actor="timeout",
+                    action="approval_expired",
+                    target=None,
+                    outcome="not_executed",
+                )
+            except Exception:
+                pass
+        return True

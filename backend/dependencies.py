@@ -82,3 +82,21 @@ async def get_incident_repo(request: Request):
     db: Any = request.app.state.container.db_engine
     async with db.session_factory() as session:
         yield IncidentRepository(session)
+
+
+async def get_approval_repo(request: Request):
+    """Return an ApprovalRepository bound to the current request's DB session."""
+    from backend.repositories.approvals import ApprovalRepository
+
+    db: Any = request.app.state.container.db_engine
+    async with db.session_factory() as session:
+        yield ApprovalRepository(session)
+
+
+async def get_audit_repo(request: Request):
+    """Return an AuditRepository bound to the current request's DB session."""
+    from backend.repositories.audit import AuditRepository
+
+    db: Any = request.app.state.container.db_engine
+    async with db.session_factory() as session:
+        yield AuditRepository(session)

@@ -760,3 +760,94 @@ CI without adding signal. Correlation quality (LLM-judge) is deferred to the SPE
 
 **Rejected**: New `enrichment_correlation` gate (premature; #13 owns LLM-judge gates);
 skipping eval entirely (violates Constitution II eval-gated requirement).
+
+---
+
+## Component #10 — Response & Remediation (SPEC-response-remediation)
+
+### RD1 — Determinism-first playbook selection; LLM only for ambiguous tail
+
+**Decision**: Exact (unambiguous) catalog match → `RemediationPlan` with `selected_by="deterministic"`,
+zero LLM calls. Only the ambiguous tail (≥2 candidates matching incident criteria) makes at most one
+structured `LlmClient` call with `response_schema=PLAYBOOK_SELECT_SCHEMA`.
+
+**Why**: Playbook selection is a lookup-dominated task. The catalog is small, criteria are deterministic,
+and most production incidents are unambiguous (single rule-group). Adding LLM overhead to the 95%
+unambiguous path wastes tokens, adds latency, and introduces non-determinism. The LLM adds genuine
+value only when two or more playbooks match and a judgment call is needed.
+
+**Rejected**: Always-LLM selection (wastes tokens on deterministic cases; breaks eval reproducibility);
+LLM-weighted scoring even for single matches (no signal added, complicates the schema).
+
+### RD2 — Auto/approval allowlist as pure config; default-deny policy
+
+**Decision**: `ResponseSettings.auto_execute_actions` (Pydantic v2, `extra="forbid"`) is the sole
+authority for action-level risk classification. `classify(plan, cfg)` is a pure function — it has
+no side effects and does not call the LLM. Any action not on the allowlist is `APPROVAL_REQUIRED`.
+The allowlist default is `["add_to_watchlist", "open_ticket", "enrich_and_tag"]`.
+
+**Why**: A default-deny policy applied at the config boundary means new playbook action types are
+blocked until explicitly allowlisted — no silent auto-execution of destructive actions. The pure
+`classify` function is trivially unit-testable without a DB or LLM.
+
+**Rejected**: Risk class embedded in the playbook YAML (config + code duplication; harder to audit);
+per-user or per-role allowlists (premature for v1; dashboard #12 owns access control).
+
+### RD3 — Approve re-enters the response stage; execution never leaves the tool-holding stage
+
+**Decision**: `supervisor.resume_incident(approve)` transitions `AWAITING_APPROVAL → RESPONDING`,
+then synchronously re-drives `run_incident`. The re-entry runs the same `make_response_handler`
+closure (Pass B — distinguished by the presence of an `approved` record from `ApprovalRepository`).
+No separate `execute_approved_plan` function; no LLM call on resume.
+
+**Why**: Keeping execution inside the RESPONDING stage preserves Constitution III (action tools
+are only available to the response stage). Re-using `run_incident` means retry/cap/error handling
+apply uniformly to both pass A and pass B paths. A second dedicated function would duplicate routing
+logic and risk divergence.
+
+**Rejected**: Separate execution endpoint outside the supervisor (breaks Constitution III boundary);
+executing approved actions directly in the router (bypasses all supervisor safety rails).
+
+### RD4 — Approvals API registers SupervisorProvider; calls `resume_incident` synchronously
+
+**Decision**: `backend/main.py:_bootstrap_providers()` registers `SupervisorProvider` if not already
+present. `POST /approvals/{id}/decision` calls `supervisor.resume_incident(...)` synchronously
+(within the same HTTP request). The router resolves the supervisor from `app.state.container`.
+
+**Why**: Synchronous resume means the API response includes the final disposition after execution
+completes — the caller sees `"disposition": "remediated"` in the 200 response without polling.
+For v1 (mock executors, low-latency), synchronous is the correct tradeoff. Option B (async queue +
+polling) is explicitly documented in the router as the upgrade path for slow/real executors.
+
+**Rejected**: Background task for resume (caller can't confirm execution success without polling;
+adds complexity for v1); separate supervisor endpoint (duplicates routing logic).
+
+### RD5 — Idempotency key uses `playbook_id` (stable), not a random `plan_id` UUID
+
+**Decision**: `_build_actions(...)` constructs each action's `idempotency_key` as
+`{incident_id}:{playbook_id}:{action_type}:{target}`. The `plan_id` (a UUID) is used only as the
+`approval_request` record identifier, not as part of the idempotency key.
+
+**Why**: Using a random UUID (`plan_id`) in the key means that retrying the same incident would
+generate a different key on every invocation, defeating the pre-execution `is_applied` check.
+Using `playbook_id` (the catalog entry name, e.g. `watchlist_and_ticket`) makes the key stable
+across retries for the same incident+playbook combination.
+
+**Rejected**: Random `plan_id` as part of the idempotency key (breaks RD6 — retried invocation
+would re-execute already-applied actions); composite hash of action parameters (opaque, hard to
+debug in audit logs).
+
+### RD6 — Eval: extend the existing `supervisor-routing` gate; no new gate
+
+**Decision**: Five response-disposition fixtures (`auto_remediated`, `needs_approval_parks`,
+`approved_and_remediated`, `rejected_by_human`, `approval_expired`) are added to
+`tests/eval/test_supervisor_routing_gate.py` and listed under
+`gates.supervisor_routing.fixtures` in `config/eval_thresholds.yaml`. No new gate is introduced.
+
+**Why**: Response routing is deterministic, provider-independent, and unit-tier — the same
+properties that put the original eight supervisor fixtures in this gate. Splitting into a new gate
+would fragment CI without adding diagnostic signal. Remediation-rationale LLM-judge (probabilistic)
+is deferred to the SPEC-eval (#13) harness as specified in the brief.
+
+**Rejected**: New `response_routing` gate (over-engineering; same gate type, same fast CI context);
+skipping eval (violates Constitution II).

@@ -40,7 +40,7 @@ def upgrade() -> None:
             "attributes",
             sa.dialects.postgresql.JSONB,
             nullable=False,
-            server_default="'{}'::jsonb",
+            server_default=sa.text("'{}'::jsonb"),
         ),
         sa.Column("error_message", sa.Text, nullable=True),
     )

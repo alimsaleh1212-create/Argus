@@ -18,7 +18,7 @@ class SupervisorProvider:
 
     @contextlib.asynccontextmanager
     async def build(self, settings: Any) -> AsyncGenerator[Any, None]:
-        from backend.agents.response import run_response
+        from backend.agents.response import load_playbook_catalog, make_response_handler, run_response
         from backend.domain.pipeline import StageName
         from backend.infra.tracing import build_tracer
         from backend.services.supervisor import Supervisor
@@ -38,6 +38,11 @@ class SupervisorProvider:
             from backend.infra.config import EnrichmentSettings
             enrichment_cfg = EnrichmentSettings()
 
+        response_cfg = getattr(settings, "response", None)
+        if response_cfg is None:
+            from backend.infra.config import ResponseSettings
+            response_cfg = ResponseSettings()
+
         tracer_bundle = getattr(getattr(settings, "_container", None), "observability", None)
         tracer = tracer_bundle.tracer if tracer_bundle is not None else build_tracer(exporter=None)
 
@@ -46,12 +51,12 @@ class SupervisorProvider:
         corpus_retriever = getattr(container, "corpus", None)
         intel_client = getattr(container, "intel", None)
         memory_store = getattr(container, "memory", None)
+        db_engine = getattr(container, "db_engine", None)
 
         if llm_client is not None:
             from backend.agents.triage import make_triage_handler
             triage_handler = make_triage_handler(llm_client, triage_cfg)
         else:
-            # No LLM available — keep ADVANCE stub
             from backend.domain.incident import Incident
             from backend.domain.pipeline import StageOutcome, StageResult
 
@@ -68,7 +73,6 @@ class SupervisorProvider:
                 llm_client, corpus_retriever, memory_store, intel_client, enrichment_cfg
             )
         else:
-            # No LLM available — keep ADVANCE stub
             from backend.domain.incident import Incident
             from backend.domain.pipeline import StageOutcome, StageResult
 
@@ -79,10 +83,29 @@ class SupervisorProvider:
 
             enrichment_handler = _stub_enrichment
 
+        # Build the real response handler when LLM + DB engine are available (T015)
+        if llm_client is not None and db_engine is not None:
+            from backend.infra.executors import build_mock_executors
+            from sqlalchemy.ext.asyncio import async_sessionmaker
+
+            session_factory = async_sessionmaker(db_engine.engine, expire_on_commit=False)
+            executors = build_mock_executors()
+            catalog = load_playbook_catalog(response_cfg.catalog_dir)
+            response_handler = make_response_handler(
+                llm=llm_client,
+                session_factory=session_factory,
+                executors=executors,
+                cfg=response_cfg,
+                catalog=catalog,
+            )
+        else:
+            # Degraded boot: fall back to the existing stub
+            response_handler = run_response
+
         stages = {
             StageName.TRIAGE: triage_handler,
             StageName.ENRICHMENT: enrichment_handler,
-            StageName.RESPONSE: run_response,
+            StageName.RESPONSE: response_handler,
         }
 
         supervisor = Supervisor(stages=stages, cfg=cfg, tracer=tracer)

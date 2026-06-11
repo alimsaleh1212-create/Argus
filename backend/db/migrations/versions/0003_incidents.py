@@ -34,7 +34,7 @@ def upgrade() -> None:
             "raw_alert",
             postgresql.JSONB,
             nullable=False,
-            server_default="'{}'::jsonb",
+            server_default=sa.text("'{}'::jsonb"),
         ),
         sa.Column("normalized_event", postgresql.JSONB, nullable=True),
         sa.Column("evidence", postgresql.JSONB, nullable=True),

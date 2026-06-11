@@ -77,6 +77,12 @@ gates:
       - indeterminate_severity
       - stage_error_escalates
       - cap_breach_escalates
+      # Added by SPEC-response-remediation (#10): response disposition fixtures
+      - auto_remediated
+      - needs_approval_parks
+      - approved_and_remediated
+      - rejected_by_human
+      - approval_expired
 
   llm_provider:
     description: >

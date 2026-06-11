@@ -1,0 +1,89 @@
+# Playbook catalog — config-backed, default-deny policy (Constitution V / RD10).
+# Each playbook: criteria (matched against incident evidence), ordered actions, optional preconditions.
+# Criteria fields are checked against incidents.evidence (normalized_event.rule_groups, severity, etc.)
+
+playbooks:
+  - id: watchlist_and_ticket
+    description: "Low-confidence or medium threat — add to watchlist and open a ticket for analyst follow-up."
+    criteria:
+      severity:
+        - low
+        - medium
+    actions:
+      - type: add_to_watchlist
+        params: {}
+      - type: open_ticket
+        params: {}
+
+  - id: enrich_tag_and_ticket
+    description: "High-confidence indicator hit — enrich, tag, and open ticket."
+    criteria:
+      severity:
+        - high
+      rule_groups:
+        - "indicator"
+        - "malware"
+    actions:
+      - type: enrich_and_tag
+        params: {}
+      - type: open_ticket
+        params: {}
+
+  - id: isolate_and_ticket
+    description: "Critical host compromise — isolate host and open high-priority ticket."
+    criteria:
+      severity:
+        - critical
+      rule_groups:
+        - "attack"
+        - "intrusion"
+        - "lateral_movement"
+        - "privilege_escalation"
+    actions:
+      - type: isolate_host
+        params: {}
+      - type: open_ticket
+        params: { priority: high }
+
+  - id: block_ip_and_ticket
+    description: "Critical network threat — block IP and open ticket."
+    criteria:
+      severity:
+        - critical
+      rule_groups:
+        - "network_attack"
+        - "brute_force"
+        - "scanning"
+    actions:
+      - type: block_ip
+        params: {}
+      - type: open_ticket
+        params: { priority: high }
+
+  - id: disable_user_and_ticket
+    description: "Critical account compromise — disable user and open ticket."
+    criteria:
+      severity:
+        - critical
+      rule_groups:
+        - "account_compromise"
+        - "credential_stuffing"
+        - "insider_threat"
+    actions:
+      - type: disable_user
+        params: {}
+      - type: open_ticket
+        params: { priority: high }
+
+  - id: full_response
+    description: "Critical with broad threat — watchlist, isolate host, and open high-priority ticket."
+    criteria:
+      severity:
+        - critical
+    actions:
+      - type: add_to_watchlist
+        params: {}
+      - type: isolate_host
+        params: {}
+      - type: open_ticket
+        params: { priority: critical }
