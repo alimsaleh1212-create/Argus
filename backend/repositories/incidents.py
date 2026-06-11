@@ -26,8 +26,8 @@ class IncidentRepository:
                 "(id, status, severity, correlation_id, dedup_fingerprint, source, "
                 " raw_alert, normalized_event, evidence, attempts, created_at, updated_at) "
                 "VALUES (:id, :status, :severity, :correlation_id, :dedup_fingerprint, "
-                "        :source, :raw_alert::jsonb, :normalized_event::jsonb, "
-                "        :evidence::jsonb, :attempts, :created_at, :updated_at)"
+                "        :source, CAST(:raw_alert AS jsonb), CAST(:normalized_event AS jsonb), "
+                "        CAST(:evidence AS jsonb), :attempts, :created_at, :updated_at)"
             ),
             {
                 "id": str(incident.id),
@@ -98,7 +98,7 @@ class IncidentRepository:
         await self._session.execute(
             sa.text(
                 "UPDATE incidents SET status = 'grounded', severity = :severity, "
-                "normalized_event = :ne::jsonb, evidence = :ev::jsonb, updated_at = :now "
+                "normalized_event = CAST(:ne AS jsonb), evidence = CAST(:ev AS jsonb), updated_at = :now "
                 "WHERE id = :id"
             ),
             {
@@ -155,7 +155,7 @@ class IncidentRepository:
             params["disposition"] = disposition
         if evidence_patch is not None:
             set_clauses.append(
-                "evidence = COALESCE(evidence, '{}'::jsonb) || :evidence_patch::jsonb"
+                "evidence = COALESCE(evidence, '{}'::jsonb) || CAST(:evidence_patch AS jsonb)"
             )
             params["evidence_patch"] = json.dumps(evidence_patch)
 

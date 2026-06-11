@@ -47,7 +47,7 @@ class TraceRepository:
                             ) VALUES (
                                 :span_id, :trace_id, :parent_span_id, :correlation_id,
                                 :name, :kind, :status, :started_at, :ended_at, :latency_ms,
-                                :llm_model, :tokens_in, :tokens_out, :attributes::jsonb,
+                                :llm_model, :tokens_in, :tokens_out, CAST(:attributes AS jsonb),
                                 :error_message
                             )
                             ON CONFLICT (span_id) DO NOTHING

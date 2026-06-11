@@ -102,15 +102,32 @@ async def test_loop_stops_after_park():
 
 @pytest.mark.asyncio
 async def test_resume_approve_transitions_to_responding():
-    """resume_incident(approve) transitions awaiting_approval → responding."""
+    """resume_incident(approve) transitions awaiting_approval → responding, then re-runs to resolved."""
     incident = _incident(status=IncidentStatus.AWAITING_APPROVAL)
     repo = FakeRepo(incident)
-    sv = _make_supervisor({})
 
+    # Register a stub response handler so run_incident completes (RD3)
+    async def _response_stub(inc):
+        return StageResult(
+            stage=StageName.RESPONSE,
+            outcome=StageOutcome.RESOLVED,
+            disposition="remediated",
+        )
+
+    sv = _make_supervisor({StageName.RESPONSE: _response_stub})
     await sv.resume_incident(incident.id, "approve", repo)
 
+    # Verify the AWAITING_APPROVAL → RESPONDING advance happened
+    approve_advance = next(
+        (a for a in repo.advances if a["from"] == IncidentStatus.AWAITING_APPROVAL),
+        None,
+    )
+    assert approve_advance is not None
+    assert approve_advance["to"] == IncidentStatus.RESPONDING
+
+    # Final state is RESOLVED (run_incident completed after re-entry)
     final = await repo.get(incident.id)
-    assert final.status == IncidentStatus.RESPONDING
+    assert final.status == IncidentStatus.RESOLVED
 
 
 @pytest.mark.asyncio

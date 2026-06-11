@@ -52,6 +52,10 @@ def _bootstrap_providers() -> None:
         from backend.infra.corpus import CorpusProvider
 
         register_provider(CorpusProvider())
+    if "supervisor" not in existing_names:
+        from backend.supervisor_provider import SupervisorProvider
+
+        register_provider(SupervisorProvider())
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

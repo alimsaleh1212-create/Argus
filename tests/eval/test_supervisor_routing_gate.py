@@ -238,3 +238,101 @@ async def test_fixture_cap_breach_escalates():
     final = await repo.get(incident.id)
     assert final.status == IncidentStatus.ESCALATED
     assert final.disposition == "escalated_step_cap"
+
+
+# ---------------------------------------------------------------------------
+# Response remediation fixtures — added by SPEC-response-remediation (#10)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_fixture_auto_remediated():
+    """auto_remediated: response returns RESOLVED with auto_remediated disposition."""
+    async def response(inc):
+        return StageResult(
+            stage=StageName.RESPONSE,
+            outcome=StageOutcome.RESOLVED,
+            disposition="auto_remediated",
+        )
+
+    incident = _make_incident("critical")
+    repo = FakeRepo(incident)
+    sv = _make_supervisor({StageName.RESPONSE: response})
+    await sv.run_incident(incident.id, repo)
+
+    final = await repo.get(incident.id)
+    assert final.status == IncidentStatus.RESOLVED
+    assert final.disposition == "auto_remediated"
+
+
+@pytest.mark.asyncio
+async def test_fixture_needs_approval_parks():
+    """needs_approval_parks: response NEEDS_APPROVAL → AWAITING_APPROVAL (same as destructive_parks)."""
+    async def response(inc):
+        return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.NEEDS_APPROVAL)
+
+    incident = _make_incident("critical")
+    repo = FakeRepo(incident)
+    sv = _make_supervisor({StageName.RESPONSE: response})
+    await sv.run_incident(incident.id, repo)
+
+    final = await repo.get(incident.id)
+    assert final.status == IncidentStatus.AWAITING_APPROVAL
+    assert final.disposition == "awaiting_approval_destructive"
+
+
+@pytest.mark.asyncio
+async def test_fixture_approved_and_remediated():
+    """approved_and_remediated: approve re-drives AWAITING_APPROVAL → RESPONDING → RESOLVED/remediated."""
+    calls: list[str] = []
+
+    async def response(inc):
+        calls.append("response")
+        return StageResult(
+            stage=StageName.RESPONSE,
+            outcome=StageOutcome.RESOLVED,
+            disposition="remediated",
+        )
+
+    incident = _make_incident("critical")
+    incident = incident.model_copy(update={"status": IncidentStatus.AWAITING_APPROVAL})
+    repo = FakeRepo(incident)
+    sv = _make_supervisor({StageName.RESPONSE: response})
+
+    await sv.resume_incident(incident.id, "approve", repo)
+
+    final = await repo.get(incident.id)
+    assert final.status == IncidentStatus.RESOLVED
+    assert final.disposition == "remediated"
+    assert "response" in calls
+
+
+@pytest.mark.asyncio
+async def test_fixture_rejected_by_human():
+    """rejected_by_human: reject → AWAITING_APPROVAL → RESOLVED/rejected_by_human."""
+    incident = _make_incident("critical")
+    incident = incident.model_copy(update={"status": IncidentStatus.AWAITING_APPROVAL})
+    repo = FakeRepo(incident)
+    sv = _make_supervisor({})
+
+    await sv.resume_incident(incident.id, "reject", repo)
+
+    final = await repo.get(incident.id)
+    assert final.status == IncidentStatus.RESOLVED
+    assert final.disposition == "rejected_by_human"
+
+
+@pytest.mark.asyncio
+async def test_fixture_approval_expired():
+    """approval_expired: expire_incident → AWAITING_APPROVAL → ESCALATED/approval_expired."""
+    incident = _make_incident("critical")
+    incident = incident.model_copy(update={"status": IncidentStatus.AWAITING_APPROVAL})
+    repo = FakeRepo(incident)
+    sv = _make_supervisor({})
+
+    expired = await sv.expire_incident(incident.id, repo)
+
+    assert expired is True
+    final = await repo.get(incident.id)
+    assert final.status == IncidentStatus.ESCALATED
+    assert final.disposition == "approval_expired"

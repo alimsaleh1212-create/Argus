@@ -22,7 +22,7 @@ _KNOWN_SENTINEL_SECTIONS = frozenset(
     {
         "app", "vault", "postgres", "minio", "startup", "observability",
         "llm", "redis", "ingest", "supervisor", "triage", "memory",
-        "corpus", "intel", "enrichment",
+        "corpus", "intel", "enrichment", "response",
     }
 )
 _SENTINEL_PREFIX = "SENTINEL__"
@@ -262,6 +262,21 @@ class MemorySettings(BaseSettings):
     ollama_embedder_dim: Annotated[int, Field(gt=0)] = 768
 
 
+class ResponseSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="forbid")
+
+    auto_execute_actions: list[str] = Field(
+        default_factory=lambda: ["add_to_watchlist", "open_ticket", "enrich_and_tag"]
+    )
+    select_min_confidence: Annotated[float, Field(ge=0.0, le=1.0)] = 0.6
+    approval_timeout_s: Annotated[int, Field(gt=0)] = 1800
+    sweep_interval_s: Annotated[int, Field(gt=0)] = 60
+    catalog_dir: str = "backend/data/playbooks"
+    max_output_tokens: Annotated[int, Field(gt=0)] = 768
+    temperature: Annotated[float, Field(ge=0.0)] = 0.0
+    prompt_version: str = "v1"
+
+
 class Settings(BaseSettings):
     """Root settings object — built once at startup, frozen thereafter.
 
@@ -292,6 +307,7 @@ class Settings(BaseSettings):
     memory: MemorySettings = Field(default_factory=MemorySettings)
     corpus: CorpusSettings = Field(default_factory=CorpusSettings)
     intel: IntelSettings = Field(default_factory=IntelSettings)
+    response: ResponseSettings = Field(default_factory=ResponseSettings)
 
     @model_validator(mode="after")
     def _ensure_memory_vault_path_required(self) -> Settings:

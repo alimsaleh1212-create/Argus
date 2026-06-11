@@ -114,6 +114,58 @@ def _maybe_record_episode(incident_id, incident_id_str, repo, memory, settings):
         logger.warning("memory_schedule_error", error=str(exc))
 
 
+async def _sweep_expired_approvals(settings, db_engine, supervisor) -> None:
+    """Periodic timeout sweeper: expire past-deadline pending approvals (RD7).
+
+    Spawned as a background task alongside _run. Off the synchronous path.
+    """
+    from datetime import UTC, datetime
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    response_cfg = getattr(settings, "response", None)
+    sweep_interval_s: int = getattr(response_cfg, "sweep_interval_s", 60) if response_cfg else 60
+
+    session_factory = async_sessionmaker(db_engine.engine, expire_on_commit=False)
+
+    logger.info("approval_sweeper_started", interval_s=sweep_interval_s)
+    while True:
+        try:
+            await asyncio.sleep(sweep_interval_s)
+            now = datetime.now(UTC).replace(tzinfo=None)
+            async with session_factory() as session:
+                from backend.repositories.approvals import ApprovalRepository
+                from backend.repositories.audit import AuditRepository
+                from backend.repositories.incidents import IncidentRepository
+
+                approval_repo = ApprovalRepository(session)
+                audit_repo = AuditRepository(session)
+                incident_repo = IncidentRepository(session)
+
+                expired = await approval_repo.list_pending_expired(now)
+                for record in expired:
+                    from backend.domain.response import ApprovalStatus
+                    resolved = await approval_repo.resolve(
+                        record.id,
+                        to=ApprovalStatus.EXPIRED,
+                        decided_by="timeout",
+                    )
+                    if resolved:
+                        await supervisor.expire_incident(
+                            record.incident_id, incident_repo, audit_repo=audit_repo
+                        )
+                        logger.info(
+                            "approval_sweeper_expired",
+                            approval_id=record.id,
+                            incident_id=str(record.incident_id),
+                        )
+        except asyncio.CancelledError:
+            logger.info("approval_sweeper_stopped")
+            break
+        except Exception as exc:
+            logger.warning("approval_sweeper_error", error=str(exc))
+
+
 async def _main_async() -> None:
     from backend.infra.cache import CacheProvider
     from backend.infra.config import load_settings
@@ -161,11 +213,24 @@ async def _main_async() -> None:
         from sqlalchemy.ext.asyncio import async_sessionmaker
 
         session_factory = async_sessionmaker(db_engine.engine, expire_on_commit=False)
-        async with session_factory() as session:
-            from backend.repositories.incidents import IncidentRepository
 
-            repo = IncidentRepository(session)
-            await _run(settings, queue, repo, tracer, supervisor=supervisor, memory=memory)
+        # Spawn the approval-timeout sweeper alongside the main loop (RD7)
+        sweeper_task = asyncio.create_task(
+            _sweep_expired_approvals(settings, db_engine, supervisor)
+        )
+
+        try:
+            async with session_factory() as session:
+                from backend.repositories.incidents import IncidentRepository
+
+                repo = IncidentRepository(session)
+                await _run(settings, queue, repo, tracer, supervisor=supervisor, memory=memory)
+        finally:
+            sweeper_task.cancel()
+            try:
+                await sweeper_task
+            except asyncio.CancelledError:
+                pass
 
 
 def main() -> None:

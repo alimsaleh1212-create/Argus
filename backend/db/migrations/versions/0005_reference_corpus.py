@@ -32,7 +32,7 @@ def upgrade() -> None:
             "tags",
             sa.ARRAY(sa.Text),
             nullable=False,
-            server_default="'{}'",
+            server_default=sa.text("'{}'"),
         ),
         # Reserved for future vector recall — left null in v1 (CD1).
         sa.Column("embedding", sa.Text, nullable=True),

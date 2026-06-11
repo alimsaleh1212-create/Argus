@@ -168,4 +168,7 @@ def test_memory_store_is_protocol() -> None:
         ) -> FactState:
             return FactState()
 
+        async def write_fact(self, fact) -> None:
+            pass
+
     assert isinstance(FakeStore(), MemoryStore)
