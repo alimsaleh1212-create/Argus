@@ -50,8 +50,8 @@ class TestIngestSettings:
 class TestSettingsIntegration:
     def test_redis_and_ingest_registered(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Settings accepts 'redis' and 'ingest' as known sections."""
-        monkeypatch.setenv("SENTINEL__REDIS__URL", "redis://localhost:6379/1")
-        monkeypatch.setenv("SENTINEL__INGEST__MAX_ALERT_BYTES", "131072")
+        monkeypatch.setenv("ARGUS__REDIS__URL", "redis://localhost:6379/1")
+        monkeypatch.setenv("ARGUS__INGEST__MAX_ALERT_BYTES", "131072")
         from backend.infra.config import Settings
 
         s = Settings()
@@ -60,7 +60,7 @@ class TestSettingsIntegration:
 
     def test_redis_section_not_unknown(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """'redis' is a known section — must not trigger the unknown-key error."""
-        monkeypatch.setenv("SENTINEL__REDIS__URL", "redis://localhost:6379/0")
+        monkeypatch.setenv("ARGUS__REDIS__URL", "redis://localhost:6379/0")
         from backend.infra.config import load_settings
 
         # Should not raise
@@ -69,7 +69,7 @@ class TestSettingsIntegration:
 
     def test_ingest_section_not_unknown(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """'ingest' is a known section — must not trigger the unknown-key error."""
-        monkeypatch.setenv("SENTINEL__INGEST__MAX_ATTEMPTS", "5")
+        monkeypatch.setenv("ARGUS__INGEST__MAX_ATTEMPTS", "5")
         from backend.infra.config import load_settings
 
         s = load_settings()
@@ -79,7 +79,7 @@ class TestSettingsIntegration:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """ingest.webhook_vault_path must appear in vault.required_paths after model_validator."""
-        monkeypatch.delenv("SENTINEL__VAULT__REQUIRED_PATHS", raising=False)
+        monkeypatch.delenv("ARGUS__VAULT__REQUIRED_PATHS", raising=False)
         from backend.infra.config import Settings
 
         s = Settings()

@@ -50,7 +50,7 @@ Each story stays independently **testable** via its Independent Test (spec.md). 
 
 **Purpose**: Shared settings + shared pure types every story imports. **No user story can begin until this phase is complete.**
 
-- [X] T004 Add `ObservabilitySettings` (fields per [data-model.md](./data-model.md) §Settings: `presidio_enabled`, `spacy_model`, `entropy_threshold`, `span_attr_max_bytes`, `export_batch_size`, `export_interval_ms`, `trace_to_stdout`) to `backend/infra/config.py`, register it on `Settings`, and add `"observability"` to `_KNOWN_SENTINEL_SECTIONS`; document the section (no values) in `.env.example`
+- [X] T004 Add `ObservabilitySettings` (fields per [data-model.md](./data-model.md) §Settings: `presidio_enabled`, `spacy_model`, `entropy_threshold`, `span_attr_max_bytes`, `export_batch_size`, `export_interval_ms`, `trace_to_stdout`) to `backend/infra/config.py`, register it on `Settings`, and add `"observability"` to `_KNOWN_ARGUS_SECTIONS`; document the section (no values) in `.env.example`
 - [X] T005 [P] Define redaction domain types `SensitiveClass`, `Boundary`, `RedactionPolicy` (with the default class×boundary matrix + invariants: `CREDENTIAL` covers every `Boundary`; internal boundaries excluded for PII/identifiers) in `backend/domain/redaction.py` per [contracts/redaction-policy.md](./contracts/redaction-policy.md)
 
 **Checkpoint**: `Settings` validates with the new section; domain enums/policy import with no outward deps; `import-linter` contracts still pass.

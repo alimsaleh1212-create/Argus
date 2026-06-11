@@ -56,14 +56,14 @@ def test_memory_settings_retrieval_timeout_positive() -> None:
 
 def test_settings_memory_vault_path_injected(monkeypatch: pytest.MonkeyPatch) -> None:
     """When memory.enabled=True, the neo4j_vault_path must appear in vault.required_paths."""
-    monkeypatch.delenv("SENTINEL__VAULT__REQUIRED_PATHS", raising=False)
+    monkeypatch.delenv("ARGUS__VAULT__REQUIRED_PATHS", raising=False)
     s = Settings()
     assert s.memory.neo4j_vault_path in s.vault.required_paths
 
 
 def test_settings_memory_vault_path_not_duplicated(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(
-        "SENTINEL__VAULT__REQUIRED_PATHS",
+        "ARGUS__VAULT__REQUIRED_PATHS",
         '["secret/memory","secret/llm","secret/ingest"]',
     )
     s = Settings()
@@ -73,9 +73,9 @@ def test_settings_memory_vault_path_not_duplicated(monkeypatch: pytest.MonkeyPat
 
 def test_settings_memory_disabled_skips_vault(monkeypatch: pytest.MonkeyPatch) -> None:
     """When memory.enabled=False the neo4j path is NOT injected."""
-    monkeypatch.setenv("SENTINEL__MEMORY__ENABLED", "false")
+    monkeypatch.setenv("ARGUS__MEMORY__ENABLED", "false")
     monkeypatch.setenv(
-        "SENTINEL__VAULT__REQUIRED_PATHS",
+        "ARGUS__VAULT__REQUIRED_PATHS",
         '["secret/llm","secret/ingest"]',
     )
     s = Settings()

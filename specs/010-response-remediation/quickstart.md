@@ -10,20 +10,20 @@ timeout sweeper run in the existing `worker`; the approve/reject endpoint runs i
 - An `LlmClient` provider configured — needed only for the **ambiguous** selection path; unambiguous incidents
   select deterministically with no LLM call. Without an LLM (or DB), `SupervisorProvider` keeps the response
   **stub**.
-- The playbook catalog is present under `SENTINEL__RESPONSE__CATALOG_DIR` (default `backend/data/playbooks`).
+- The playbook catalog is present under `ARGUS__RESPONSE__CATALOG_DIR` (default `backend/data/playbooks`).
 
 ## Configuration (typed, `extra="forbid"`)
 
-`ResponseSettings` (section `SENTINEL__RESPONSE__*`):
+`ResponseSettings` (section `ARGUS__RESPONSE__*`):
 
 | Env | Default | Meaning |
 |-----|---------|---------|
-| `SENTINEL__RESPONSE__AUTO_EXECUTE_ACTIONS` | `["add_to_watchlist","open_ticket","enrich_and_tag"]` | the allowlist; everything else → approval-required (**default-deny**) |
-| `SENTINEL__RESPONSE__SELECT_MIN_CONFIDENCE` | `0.6` | below → ESCALATE on the LLM path |
-| `SENTINEL__RESPONSE__APPROVAL_TIMEOUT_S` | `1800` | pending-approval deadline |
-| `SENTINEL__RESPONSE__SWEEP_INTERVAL_S` | `60` | timeout-sweeper cadence |
-| `SENTINEL__RESPONSE__CATALOG_DIR` | `backend/data/playbooks` | playbook catalog |
-| `SENTINEL__RESPONSE__PROMPT_VERSION` | `v1` | pinned system prompt |
+| `ARGUS__RESPONSE__AUTO_EXECUTE_ACTIONS` | `["add_to_watchlist","open_ticket","enrich_and_tag"]` | the allowlist; everything else → approval-required (**default-deny**) |
+| `ARGUS__RESPONSE__SELECT_MIN_CONFIDENCE` | `0.6` | below → ESCALATE on the LLM path |
+| `ARGUS__RESPONSE__APPROVAL_TIMEOUT_S` | `1800` | pending-approval deadline |
+| `ARGUS__RESPONSE__SWEEP_INTERVAL_S` | `60` | timeout-sweeper cadence |
+| `ARGUS__RESPONSE__CATALOG_DIR` | `backend/data/playbooks` | playbook catalog |
+| `ARGUS__RESPONSE__PROMPT_VERSION` | `v1` | pinned system prompt |
 
 > For a live demo, set a short `APPROVAL_TIMEOUT_S` (e.g. `120`) and `SWEEP_INTERVAL_S` (e.g. `10`) so the
 > timeout path is observable.

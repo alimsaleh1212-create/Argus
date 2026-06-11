@@ -1,4 +1,4 @@
-# Sentinel Frontend (reserved — SPEC-dashboard #12)
+# Argus Frontend (reserved — SPEC-dashboard #12)
 
 Reserved placeholder for the React operations dashboard. Built and owned by
 **SPEC-dashboard (#12)** as a separate image (`deploy/frontend/Dockerfile`,

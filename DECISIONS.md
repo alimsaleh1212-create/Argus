@@ -1,4 +1,4 @@
-# Decisions — Sentinel
+# Decisions — Argus
 
 Records non-obvious architectural choices as required by the project constitution.
 Each entry: what was chosen, why, and what alternatives were considered and rejected.
@@ -73,7 +73,7 @@ existing provider-independent `retrieval` gate (hit@k/MRR). No new gate invented
 
 **Decision**: Python 3.12, pinned `requires-python = ">=3.12,<3.13"` and `.python-version`.
 
-**Rationale**: Broadest compatibility across the full Sentinel dependency set (Graphiti, async
+**Rationale**: Broadest compatibility across the full Argus dependency set (Graphiti, async
 SQLAlchemy 2.x, pydantic v2, asyncpg, aioboto3). Python 3.13 is still maturing for some C-extension
 wheels; pinning one minor keeps `uv.lock` reproducible (SC-008).
 
@@ -510,7 +510,7 @@ only carry user secrets); YAML anchors (saves ~10 lines but at readability cost)
 
 ### ID8 — One image, two containers (API + worker)
 
-**Decision**: `worker` compose service uses the same `sentinel-backend:local` image with `command: ["python", "-m", "backend.worker"]`.
+**Decision**: `worker` compose service uses the same `argus-backend:local` image with `command: ["python", "-m", "backend.worker"]`.
 
 **Rationale**: No second Dockerfile, no separate dependency set to maintain. The worker uses the same provider/settings/observability infrastructure as the API — consistent behaviour, single build.
 

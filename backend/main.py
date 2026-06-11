@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from backend.infra.config import Settings, load_settings
-from backend.infra.lifespan import sentinel_lifespan
+from backend.infra.lifespan import argus_lifespan
 from backend.infra.logging import configure_logging
 from backend.routers import api_router
 
@@ -64,10 +64,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     _bootstrap_providers()
 
     app = FastAPI(
-        title="Sentinel",
+        title="Argus",
         description="AI-driven SOAR platform",
         version="0.1.0",
-        lifespan=sentinel_lifespan,
+        lifespan=argus_lifespan,
     )
     app.state.settings = settings
     app.include_router(api_router)

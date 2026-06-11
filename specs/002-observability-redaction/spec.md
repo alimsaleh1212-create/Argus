@@ -6,11 +6,11 @@
 
 **Status**: Draft
 
-**Input**: User description: "depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_Plan.md — the next spec" — Component #2 of the Sentinel build plan: `SPEC-observability` (the first cross-cutting concern, depends only on the platform foundation #1). Scope: tracing, structured logging, and redaction delivered as **one** cross-cutting capability so that every later component emits observable, correlated, secret-free output through a single shared seam.
+**Input**: User description: "depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_Plan.md — the next spec" — Component #2 of the Argus build plan: `SPEC-observability` (the first cross-cutting concern, depends only on the platform foundation #1). Scope: tracing, structured logging, and redaction delivered as **one** cross-cutting capability so that every later component emits observable, correlated, secret-free output through a single shared seam.
 
 ## Overview
 
-Sentinel is an AI-driven SOAR platform built spec-by-spec in dependency order. This component delivers the **observability spine and the redaction boundary** that every later component (ingestion, memory, the three agents, response/remediation, dashboard, evals) is required to route through. It exists because Sentinel reasons over **untrusted security payloads that carry both PII and live credentials**, and because the system takes consequential actions whose decisions must be reconstructable and auditable.
+Argus is an AI-driven SOAR platform built spec-by-spec in dependency order. This component delivers the **observability spine and the redaction boundary** that every later component (ingestion, memory, the three agents, response/remediation, dashboard, evals) is required to route through. It exists because Argus reasons over **untrusted security payloads that carry both PII and live credentials**, and because the system takes consequential actions whose decisions must be reconstructable and auditable.
 
 When this component is done: every log line the system emits is structured and tagged with the incident it belongs to; a single incident's journey through triage → enrichment → response is reconstructable as one trace tree where each agent step, tool call, and retrieval is a span carrying its token counts, model, latency, and the (redacted) evidence it considered; and **no sensitive value ever leaves the service in the clear** — not in a log, not in a trace, not in a prompt sent to a model, not in a stored snapshot, and not in any view the dashboard will later render. All of this is added **without meaningfully slowing the incident path**: the work on the critical path is cheap, and span/eval export happens off it.
 
@@ -22,7 +22,7 @@ This component contains **no incident/business logic** — it is the cross-cutti
 
 Every place where data exits the running service or is persisted/displayed — a log line, a trace span, a prompt sent to a model, a stored incident or report snapshot, and (later) a dashboard view — first passes through a single redaction boundary. A secret (API key, token, JWT, password, private key) or piece of PII present in the incoming alert text, in an agent's reasoning, or in a tool result never appears unredacted at any of those exits. Redaction is the composition of two strategies behind one interface: detection of PII and a deterministic scrubber for credentials/secrets.
 
-**Why this priority**: Sentinel ingests Wazuh/packet-derived payloads that routinely carry **both** PII and live credentials, and it is attacker-influenced input. A single leaked credential in a log, trace, model prompt, or memory store is a security incident in itself and breaks the trust the whole project depends on. The project's redaction eval gate is committed from day one, so this capability is the precondition for safely emitting anything at all — every other observability output depends on it being correct first.
+**Why this priority**: Argus ingests Wazuh/packet-derived payloads that routinely carry **both** PII and live credentials, and it is attacker-influenced input. A single leaked credential in a log, trace, model prompt, or memory store is a security incident in itself and breaks the trust the whole project depends on. The project's redaction eval gate is committed from day one, so this capability is the precondition for safely emitting anything at all — every other observability output depends on it being correct first.
 
 **Independent Test**: Feed payloads seeded with fake secrets and fake PII through each exit boundary (a log emit, a span emit, a model-prompt assembly, and a stored snapshot write); confirm every seeded sensitive value is redacted at every boundary and that the original raw value appears nowhere in the captured output.
 
@@ -71,7 +71,7 @@ Each unit of work inside an incident — every agent step, every tool call, ever
 
 ### User Story 4 - Observability that does not slow the incident path (Priority: P2)
 
-Adding observability does not meaningfully slow how fast Sentinel dispositions an incident. The work that must happen on the synchronous incident path — creating spans, accounting tokens, redacting, emitting logs — is cheap, and the heavier work of exporting spans and writing eval/telemetry records happens asynchronously, off that path. The overhead is measured against the incident disposition-time budget and re-verified before the Tier-1 freeze.
+Adding observability does not meaningfully slow how fast Argus dispositions an incident. The work that must happen on the synchronous incident path — creating spans, accounting tokens, redacting, emitting logs — is cheap, and the heavier work of exporting spans and writing eval/telemetry records happens asynchronously, off that path. The overhead is measured against the incident disposition-time budget and re-verified before the Tier-1 freeze.
 
 **Why this priority**: A SOAR is judged on time-to-disposition; observability that taxes every incident would undermine the product it is meant to make visible. Decoupling export from the critical path is the design guarantee. It is P2 because it refines behaviour the P1/early-P2 stories introduce, but it is a committed non-functional standard, not optional polish.
 

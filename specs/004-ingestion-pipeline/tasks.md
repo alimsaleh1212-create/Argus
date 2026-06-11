@@ -8,7 +8,7 @@ description: "Task list — Alert Ingestion Pipeline (#4)"
 **Prerequisites**: [plan.md](./plan.md), [spec.md](./spec.md), [research.md](./research.md),
 [data-model.md](./data-model.md), [contracts/](./contracts/)
 
-**Tests**: REQUIRED (Sentinel constitution Principle II — Test-First, Three-Tier). Each story is
+**Tests**: REQUIRED (Argus constitution Principle II — Test-First, Three-Tier). Each story is
 **test-first**: write the listed tests, watch them fail, then implement until green. No LLM in this
 component ⇒ the both-providers eval gate is **N/A**; the existing **smoke** + **redaction** gates cover it.
 
@@ -36,7 +36,7 @@ Fills reserved #1 seams; new files marked `+`. `backend/domain/incident.py +`, `
 
 - [X] T001 Add `redis>=5` to `[project.dependencies]` and remove `backend/worker.py`, `backend/routers/ingest.py`, `backend/infra/cache.py`, `backend/infra/queue.py` from `[tool.coverage.run] omit` in `pyproject.toml`; run `uv lock`.
 - [X] T002 [P] Create representative Wazuh sample fixtures in `tests/fixtures/wazuh_alerts/` — `ssh_bruteforce.json` (valid, rule.level≈10), `high_severity.json` (level≥12), `with_secret.json` (full_log carries a fake `AKIA…` key + `Bearer eyJ…` token + an email), `malformed.json` (not a Wazuh alert).
-- [X] T003 [P] Update `.env.example` with `INGEST_WEBHOOK_TOKEN` (seeded to `secret/ingest`) and `SENTINEL__REDIS__URL` / `SENTINEL__INGEST__MAX_ALERT_BYTES` / `SENTINEL__INGEST__DEDUP_WINDOW_S` / `SENTINEL__INGEST__MAX_ATTEMPTS` placeholders.
+- [X] T003 [P] Update `.env.example` with `INGEST_WEBHOOK_TOKEN` (seeded to `secret/ingest`) and `ARGUS__REDIS__URL` / `ARGUS__INGEST__MAX_ALERT_BYTES` / `ARGUS__INGEST__DEDUP_WINDOW_S` / `ARGUS__INGEST__MAX_ATTEMPTS` placeholders.
 
 ---
 
@@ -49,7 +49,7 @@ Fills reserved #1 seams; new files marked `+`. `backend/domain/incident.py +`, `
 - [X] T004 [P] Unit test the Incident domain contract (FIRST — must fail) in `tests/unit/test_incident_schema.py`: `IncidentStatus`/`Severity` enums, `WazuhAlert` tolerates extra fields (`extra="ignore"`), `NormalizedEvent`/`Evidence`/`Incident`/`IngestResult` validate per [data-model.md](./data-model.md).
 - [X] T005 Implement `backend/domain/incident.py` (pure Pydantic, no outward imports): `IncidentStatus` (received/grounding/grounded/failed), `Severity`, `WazuhAlert`/`WazuhRule`/`WazuhAgent`, `NormalizedEvent`, `Evidence`, `Incident`, `IngestResult` → makes T004 green.
 - [X] T006 [P] Unit test settings (FIRST — must fail) in `tests/unit/test_config_ingest.py`: `RedisSettings` + `IngestSettings` defaults & `extra="forbid"`; `"redis"`/`"ingest"` accepted as known sections; `ingest.webhook_vault_path` auto-appended to `vault.required_paths`.
-- [X] T007 Edit `backend/infra/config.py`: add `RedisSettings` + `IngestSettings`, register both on `Settings`, extend `_KNOWN_SENTINEL_SECTIONS` with `"redis"`,`"ingest"`, add a `model_validator` appending `ingest.webhook_vault_path` to `vault.required_paths` → makes T006 green.
+- [X] T007 Edit `backend/infra/config.py`: add `RedisSettings` + `IngestSettings`, register both on `Settings`, extend `_KNOWN_ARGUS_SECTIONS` with `"redis"`,`"ingest"`, add a `model_validator` appending `ingest.webhook_vault_path` to `vault.required_paths` → makes T006 green.
 - [X] T008 Create Alembic migration `backend/db/migrations/versions/0003_incidents.py` (`down_revision = "0002"`): `incidents` table (cols per [data-model.md](./data-model.md), `raw_alert`/`normalized_event`/`evidence` JSONB) + indexes `ix_incidents_status`, `ix_incidents_dedup_fingerprint`, `ix_incidents_correlation_id`; reversible `downgrade()`.
 - [X] T009 Integration test the migration round-trip in `tests/integration/test_incidents_migration.py`: upgrade creates `incidents` + indexes; downgrade drops them cleanly.
 - [X] T010 Integration test `IncidentRepository` against real Postgres (FIRST — must fail) in `tests/integration/test_incident_repository.py`: `create`/`get`/`get_by_fingerprint`/`claim_for_grounding` (atomic, second call returns `False`)/`set_grounded`/`bump_attempt`/`mark_failed`/`list_non_terminal`.
@@ -85,7 +85,7 @@ Fills reserved #1 seams; new files marked `+`. `backend/domain/incident.py +`, `
 - [X] T024 [US1] Implement `backend/services/intake.py::accept(session, queue, redactor, settings, alert)`: redact (`SNAPSHOT`/`LOG`) → persist `Incident(received)` → `enqueue`; enqueue failure rolls back the insert and raises (→ `503`); **no dedup branch yet** → makes T020 green.
 - [X] T025 [US1] Implement the webhook auth guard in `backend/routers/ingest.py` (or a small `infra` helper): constant-time compare `Authorization: Bearer` against the Vault `secret/ingest` token resolved at startup; missing/invalid ⇒ `401`.
 - [X] T026 [US1] Implement `POST /ingest/wazuh` in `backend/routers/ingest.py` (auth → size guard `413` → parse `WazuhAlert` `422` → `intake.accept` → `202`) and wire `ingest.router` into `backend/routers/__init__.py::api_router`.
-- [X] T027 [US1] Update `compose.yaml`: `vault-seed` writes `secret/ingest` (from `INGEST_WEBHOOK_TOKEN`) and add `secret/ingest` to the `api` `SENTINEL__VAULT__REQUIRED_PATHS` → makes T021/T022 green.
+- [X] T027 [US1] Update `compose.yaml`: `vault-seed` writes `secret/ingest` (from `INGEST_WEBHOOK_TOKEN`) and add `secret/ingest` to the `api` `ARGUS__VAULT__REQUIRED_PATHS` → makes T021/T022 green.
 
 **Checkpoint**: MVP — alerts are authenticated, validated, redacted, durably recorded, and queued.
 
@@ -108,7 +108,7 @@ Fills reserved #1 seams; new files marked `+`. `backend/domain/incident.py +`, `
 - [X] T031 [P] [US2] Implement `backend/services/grounding.py::ground(incident) -> Evidence` (pure, deterministic, no LLM) → makes T028 green.
 - [X] T032 [P] [US2] Implement `backend/services/pipeline.py::dispatch_to_pipeline(incident)` — logging no-op stub (the supervisor seam #7 fills; signature frozen).
 - [X] T033 [US2] Implement `backend/worker.py::main()`: build container/providers, `await queue.recover()`, then the consume loop (`dequeue` → `bind_incident` → `span` → `claim_for_grounding` → `get` → `ground` → `set_grounded` → `dispatch_to_pipeline` → `ack`), with bounded retry → `failed` and idempotent skip → makes T029/T030 green.
-- [X] T034 [US2] Activate the reserved `worker` container in `compose.yaml` (`command: ["python","-m","backend.worker"]`; `depends_on` redis healthy + migrate/vault-seed completed; `SENTINEL__VAULT__REQUIRED_PATHS` includes `secret/ingest`).
+- [X] T034 [US2] Activate the reserved `worker` container in `compose.yaml` (`command: ["python","-m","backend.worker"]`; `depends_on` redis healthy + migrate/vault-seed completed; `ARGUS__VAULT__REQUIRED_PATHS` includes `secret/ingest`).
 
 **Checkpoint**: full spine — an alert flows source → queue → worker → grounded Incident.
 

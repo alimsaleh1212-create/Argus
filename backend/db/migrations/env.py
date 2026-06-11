@@ -1,6 +1,6 @@
 """Alembic async migration environment.
 
-Reads the DSN from SENTINEL__POSTGRES__DSN (via Settings) so the same config
+Reads the DSN from ARGUS__POSTGRES__DSN (via Settings) so the same config
 source is used in all environments. Uses asyncpg driver via SQLAlchemy async.
 """
 
@@ -22,7 +22,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Override the sqlalchemy.url with the value from environment (FR-015).
-dsn = os.environ.get("SENTINEL__POSTGRES__DSN", "")
+dsn = os.environ.get("ARGUS__POSTGRES__DSN", "")
 if not dsn:
     # Fall back to loading from Settings (resolves .env as well)
     from backend.infra.config import Settings

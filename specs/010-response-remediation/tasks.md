@@ -27,7 +27,7 @@ spec** — the three internal milestones (commit at each, Constitution I) map as
 
 **Purpose**: typed config, pure types, and the playbook catalog the rest of the component builds on.
 
-- [X] T00- [ ] T001 [P] Add `ResponseSettings` to [backend/infra/config.py](../../backend/infra/config.py) (fields per [data-model.md](./data-model.md) §6: `auto_execute_actions`, `select_min_confidence`, `approval_timeout_s`, `sweep_interval_s`, `catalog_dir`, `max_output_tokens`, `temperature`, `prompt_version`), add `"response"` to `_KNOWN_SENTINEL_SECTIONS`, and add the `response: ResponseSettings` field on `Settings`.
+- [X] T00- [ ] T001 [P] Add `ResponseSettings` to [backend/infra/config.py](../../backend/infra/config.py) (fields per [data-model.md](./data-model.md) §6: `auto_execute_actions`, `select_min_confidence`, `approval_timeout_s`, `sweep_interval_s`, `catalog_dir`, `max_output_tokens`, `temperature`, `prompt_version`), add `"response"` to `_KNOWN_ARGUS_SECTIONS`, and add the `response: ResponseSettings` field on `Settings`.
 - [X] T00- [ ] T002 [P] Create pure types in `backend/domain/response.py` — enums (`ActionType`, `RiskClass`, `ActionStatus`, `VerificationVerdict` *(reserved §v2c)*, `ApprovalStatus`, `ApprovalDecision`) + models (`RemediationAction`, `ActionResult` incl. reserved `verification`, `RemediationPlan`) + the `ActionExecutor` Protocol, per [data-model.md](./data-model.md) §1–5. No outward imports (domain-isolation contract).
 - [X] T00- [ ] T003 [P] Create the playbook catalog data file(s) under `backend/data/playbooks/` (criteria → ordered `ActionType`s + preconditions) and a `load_playbook_catalog(catalog_dir)` loader in `backend/agents/response.py`, per [research.md](./research.md) RD10.
 

@@ -15,7 +15,7 @@ import pytest
 @pytest.mark.integration
 class TestIncidentsMigration:
     def test_upgrade_creates_incidents_table(self, pg_container) -> None:
-        env = {**os.environ, "SENTINEL__POSTGRES__DSN": pg_container.get_dsn()}
+        env = {**os.environ, "ARGUS__POSTGRES__DSN": pg_container.get_dsn()}
         result = subprocess.run(
             ["uv", "run", "alembic", "-c", "config/alembic.ini", "upgrade", "head"],
             env=env,
@@ -43,7 +43,7 @@ class TestIncidentsMigration:
         assert "incidents" in tables
 
     def test_downgrade_drops_incidents_table(self, pg_container) -> None:
-        env = {**os.environ, "SENTINEL__POSTGRES__DSN": pg_container.get_dsn()}
+        env = {**os.environ, "ARGUS__POSTGRES__DSN": pg_container.get_dsn()}
 
         subprocess.run(
             ["uv", "run", "alembic", "-c", "config/alembic.ini", "upgrade", "head"],

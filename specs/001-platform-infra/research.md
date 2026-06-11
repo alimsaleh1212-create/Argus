@@ -13,7 +13,7 @@ governance requires non-obvious choices be defended there).
 ## D1 — Python version pin
 
 - **Decision**: Python **3.12**, pinned `requires-python = ">=3.12,<3.13"` (and a `.python-version`).
-- **Rationale**: Broadest compatibility across the full Sentinel dependency set that lands in later
+- **Rationale**: Broadest compatibility across the full Argus dependency set that lands in later
   specs (Graphiti, async SQLAlchemy 2.x, pydantic v2, asyncpg, aioboto3). 3.13 is still maturing in
   some C-extension wheels on the critical path; pinning one minor avoids "works on my machine" drift
   and keeps `uv.lock` reproducible (SC-008).

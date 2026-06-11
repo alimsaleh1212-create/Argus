@@ -111,4 +111,4 @@ Uncomment/activate the reserved blocks in `compose.yaml`:
 - **`worker`** — same image, `command: ["python","-m","backend.worker"]`,
   `depends_on: redis (healthy), migrate (completed), vault-seed (completed)`.
 - **`vault-seed`** — also write `secret/ingest` (the webhook token); add `secret/ingest` to the api/worker
-  `SENTINEL__VAULT__REQUIRED_PATHS`.
+  `ARGUS__VAULT__REQUIRED_PATHS`.

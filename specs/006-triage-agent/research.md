@@ -85,8 +85,8 @@ testable.
 
 ## TD4 — `TriageSettings` config section (typed, `extra="forbid"`, sensible defaults)
 
-**Decision**: Add a `TriageSettings` block to `config.py` (env `SENTINEL__TRIAGE__*`), register `"triage"`
-in `_KNOWN_SENTINEL_SECTIONS`, and add the `triage: TriageSettings` field to `Settings`. Fields:
+**Decision**: Add a `TriageSettings` block to `config.py` (env `ARGUS__TRIAGE__*`), register `"triage"`
+in `_KNOWN_ARGUS_SECTIONS`, and add the `triage: TriageSettings` field to `Settings`. Fields:
 `advance_min_confidence: float = 0.6`, `resolve_min_confidence: float = 0.7`, `max_output_tokens: int = 512`,
 `temperature: float = 0.0`, `prompt_version: str = "v1"`. A `model_validator` enforces
 `0 ≤ advance_min ≤ resolve_min ≤ 1`.

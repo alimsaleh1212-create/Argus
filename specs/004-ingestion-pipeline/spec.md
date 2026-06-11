@@ -24,7 +24,7 @@ later components whose seams are merely reserved here.
 
 ### User Story 1 - Ingest a Wazuh alert (Priority: P1)
 
-The upstream detector (Wazuh) sends a security alert to Sentinel over a webhook. Sentinel validates the
+The upstream detector (Wazuh) sends a security alert to Argus over a webhook. Argus validates the
 payload, redacts sensitive content, records it as a new Incident, queues it for processing, and
 immediately acknowledges receipt — without waiting for the alert to be analyzed.
 

@@ -2,7 +2,7 @@
 SYNC IMPACT REPORT
 ==================
 Version change: (unratified template) → 1.0.0
-Ratification: initial adoption of the Sentinel constitution, derived from
+Ratification: initial adoption of the Argus constitution, derived from
   docs/resources/SOAR_brief.md and docs/resources/SOAR_Plan.md.
 
 Modified principles: none (initial definition — all 7 principles created from
@@ -20,19 +20,19 @@ Templates requiring updates:
   - .specify/templates/plan-template.md ............ ✅ updated (Constitution
       Check replaced with concrete gates derived from the 7 principles)
   - .specify/templates/tasks-template.md ........... ✅ updated (testing note:
-      three-tier tests + eval gates are REQUIRED for Sentinel, not optional)
+      three-tier tests + eval gates are REQUIRED for Argus, not optional)
   - .specify/templates/spec-template.md ............ ✅ aligned (no change needed)
   - .specify/templates/checklist-template.md ....... ✅ aligned (no change needed)
 
 Follow-up TODOs: none. RATIFICATION_DATE set to project setup date (2026-06-06).
 -->
 
-# Sentinel Constitution
+# Argus Constitution
 
-Sentinel is an AI-driven SOAR (Security Orchestration, Automation & Response) platform that
+Argus is an AI-driven SOAR (Security Orchestration, Automation & Response) platform that
 ingests Wazuh-format alerts and processes each through a supervisor-coordinated pipeline of three
 agents — triage → enrichment → response — backed by a temporal incident-memory layer. This
-constitution defines the non-negotiable principles that govern how Sentinel is built. It
+constitution defines the non-negotiable principles that govern how Argus is built. It
 supersedes ad-hoc convenience; where a principle and a shortcut conflict, the principle wins.
 
 ## Core Principles
@@ -115,7 +115,7 @@ single point of failure that can sink v1.
 
 ### VII. Production Engineering Standards
 
-Sentinel is async all the way down (`httpx`, async SQLAlchemy, async LLM SDK; `asyncio.gather`
+Argus is async all the way down (`httpx`, async SQLAlchemy, async LLM SDK; `asyncio.gather`
 where enrichment fans out). Dependency injection supplies tool sets, DB sessions, LLM and
 guardrails clients, and retrievers — which is also what enforces Principle III and mocks the LLM in
 tests. Lifespan singletons are built once on startup and disposed on shutdown. Pydantic validates
@@ -131,7 +131,7 @@ applied uniformly so every component is mockable, observable, and safe by defaul
 
 ## Scope Discipline & Delivery Tiers
 
-Sentinel sits **deliberately downstream of detection**: a SOAR consumes alerts and orchestrates the
+Argus sits **deliberately downstream of detection**: a SOAR consumes alerts and orchestrates the
 response; it is not a detector. The following are explicitly **out of scope for v1** and MUST NOT
 be built unless a tier checkpoint is met with genuine surplus: an ML anomaly detector (roadmap
 v2a/v3), multi-tenancy, an embeddable widget, live network capture, an LLM-driven supervisor, and
@@ -169,7 +169,7 @@ the signal to shed T3/T4 — never the safety, testing, or memory guarantees abo
 
 ## Governance
 
-This constitution supersedes other working practices for Sentinel. Compliance is verified at every
+This constitution supersedes other working practices for Argus. Compliance is verified at every
 PR and tier checkpoint: a change that violates a principle MUST be rejected or accompanied by a
 justified, time-bound exception recorded in `DECISIONS.md`. Complexity MUST be justified against a
 simpler rejected alternative.

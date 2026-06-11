@@ -147,11 +147,11 @@ the webhook contract for the full status-code table.
 
 ## Settings additions (`infra/config.py`)
 
-Two new typed sections (`extra="forbid"`), registered on `Settings`; `_KNOWN_SENTINEL_SECTIONS` gains
-`"redis"` and `"ingest"`. Env vars: `SENTINEL__REDIS__URL`, `SENTINEL__INGEST__MAX_ALERT_BYTES`, etc.
+Two new typed sections (`extra="forbid"`), registered on `Settings`; `_KNOWN_ARGUS_SECTIONS` gains
+`"redis"` and `"ingest"`. Env vars: `ARGUS__REDIS__URL`, `ARGUS__INGEST__MAX_ALERT_BYTES`, etc.
 
 ```python
-class RedisSettings(BaseSettings):           # SENTINEL__REDIS__*
+class RedisSettings(BaseSettings):           # ARGUS__REDIS__*
     model_config = SettingsConfigDict(extra="forbid")
     url: str = "redis://redis:6379/0"
     queue_key: str = "queue:incidents"
@@ -159,7 +159,7 @@ class RedisSettings(BaseSettings):           # SENTINEL__REDIS__*
     dedup_prefix: str = "dedup:"
     dequeue_block_s: float = 5.0             # BLMOVE block timeout
 
-class IngestSettings(BaseSettings):          # SENTINEL__INGEST__*
+class IngestSettings(BaseSettings):          # ARGUS__INGEST__*
     model_config = SettingsConfigDict(extra="forbid")
     webhook_vault_path: str = "secret/ingest"   # added to vault.required_paths (fail-boot if absent)
     max_alert_bytes: int = 262_144              # 256 KiB pre-parse guard → 413

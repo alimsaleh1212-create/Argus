@@ -173,7 +173,7 @@ async def _main_async() -> None:
     from backend.infra.corpus import CorpusProvider
     from backend.infra.db import register_db_provider
     from backend.infra.intel import IntelProvider
-    from backend.infra.lifespan import sentinel_lifespan
+    from backend.infra.lifespan import argus_lifespan
     from backend.infra.llm import register_llm_provider
     from backend.infra.memory import MemoryProvider
     from backend.infra.observability import ObservabilityProvider
@@ -202,7 +202,7 @@ async def _main_async() -> None:
     app = FastAPI()
     app.state.settings = settings
 
-    async with sentinel_lifespan(app):
+    async with argus_lifespan(app):
         container = app.state.container
         db_engine = container.db_engine
         queue = container.queue

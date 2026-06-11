@@ -12,7 +12,7 @@ than booting broken (FR-001–FR-006, Constitution VII).
 
 - One typed `pydantic-settings` object (`Settings`), built **once** at startup.
 - `model_config = SettingsConfigDict(extra="forbid", env_nested_delimiter="__", env_file=".env")`.
-- Env var naming: `SENTINEL__<SECTION>__<FIELD>` (e.g. `SENTINEL__VAULT__ADDR`).
+- Env var naming: `ARGUS__<SECTION>__<FIELD>` (e.g. `ARGUS__VAULT__ADDR`).
 - **Unknown/extra key under any known section ⇒ `ValidationError` ⇒ process exits non-zero** (FR-002).
 - Sensitive fields are `SecretStr`; `Settings.__repr__`/log rendering never emits their values (FR-005).
 
@@ -34,25 +34,25 @@ value appears in the captured stderr/exception text across all failure cases.
 
 ```dotenv
 # --- app ---
-SENTINEL__APP__ENV=local
-SENTINEL__APP__LOG_LEVEL=INFO
+ARGUS__APP__ENV=local
+ARGUS__APP__LOG_LEVEL=INFO
 
 # --- vault (dev mode in compose) ---
-SENTINEL__VAULT__ADDR=http://vault:8200
-SENTINEL__VAULT__TOKEN=dev-root-token          # dev only; real deploys inject a real token
-SENTINEL__VAULT__KV_MOUNT=secret
-SENTINEL__VAULT__REQUIRED_PATHS=["secret/minio"]
+ARGUS__VAULT__ADDR=http://vault:8200
+ARGUS__VAULT__TOKEN=dev-root-token          # dev only; real deploys inject a real token
+ARGUS__VAULT__KV_MOUNT=secret
+ARGUS__VAULT__REQUIRED_PATHS=["secret/minio"]
 
 # --- postgres ---
-SENTINEL__POSTGRES__DSN=postgresql+asyncpg://sentinel:sentinel@postgres:5432/sentinel
+ARGUS__POSTGRES__DSN=postgresql+asyncpg://sentinel:sentinel@postgres:5432/sentinel
 
 # --- minio (access/secret are RESOLVED FROM VAULT, not set here) ---
-SENTINEL__MINIO__ENDPOINT_URL=http://minio:9000
-SENTINEL__MINIO__BUCKETS=["eval-reports","incident-snapshots"]
+ARGUS__MINIO__ENDPOINT_URL=http://minio:9000
+ARGUS__MINIO__BUCKETS=["eval-reports","incident-snapshots"]
 
 # --- startup budgets ---
-SENTINEL__STARTUP__DEPENDENCY_TIMEOUT_S=5.0
-SENTINEL__STARTUP__CONNECT_RETRIES=5
+ARGUS__STARTUP__DEPENDENCY_TIMEOUT_S=5.0
+ARGUS__STARTUP__CONNECT_RETRIES=5
 ```
 
 - `.env.example` is committed and exhaustive (every required key documented); `.env` is git-ignored.

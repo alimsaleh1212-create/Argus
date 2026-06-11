@@ -100,7 +100,7 @@ async def run_spike() -> None:
         print(f"[SPIKE] Import error: {e}. Ensure graphiti-core[google-genai] is installed.")
         return
 
-    neo4j_uri = os.getenv("SENTINEL__MEMORY__NEO4J_URI", "bolt://localhost:7687")
+    neo4j_uri = os.getenv("ARGUS__MEMORY__NEO4J_URI", "bolt://localhost:7687")
     neo4j_user = os.getenv("NEO4J_USER", "neo4j")
     neo4j_password = os.getenv("NEO4J_PASSWORD", "dev-neo4j-password")
     gemini_api_key = os.getenv("GEMINI_API_KEY", "")
@@ -132,7 +132,7 @@ async def run_spike() -> None:
             await graphiti.add_episode(
                 name=ep["name"],
                 episode_body=ep["body"],
-                source_description="sentinel-spike",
+                source_description="argus-spike",
                 reference_time=ep["reference_time"],
             )
             elapsed = (time.perf_counter() - t0) * 1000
@@ -158,7 +158,7 @@ async def run_spike() -> None:
             await graphiti.add_episode(
                 name=ep["name"],
                 episode_body=ep["body"],
-                source_description="sentinel-spike-conflict",
+                source_description="argus-spike-conflict",
                 reference_time=ep["reference_time"],
             )
             elapsed = (time.perf_counter() - t0) * 1000

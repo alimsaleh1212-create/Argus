@@ -2,20 +2,20 @@
 
 **Feature**: `003-llm-provider`
 
-## Settings section (`SENTINEL__LLM__*`, `extra="forbid"`)
+## Settings section (`ARGUS__LLM__*`, `extra="forbid"`)
 
-`LlmSettings` is registered on `Settings` and `"llm"` added to `_KNOWN_SENTINEL_SECTIONS`. Fields and
+`LlmSettings` is registered on `Settings` and `"llm"` added to `_KNOWN_ARGUS_SECTIONS`. Fields and
 defaults are in [data-model.md](../data-model.md) §Configuration. Env example:
 
 ```bash
-SENTINEL__LLM__PRIMARY=gemini
-SENTINEL__LLM__FALLBACK_ORDER=["gemini","ollama"]
-SENTINEL__LLM__REQUEST_TIMEOUT_S=30.0
-SENTINEL__LLM__MAX_RETRIES=2
-SENTINEL__LLM__GEMINI_MODEL=<small-fast-gemini>     # exact id in DECISIONS.md
-SENTINEL__LLM__GEMINI_VAULT_PATH=secret/llm
-SENTINEL__LLM__OLLAMA_BASE_URL=http://ollama:11434
-SENTINEL__LLM__OLLAMA_MODEL=<tiny-model>            # exact id in DECISIONS.md
+ARGUS__LLM__PRIMARY=gemini
+ARGUS__LLM__FALLBACK_ORDER=["gemini","ollama"]
+ARGUS__LLM__REQUEST_TIMEOUT_S=30.0
+ARGUS__LLM__MAX_RETRIES=2
+ARGUS__LLM__GEMINI_MODEL=<small-fast-gemini>     # exact id in DECISIONS.md
+ARGUS__LLM__GEMINI_VAULT_PATH=secret/llm
+ARGUS__LLM__OLLAMA_BASE_URL=http://ollama:11434
+ARGUS__LLM__OLLAMA_MODEL=<tiny-model>            # exact id in DECISIONS.md
 ```
 
 ## Secrets (Vault, #1)
@@ -32,7 +32,7 @@ SENTINEL__LLM__OLLAMA_MODEL=<tiny-model>            # exact id in DECISIONS.md
 `compose.yaml` gains an `ollama` service (official `ollama/ollama` image) exposing `:11434`, with a
 one-shot init that **pulls a tiny pinned model** so the fallback path, the integration tier, and the
 both-providers eval are real and the stack comes up clean from a fresh clone. The API/worker reach it at
-`SENTINEL__LLM__OLLAMA_BASE_URL`. No app Dockerfile change (the official image is used directly).
+`ARGUS__LLM__OLLAMA_BASE_URL`. No app Dockerfile change (the official image is used directly).
 
 ## Readiness: at-least-one-reachable (LD5 / FR-019 / SC-010)
 

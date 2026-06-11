@@ -18,7 +18,7 @@ uv run python -m scripts.memory_spike      # records numbers; decide go/no-go vs
 ```
 
 **Go/no-go**: if write/retrieval latency and per-episode token cost are acceptable → keep
-`SENTINEL__MEMORY__BACKEND=graphiti`. If not → flip to `pgvector` and build the `0005` fallback (research
+`ARGUS__MEMORY__BACKEND=graphiti`. If not → flip to `pgvector` and build the `0005` fallback (research
 MD9). **Record the decision in `DECISIONS.md` before proceeding.**
 
 ## 1. Configure (Vault-seeded creds, typed settings)
@@ -28,11 +28,11 @@ MD9). **Record the decision in `DECISIONS.md` before proceeding.**
 # Verify the Neo4j credentials are present:
 docker compose exec vault vault kv get secret/memory
 
-# Memory settings (env SENTINEL__MEMORY__*), all with sane defaults:
-#   SENTINEL__MEMORY__ENABLED=true
-#   SENTINEL__MEMORY__BACKEND=graphiti
-#   SENTINEL__MEMORY__NEO4J_URI=bolt://neo4j:7687
-#   SENTINEL__MEMORY__RETRIEVAL_K=5
+# Memory settings (env ARGUS__MEMORY__*), all with sane defaults:
+#   ARGUS__MEMORY__ENABLED=true
+#   ARGUS__MEMORY__BACKEND=graphiti
+#   ARGUS__MEMORY__NEO4J_URI=bolt://neo4j:7687
+#   ARGUS__MEMORY__RETRIEVAL_K=5
 ```
 
 ## 2. Milestone (a) — write path green

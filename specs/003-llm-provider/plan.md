@@ -154,7 +154,7 @@ backend/
 │   │                     #       register_llm_provider(); get_llm()
 │   ├── llm_drivers.py  + # NEW: the ONLY modules importing google-genai / ollama — GeminiDriver +
 │   │                     #      OllamaDriver: map uniform request↔vendor, normalize usage, classify errors
-│   ├── config.py         # EDIT: add LlmSettings; register on Settings; add "llm" to _KNOWN_SENTINEL_SECTIONS
+│   ├── config.py         # EDIT: add LlmSettings; register on Settings; add "llm" to _KNOWN_ARGUS_SECTIONS
 │   ├── health.py         # EDIT: add check_llm() — healthy iff ≥1 configured provider reachable
 │   └── container.py / lifespan.py  # (unchanged) LlmProvider built via the existing provider seam
 ├── dependencies.py        # EDIT: add get_llm() Depends() reading app.state.container.llm

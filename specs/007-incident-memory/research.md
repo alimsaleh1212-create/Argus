@@ -116,8 +116,8 @@ that justifies Graphiti at all.
 
 ## MD5 — `MemorySettings` config section (typed, `extra="forbid"`, creds from Vault)
 
-**Decision**: Add a `MemorySettings` block to `config.py` (env `SENTINEL__MEMORY__*`), register `"memory"` in
-`_KNOWN_SENTINEL_SECTIONS`, add the `memory: MemorySettings` field to `Settings`, and add a `model_validator`
+**Decision**: Add a `MemorySettings` block to `config.py` (env `ARGUS__MEMORY__*`), register `"memory"` in
+`_KNOWN_ARGUS_SECTIONS`, add the `memory: MemorySettings` field to `Settings`, and add a `model_validator`
 that ensures the Neo4j credential path is in `vault.required_paths` (fail-boot if absent — mirrors the
 existing llm/ingest validators). Fields: `backend: Literal["graphiti","pgvector"] = "graphiti"`,
 `neo4j_uri: str = "bolt://neo4j:7687"`, `neo4j_vault_path: str = "secret/memory"`,
@@ -181,7 +181,7 @@ to prove (SC-002, the brief's temporal-memory eval).
 **Decision**: Replace the reserved `neo4j:` block with a configured service: `image: neo4j:5.26`,
 `NEO4J_AUTH=neo4j/<dev-password>`, ports `7474`/`7687`, a named volume, and a bolt healthcheck. `vault-seed`
 writes `secret/memory` (`username`, `password`, `uri`); the `worker` gains
-`depends_on: neo4j: service_healthy` and `secret/memory` in `SENTINEL__VAULT__REQUIRED_PATHS`. The smoke gate's
+`depends_on: neo4j: service_healthy` and `secret/memory` in `ARGUS__VAULT__REQUIRED_PATHS`. The smoke gate's
 service set grows by one (Neo4j).
 
 **Rationale**: Keeps the turnkey "fresh-clone `docker compose up` comes up clean" promise (Constitution

@@ -6,11 +6,11 @@
 
 **Status**: Draft
 
-**Input**: User description: "depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_Plan.md" — Component #1 of the Sentinel build plan: `SPEC-platform-infra` (the only Tier-1 component that depends on nothing). Scope: the local orchestration stack, secret resolution, object storage, typed configuration, the layered application skeleton, shared-resource lifecycle, schema migrations, and code-hygiene gates that every later component builds on.
+**Input**: User description: "depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_Plan.md" — Component #1 of the Argus build plan: `SPEC-platform-infra` (the only Tier-1 component that depends on nothing). Scope: the local orchestration stack, secret resolution, object storage, typed configuration, the layered application skeleton, shared-resource lifecycle, schema migrations, and code-hygiene gates that every later component builds on.
 
 ## Overview
 
-Sentinel is an AI-driven SOAR platform built spec-by-spec in dependency order. This foundation component delivers the **runnable, fail-fast baseline** that all later components (ingestion, memory, the agent pipeline, dashboard, evals) plug into. When this component is done, a person who has never seen the project can clone it and bring the whole local environment to a healthy state with one command, the application refuses to start in a misconfigured or secret-less state, shared connections are owned in one place, the relational schema is versioned, an object store exists for reports and snapshots, and basic code/secret hygiene is enforced before anything is committed. It contains **no business logic** — it is the spine that keeps the system in a valid, demonstrable state from day one.
+Argus is an AI-driven SOAR platform built spec-by-spec in dependency order. This foundation component delivers the **runnable, fail-fast baseline** that all later components (ingestion, memory, the agent pipeline, dashboard, evals) plug into. When this component is done, a person who has never seen the project can clone it and bring the whole local environment to a healthy state with one command, the application refuses to start in a misconfigured or secret-less state, shared connections are owned in one place, the relational schema is versioned, an object store exists for reports and snapshots, and basic code/secret hygiene is enforced before anything is committed. It contains **no business logic** — it is the spine that keeps the system in a valid, demonstrable state from day one.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -184,4 +184,4 @@ Before any change is committed, automated checks run linting, formatting, and se
 
 ## Dependencies
 
-- **None.** This is the root component of the build plan (`SPEC-platform-infra` depends on nothing). Every other Sentinel component depends, directly or transitively, on this foundation.
+- **None.** This is the root component of the build plan (`SPEC-platform-infra` depends on nothing). Every other Argus component depends, directly or transitively, on this foundation.
