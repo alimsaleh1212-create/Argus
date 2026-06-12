@@ -61,7 +61,13 @@ class VaultClient:
     # ------------------------------------------------------------------
 
     async def _fetch_with_retry(self, client: httpx.AsyncClient, path: str) -> str:
-        url = f"{self._addr}/v1/{self._kv_mount}/data/{path.lstrip('/')}"
+        # Strip leading mount-name prefix if present (e.g. "secret/minio" with kv_mount="secret")
+        # so that vault paths stored in config as "secret/X" don't double the mount in the URL.
+        clean = path.lstrip("/")
+        mount_prefix = f"{self._kv_mount}/"
+        if clean.startswith(mount_prefix):
+            clean = clean[len(mount_prefix):]
+        url = f"{self._addr}/v1/{self._kv_mount}/data/{clean}"
         headers = {"X-Vault-Token": self._token}
 
         @tenacity.retry(

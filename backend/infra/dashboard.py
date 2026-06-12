@@ -30,8 +30,12 @@ class AuthServiceProvider:
         vault_token = settings.vault.token.get_secret_value()
         kv_mount = settings.vault.kv_mount
         path = cfg.vault_path_admin
-
-        url = f"{vault_addr}/v1/{kv_mount}/data/{path.lstrip('/')}"
+        # Strip mount prefix if path stored as "secret/dashboard" with kv_mount="secret"
+        clean = path.lstrip("/")
+        mount_prefix = f"{kv_mount}/"
+        if clean.startswith(mount_prefix):
+            clean = clean[len(mount_prefix):]
+        url = f"{vault_addr}/v1/{kv_mount}/data/{clean}"
 
         logger.info("auth_service_building")
         try:

@@ -331,7 +331,12 @@ async def _fetch_gemini_key(settings: Any) -> str:
     vault_token = settings.vault.token.get_secret_value()
     kv_mount = settings.vault.kv_mount
     path = settings.llm.gemini_vault_path
-    url = f"{vault_addr}/v1/{kv_mount}/data/{path.lstrip('/')}"
+    # Strip mount prefix if path was stored as "secret/llm" with kv_mount="secret"
+    clean = path.lstrip("/")
+    mount_prefix = f"{kv_mount}/"
+    if clean.startswith(mount_prefix):
+        clean = clean[len(mount_prefix):]
+    url = f"{vault_addr}/v1/{kv_mount}/data/{clean}"
 
     try:
         async with httpx.AsyncClient(timeout=settings.startup.dependency_timeout_s) as client:
