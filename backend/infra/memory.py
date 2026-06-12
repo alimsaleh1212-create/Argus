@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -26,8 +25,9 @@ from backend.domain.memory import (
     TemporalFact,
 )
 from backend.infra.config import MemorySettings
+from backend.infra.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _EMPTY_FACT_STATE = FactState(fact=None, is_current=False, has_superseded=False)
 
@@ -158,7 +158,8 @@ class GraphitiMemory:
     # -- write fact -----------------------------------------------------------
 
     async def write_fact(self, fact: TemporalFact) -> None:
-        """Write a time-bounded reputation edge; invalidate any open prior fact of same (entity, fact_type)."""
+        """Write a time-bounded reputation edge, invalidating any open prior
+        fact of the same (entity, fact_type)."""
         await asyncio.wait_for(
             self._write_fact_inner(fact),
             timeout=self._settings.retrieval_timeout_s,

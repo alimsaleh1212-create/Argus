@@ -1,20 +1,17 @@
-# Argus local stack.
+# Argus local stack — self-configuring on `docker compose up`:
+#   vault-seed writes secrets from .env into Vault (deploy/vault/seed.sh),
+#   migrate applies schema migrations, then api/worker/frontend start.
 #
-# Backing services: postgres (pgvector), vault (dev mode), minio.
-# Backend image (deploy/api/Dockerfile) runs as three containers:
-#   - migrate  one-shot: applies Alembic migrations
-#   - api      the FastAPI web server
-#   - worker   (reserved — SPEC-ingestion #4)
-#
-# On `docker compose up` the stack self-configures:
-#   vault-seed writes dev credentials into Vault, migrate runs schema migrations,
-#   then api starts. No manual steps needed.
-#
-# User-provided API keys (LLM keys, threat-intel keys, etc.) go in .env.
-# vault-seed picks them up and writes them to Vault so the API reads them from there.
-# All other config is set via environment vars below — no .env needed for the API itself.
-#
-# Later specs add services by uncommenting the reserved block at the bottom.
+# Secrets policy: the app reads secrets ONLY from Vault. .env (optional,
+# git-ignored, see .env.example) is read solely by vault-seed.
+# Connection defaults (postgres/vault/minio/redis/ollama/neo4j hostnames)
+# live in backend/infra/config.py — services below set only deltas.
+
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: deploy/api/Dockerfile
+  image: argus-backend:local
 
 services:
 
@@ -51,6 +48,25 @@ services:
       retries: 10
       start_period: 5s
 
+  # One-shot: seeds Vault from .env — see deploy/vault/seed.sh.
+  vault-seed:
+    image: hashicorp/vault
+    cap_add:
+      - IPC_LOCK
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: dev-root-token
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./deploy/vault/seed.sh:/seed.sh:ro
+    entrypoint: ["sh", "/seed.sh"]
+    restart: on-failure
+
   minio:
     image: minio/minio
     command: server /data --console-address ":9001"
@@ -69,6 +85,17 @@ services:
       retries: 10
       start_period: 10s
 
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
   neo4j:
     image: neo4j:5.26
     environment:
@@ -85,33 +112,7 @@ services:
       retries: 12
       start_period: 30s
 
-  # One-shot: seeds dev credentials and any user API keys from .env into Vault KV v2.
-  # .env is optional — only needed when the user has real API keys to provide.
-  vault-seed:
-    image: hashicorp/vault
-    cap_add:
-      - IPC_LOCK
-    depends_on:
-      vault:
-        condition: service_healthy
-    environment:
-      VAULT_ADDR: http://vault:8200
-      VAULT_TOKEN: dev-root-token
-    env_file:
-      - path: .env
-        required: false
-    command: >
-      sh -c "
-        vault kv put secret/minio access_key=minioadmin secret_key=minioadmin &&
-        vault kv put secret/llm api_key=$${GEMINI_API_KEY:-placeholder} &&
-        vault kv put secret/ingest token=$${INGEST_WEBHOOK_TOKEN:-dev-webhook-token} &&
-        vault kv put secret/memory username=neo4j password=dev-neo4j-password uri=bolt://neo4j:7687 &&
-        vault kv put secret/dashboard password_hash=$${ARGUS_ADMIN_PASSWORD_HASH:-dev-hash-placeholder} salt=$${ARGUS_ADMIN_SALT:-dev-salt} iterations=$${ARGUS_ADMIN_ITERATIONS:-260000} jwt_secret=$${ARGUS_JWT_SECRET:-dev-jwt-secret-change-in-production} &&
-        if [ -n \"$${INTEL_API_KEY:-}\" ]; then vault kv put secret/intel api_key=$${INTEL_API_KEY}; fi
-      "
-    restart: on-failure
-
-  # Local Ollama runtime — the secondary/fallback LLM provider (SPEC-llm-provider #3).
+  # Local Ollama runtime — the fallback LLM provider (SPEC-llm-provider #3).
   ollama:
     image: ollama/ollama
     ports:
@@ -125,8 +126,7 @@ services:
       retries: 20
       start_period: 30s
 
-  # One-shot: pull the tiny pinned model so the fallback path, integration tier,
-  # and both-providers eval are real and the stack comes up clean from a fresh clone.
+  # One-shot: pull the pinned fallback model so the stack works from a fresh clone.
   ollama-pull:
     image: ollama/ollama
     depends_on:
@@ -139,12 +139,7 @@ services:
 
   # One-shot: applies Alembic schema migrations before the API starts.
   migrate:
-    build:
-      context: .
-      dockerfile: deploy/api/Dockerfile
-    image: argus-backend:local
-    environment:
-      ARGUS__POSTGRES__DSN: postgresql+asyncpg://argus:argus@postgres:5432/argus
+    <<: *backend
     command: ["alembic", "-c", "config/alembic.ini", "upgrade", "head"]
     depends_on:
       postgres:
@@ -152,25 +147,16 @@ services:
     restart: on-failure
 
   api:
-    build:
-      context: .
-      dockerfile: deploy/api/Dockerfile
-    image: argus-backend:local
+    <<: *backend
     ports:
       - "8000:8000"
     environment:
-      ARGUS__VAULT__ADDR: http://vault:8200
-      ARGUS__VAULT__TOKEN: dev-root-token
       ARGUS__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm","secret/ingest","secret/dashboard"]'
-      ARGUS__POSTGRES__DSN: postgresql+asyncpg://argus:argus@postgres:5432/argus
-      ARGUS__MINIO__ENDPOINT_URL: http://minio:9000
-      ARGUS__LLM__OLLAMA_BASE_URL: http://ollama:11434
-      ARGUS__REDIS__URL: redis://redis:6379/0
+      # Presidio's AnalyzerEngine deadlocks at import inside the container
+      # (futex wait); redaction falls back to the regex/secret scrubber.
       ARGUS__OBSERVABILITY__PRESIDIO_ENABLED: "false"
     depends_on:
       postgres:
-        condition: service_healthy
-      vault:
         condition: service_healthy
       minio:
         condition: service_healthy
@@ -191,64 +177,41 @@ services:
       retries: 10
       start_period: 30s
 
-  redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-
   worker:
-    build:
-      context: .
-      dockerfile: deploy/api/Dockerfile
-    image: argus-backend:local
+    <<: *backend
     command: ["python", "-m", "backend.worker"]
     environment:
-      ARGUS__VAULT__ADDR: http://vault:8200
-      ARGUS__VAULT__TOKEN: dev-root-token
       ARGUS__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm","secret/ingest","secret/memory"]'
-      ARGUS__POSTGRES__DSN: postgresql+asyncpg://argus:argus@postgres:5432/argus
-      ARGUS__MINIO__ENDPOINT_URL: http://minio:9000
-      ARGUS__LLM__OLLAMA_BASE_URL: http://ollama:11434
-      ARGUS__REDIS__URL: redis://redis:6379/0
-      ARGUS__MEMORY__NEO4J_URI: bolt://neo4j:7687
+      # Same Presidio in-container deadlock workaround as api.
+      ARGUS__OBSERVABILITY__PRESIDIO_ENABLED: "false"
     depends_on:
       redis:
         condition: service_healthy
       neo4j:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
       vault-seed:
+        condition: service_completed_successfully
+      migrate:
         condition: service_completed_successfully
     restart: on-failure
 
-  # One-shot: seeds the reference corpus (MITRE techniques + runbooks) and IOC reputation facts.
-  # api/worker do NOT depend on it — knowledge is additive; the spine boots without a seeded corpus.
+  # One-shot: seeds the reference corpus (MITRE + runbooks) and IOC facts.
+  # api/worker do NOT depend on it — the spine boots without a seeded corpus.
   seed-corpus:
-    image: argus-backend:local
+    <<: *backend
     command: ["python", "-m", "backend.seed_corpus"]
     environment:
-      ARGUS__POSTGRES__DSN: postgresql+asyncpg://argus:argus@postgres:5432/argus
-      ARGUS__VAULT__ADDR: http://vault:8200
-      ARGUS__VAULT__TOKEN: dev-root-token
       ARGUS__VAULT__REQUIRED_PATHS: '["secret/memory"]'
-      ARGUS__MEMORY__NEO4J_URI: bolt://neo4j:7687
     depends_on:
-      migrate:
-        condition: service_completed_successfully
       neo4j:
         condition: service_healthy
       vault-seed:
         condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
     restart: on-failure
 
-  # SPEC-dashboard (#12) — React SPA served by nginx, same-origin reverse-proxy to api
+  # React SPA served by nginx, same-origin reverse-proxy to api (SPEC-dashboard #12).
   frontend:
     build:
       context: .
@@ -259,9 +222,8 @@ services:
       api:
         condition: service_healthy
 
-  # ── Reserved — uncomment when the owning spec is implemented ──────────────────
-  #
-  # guardrails:                          # SPEC-safety (#11) — self-hosted sidecar only
+  # ── Reserved — uncomment when the owning spec is implemented ────────────────
+  # guardrails:                          # SPEC-safety (#11) — self-hosted sidecar
   #   build:
   #     context: .
   #     dockerfile: deploy/guardrails/Dockerfile
