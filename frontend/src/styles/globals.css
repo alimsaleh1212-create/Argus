@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────
+   Argus Design System — OLED Dark Mode
+   Source: specs/012-dashboard/contracts/frontend-ux.md
+   ───────────────────────────────────────────── */
+@theme {
+  /* Background / surfaces */
+  --color-bg: #020617;        /* slate-950 */
+  --color-surface: #0F172A;   /* slate-900 */
+  --color-raised: #1E293B;    /* slate-800 */
+
+  /* Text */
+  --color-text: #F8FAFC;      /* slate-50 */
+  --color-muted: #94A3B8;     /* slate-400 */
+
+  /* Primary action */
+  --color-primary: #22C55E;   /* green-500 */
+
+  /* Severity */
+  --color-sev-low: #38BDF8;      /* sky-400 */
+  --color-sev-medium: #FACC15;   /* amber-400 */
+  --color-sev-high: #FB923C;     /* orange-400 */
+  --color-sev-critical: #EF4444; /* red-500 */
+
+  /* Status badges */
+  --color-status-awaiting: #FACC15;  /* amber */
+  --color-status-resolved: #22C55E;  /* green */
+  --color-status-escalated: #FB923C; /* orange */
+  --color-status-rejected: #EF4444;  /* red */
+  --color-status-inflight: #64748B;  /* slate-500 */
+
+  /* Typography */
+  --font-sans: "Fira Sans", system-ui, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, monospace;
+
+  /* Border radius */
+  --radius: 0.5rem;
+}
+
+/* ── Google Fonts ── */
+@import url("https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap");
+
+html,
+body,
+#root {
+  height: 100%;
+  background-color: #020617;
+  color: #F8FAFC;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar (subtle dark) ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0F172A;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Focus ring ── */
+:focus-visible {
+  outline: 2px solid #22C55E;
+  outline-offset: 2px;
+}

@@ -6,9 +6,9 @@ anomal ml dtection increases false postive intrusion alarms so here AI agents be
 
 
 
-/speckit-specify depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_plan.md make things simple and don't overengineer while working
+/speckit-specify depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_Plan.md make things simple and don't overengineer while working
 
-/speckit-plan  depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_plan.md and created spec. make things simple and don't overengineer while working
+/speckit-plan  depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_Plan.md and created spec. make things simple and don't overengineer while working
 
 /speckit-implement and when reaching tests make sure to run tests without OOM error 
 

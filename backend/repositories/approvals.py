@@ -84,6 +84,21 @@ class ApprovalRepository:
             return None
         return _row_to_record(row)
 
+    async def get_pending_for_incident(self, incident_id: uuid.UUID) -> ApprovalRecord | None:
+        """Return the active pending approval for an incident (for dashboard detail view)."""
+        result = await self._session.execute(
+            sa.text(
+                "SELECT * FROM approval_requests "
+                "WHERE incident_id = :incident_id AND status = 'pending' "
+                "ORDER BY created_at DESC LIMIT 1"
+            ),
+            {"incident_id": str(incident_id)},
+        )
+        row = result.mappings().first()
+        if row is None:
+            return None
+        return _row_to_record(row)
+
     async def get_approved_pending_for(self, incident_id: uuid.UUID) -> ApprovalRecord | None:
         """Return the approved-but-not-yet-consumed approval record for this incident (Pass-B discriminator).
 

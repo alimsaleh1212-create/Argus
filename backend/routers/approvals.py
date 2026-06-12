@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from backend.dependencies import get_approval_repo, get_audit_repo, get_incident_repo, get_supervisor
+from backend.dependencies import get_approval_repo, get_audit_repo, get_current_operator, get_incident_repo, get_supervisor
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
@@ -81,6 +81,7 @@ async def post_decision(
     audit_repo=Depends(get_audit_repo),
     incident_repo=Depends(get_incident_repo),
     supervisor=Depends(get_supervisor),
+    operator=Depends(get_current_operator),
 ) -> dict[str, Any]:
     """Record an approve/reject decision and drive the supervisor resume.
 
@@ -104,7 +105,7 @@ async def post_decision(
 
     # Resolve the approval record (guarded pending → approved/rejected)
     to_status = ApprovalStatus.APPROVED if body.decision == "approve" else ApprovalStatus.REJECTED
-    actor = "admin"
+    actor = operator.subject
     resolved = await approval_repo.resolve(
         approval_id,
         to=to_status,

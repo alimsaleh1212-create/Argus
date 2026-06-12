@@ -9,9 +9,24 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.domain.dashboard import IncidentSummary, MemoryHit, QueuePage, VolumeBucket
 from backend.domain.incident import Evidence, Incident, IncidentStatus, NormalizedEvent, Severity
 
 _TABLE = sa.text  # convenience alias
+
+_TERMINAL_STATUSES = frozenset({"resolved", "escalated", "failed"})
+_ACTIVE_STATUSES = frozenset(
+    {s.value for s in IncidentStatus} - _TERMINAL_STATUSES
+)
+
+_ALLOWED_SORTS: dict[str, str] = {
+    "-updated_at": "updated_at DESC",
+    "updated_at": "updated_at ASC",
+    "-created_at": "created_at DESC",
+    "created_at": "created_at ASC",
+    "-severity": "severity DESC",
+    "severity": "severity ASC",
+}
 
 
 class IncidentRepository:
@@ -178,6 +193,134 @@ class IncidentRepository:
         )
         await self._session.commit()
 
+    async def list_for_queue(
+        self,
+        *,
+        view: str = "active",
+        statuses: list[str] | None = None,
+        severities: list[str] | None = None,
+        sort: str = "-updated_at",
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[IncidentSummary]:
+        where, params = _build_queue_where(view=view, statuses=statuses, severities=severities)
+        order = _ALLOWED_SORTS.get(sort, "updated_at DESC")
+        params["limit"] = limit
+        params["offset"] = offset
+        sql = (
+            "SELECT id, status, severity, disposition, source, "
+            "evidence->>'summary' AS summary, updated_at, created_at "
+            f"FROM incidents{where} ORDER BY {order} LIMIT :limit OFFSET :offset"
+        )
+        result = await self._session.execute(sa.text(sql), params)
+        rows = result.mappings().all()
+        return [
+            IncidentSummary(
+                id=row["id"],
+                status=row["status"],
+                severity=row["severity"],
+                disposition=row["disposition"],
+                source=row["source"],
+                summary=row["summary"],
+                is_awaiting_approval=row["status"] == "awaiting_approval",
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+            )
+            for row in rows
+        ]
+
+    async def count_for_queue(
+        self,
+        *,
+        view: str = "active",
+        statuses: list[str] | None = None,
+        severities: list[str] | None = None,
+    ) -> int:
+        where, params = _build_queue_where(view=view, statuses=statuses, severities=severities)
+        sql = f"SELECT COUNT(*) FROM incidents{where}"
+        result = await self._session.execute(sa.text(sql), params)
+        return result.scalar() or 0
+
+    async def kpi_volume_buckets(
+        self, *, bucket_hours: int = 1, limit: int = 24
+    ) -> list[VolumeBucket]:
+        """Return incident counts grouped by created_at in N-hour buckets (most recent first)."""
+        sql = (
+            "SELECT "
+            "  to_timestamp("
+            "    (EXTRACT(EPOCH FROM created_at)::bigint / (:bh * 3600)) * (:bh * 3600)"
+            "  ) AT TIME ZONE 'UTC' AS bucket, "
+            "  COUNT(*) AS count "
+            "FROM incidents "
+            "GROUP BY bucket "
+            "ORDER BY bucket DESC "
+            "LIMIT :limit"
+        )
+        result = await self._session.execute(
+            sa.text(sql), {"bh": bucket_hours, "limit": limit}
+        )
+        rows = result.mappings().all()
+        return [VolumeBucket(bucket=row["bucket"], count=row["count"]) for row in rows]
+
+    async def kpi_disposition_counts(self) -> dict[str, int]:
+        """Return counts grouped by disposition (excludes NULL dispositions)."""
+        result = await self._session.execute(
+            sa.text(
+                "SELECT COALESCE(disposition, '_none') AS d, COUNT(*) AS cnt "
+                "FROM incidents GROUP BY d"
+            )
+        )
+        return {row["d"]: row["cnt"] for row in result.mappings().all()}
+
+    async def kpi_mean_time_to_disposition_ms(self) -> int | None:
+        """Return mean (updated_at - created_at) in ms for terminal incidents with a disposition."""
+        result = await self._session.execute(
+            sa.text(
+                "SELECT AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) * 1000) AS avg_ms "
+                "FROM incidents "
+                "WHERE status IN ('resolved', 'escalated', 'failed') AND disposition IS NOT NULL"
+            )
+        )
+        avg = result.scalar()
+        return int(avg) if avg is not None else None
+
+    async def kpi_enriched_and_hit_counts(self) -> MemoryHit:
+        """Return enriched count and memory-hit count.
+
+        Enriched = incident has evidence['enrichment'] key.
+        Memory-hit = enriched AND internal_findings is non-empty (proxy for memory retrieval).
+        """
+        result = await self._session.execute(
+            sa.text(
+                "SELECT "
+                "  SUM(CASE WHEN evidence ? 'enrichment' THEN 1 ELSE 0 END) AS enriched, "
+                "  SUM(CASE WHEN evidence ? 'enrichment' "
+                "        AND jsonb_array_length(evidence->'enrichment'->'internal_findings') > 0 "
+                "        THEN 1 ELSE 0 END) AS hits "
+                "FROM incidents"
+            )
+        )
+        row = result.mappings().one()
+        enriched = int(row["enriched"] or 0)
+        hits = int(row["hits"] or 0)
+        rate = (hits / enriched) if enriched > 0 else None
+        return MemoryHit(enriched=enriched, hits=hits, rate=rate)
+
+    async def kpi_status_counts(self) -> dict[str, int]:
+        """Return counts grouped by broad status buckets for the stream kpi_counters."""
+        result = await self._session.execute(
+            sa.text("SELECT status, COUNT(*) AS cnt FROM incidents GROUP BY status")
+        )
+        rows = result.mappings().all()
+        raw: dict[str, int] = {row["status"]: row["cnt"] for row in rows}
+        active = sum(v for k, v in raw.items() if k in _ACTIVE_STATUSES)
+        return {
+            "active": active,
+            "awaiting_approval": raw.get("awaiting_approval", 0),
+            "auto_resolved": raw.get("auto_remediated", 0),
+            "escalated": raw.get("escalated", 0),
+        }
+
     async def list_non_terminal(self) -> list[Incident]:
         result = await self._session.execute(
             sa.text(
@@ -186,6 +329,45 @@ class IncidentRepository:
             )
         )
         return [_row_to_incident(row) for row in result.mappings().all()]
+
+
+def _build_queue_where(
+    *,
+    view: str,
+    statuses: list[str] | None,
+    severities: list[str] | None,
+) -> tuple[str, dict[str, Any]]:
+    clauses: list[str] = []
+    params: dict[str, Any] = {}
+
+    if view == "active":
+        active = list(_ACTIVE_STATUSES)
+        placeholders = ", ".join(f":vs{i}" for i in range(len(active)))
+        clauses.append(f"status IN ({placeholders})")
+        for i, v in enumerate(active):
+            params[f"vs{i}"] = v
+    elif view == "resolved":
+        terminal = list(_TERMINAL_STATUSES)
+        placeholders = ", ".join(f":vt{i}" for i in range(len(terminal)))
+        clauses.append(f"status IN ({placeholders})")
+        for i, v in enumerate(terminal):
+            params[f"vt{i}"] = v
+    # "all" → no status clause
+
+    if statuses:
+        placeholders = ", ".join(f":st{i}" for i in range(len(statuses)))
+        clauses.append(f"status IN ({placeholders})")
+        for i, v in enumerate(statuses):
+            params[f"st{i}"] = v
+
+    if severities:
+        placeholders = ", ".join(f":sv{i}" for i in range(len(severities)))
+        clauses.append(f"severity IN ({placeholders})")
+        for i, v in enumerate(severities):
+            params[f"sv{i}"] = v
+
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+    return where, params
 
 
 def _json(value: Any) -> str:

@@ -24,6 +24,7 @@ dependencies = [
     "ollama>=0.6.2",
     "redis>=5",
     "graphiti-core[google-genai]>=0.3",
+    "pyjwt>=2.13.0",
 ]
 
 [dependency-groups]
