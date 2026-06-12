@@ -104,6 +104,7 @@ services:
         vault kv put secret/llm api_key=$${GEMINI_API_KEY:-placeholder} &&
         vault kv put secret/ingest token=$${INGEST_WEBHOOK_TOKEN:-dev-webhook-token} &&
         vault kv put secret/memory username=neo4j password=dev-neo4j-password uri=bolt://neo4j:7687 &&
+        vault kv put secret/dashboard password_hash=$${ARGUS_ADMIN_PASSWORD_HASH:-dev-hash-placeholder} salt=$${ARGUS_ADMIN_SALT:-dev-salt} iterations=$${ARGUS_ADMIN_ITERATIONS:-260000} jwt_secret=$${ARGUS_JWT_SECRET:-dev-jwt-secret-change-in-production} &&
         if [ -n \"$${INTEL_API_KEY:-}\" ]; then vault kv put secret/intel api_key=$${INTEL_API_KEY}; fi
       "
     restart: on-failure
@@ -158,7 +159,7 @@ services:
     environment:
       ARGUS__VAULT__ADDR: http://vault:8200
       ARGUS__VAULT__TOKEN: dev-root-token
-      ARGUS__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm","secret/ingest"]'
+      ARGUS__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm","secret/ingest","secret/dashboard"]'
       ARGUS__POSTGRES__DSN: postgresql+asyncpg://argus:argus@postgres:5432/argus
       ARGUS__MINIO__ENDPOINT_URL: http://minio:9000
       ARGUS__LLM__OLLAMA_BASE_URL: http://ollama:11434
@@ -244,17 +245,23 @@ services:
         condition: service_completed_successfully
     restart: on-failure
 
+  # SPEC-dashboard (#12) — React SPA served by nginx, same-origin reverse-proxy to api
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/frontend/Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
   # ── Reserved — uncomment when the owning spec is implemented ──────────────────
   #
   # guardrails:                          # SPEC-safety (#11) — self-hosted sidecar only
   #   build:
   #     context: .
   #     dockerfile: deploy/guardrails/Dockerfile
-  #
-  # frontend:                            # SPEC-dashboard (#12) — React, separate image
-  #   build:
-  #     context: .
-  #     dockerfile: deploy/frontend/Dockerfile
 
 volumes:
   postgres_data:

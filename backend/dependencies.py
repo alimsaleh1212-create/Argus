@@ -1,5 +1,8 @@
 """FastAPI Depends() providers — read singletons from app.state.container.
 
+Also includes dashboard-specific providers: get_auth_service, get_current_operator,
+get_trace_repo (added by #12).
+
 Consumers obtain resources ONLY through these functions, never module globals
 (FR-012). In tests, ``app.dependency_overrides[get_obs] = fake``
 substitutes a double without touching consumer code (FR-020).
@@ -10,7 +13,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import Request
+from fastapi import Depends, HTTPException, Query, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.infra.blob import BlobClient
@@ -100,3 +104,54 @@ async def get_audit_repo(request: Request):
     db: Any = request.app.state.container.db_engine
     async with db.session_factory() as session:
         yield AuditRepository(session)
+
+
+# ── Dashboard providers (#12) ──────────────────────────────────────────────────
+
+_bearer_scheme = HTTPBearer(auto_error=False)
+
+
+async def get_auth_service(request: Request):
+    """Return the AuthService singleton (lazy-init from Vault creds)."""
+    return request.app.state.container.auth_service
+
+
+async def get_current_operator(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    token_param: str | None = Query(default=None, alias="token"),
+    auth_svc=Depends(get_auth_service),
+):
+    """Validate bearer token (REST) or ?token= query param (SSE EventSource).
+
+    Returns OperatorSession on success; raises HTTP 401 on any failure.
+    """
+    from datetime import UTC, datetime
+
+    from backend.domain.dashboard import OperatorSession
+    from backend.services.auth import AuthError
+
+    raw_token: str | None = None
+    if credentials is not None:
+        raw_token = credentials.credentials
+    elif token_param is not None:
+        raw_token = token_param
+
+    if not raw_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        payload = auth_svc.verify_token(raw_token)
+    except AuthError:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    return OperatorSession(
+        subject=payload["sub"],
+        role=payload["role"],
+        expires_at=datetime.fromtimestamp(payload["exp"], tz=UTC),
+    )
+
+
+async def get_trace_repo(request: Request):
+    """Return the TraceRepository singleton."""
+    return request.app.state.container.trace_repo

@@ -56,6 +56,14 @@ def _bootstrap_providers() -> None:
         from backend.supervisor_provider import SupervisorProvider
 
         register_provider(SupervisorProvider())
+    if "auth_service" not in existing_names:
+        from backend.infra.dashboard import AuthServiceProvider
+
+        register_provider(AuthServiceProvider())
+    if "trace_repo" not in existing_names:
+        from backend.infra.dashboard import TraceRepoProvider
+
+        register_provider(TraceRepoProvider())
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

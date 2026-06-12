@@ -2,41 +2,49 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
-**Active component**: `010-response-remediation` (Component #10 — the only **acting** stage + the
-human-in-the-loop approval interrupt; **"big" spec, ~2 days**; depends on #7, #3 — all done;
-**unblocks dashboard #12 approve/reject + audit**). Realizes the brief's "tiered remediation with a
-human-in-the-loop interrupt" deliverable.
-- Plan: `specs/010-response-remediation/plan.md`
-- Spec: `specs/010-response-remediation/spec.md`
-- Design: `specs/010-response-remediation/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
+**Active component**: `012-dashboard` (Component #12 — the **React operations dashboard**, the human
+surface; T1, **~1 day**, the final T1 component; depends on #10/#2/#3/#5/#7/#1 — all done; closes the
+brief's "polished React operations dashboard" deliverable). The graded showcase surface.
+- Plan: `specs/012-dashboard/plan.md`
+- Spec: `specs/012-dashboard/spec.md`
+- Design: `specs/012-dashboard/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
-Stack (this component): replaces the `run_response` stub with the only **acting** stage and **completes the
-supervisor's reserved interrupt/resume seam** (#5 left `resume_incident` for #10: "timeout, audit rows, and
-action execution are Component #10"). Forward path is **determinism-first** (clarification Q1, RD1): a
-deterministic catalog match selects the playbook with **no** LLM call; only the ambiguous tail (multi-candidate
-/ failed preconditions / conflict) makes **at most one** structured `LlmClient` call. A **pure config-backed
-default-deny policy** classifies each action → **auto** (allowlist: add-to-watchlist/open-ticket/enrich-and-tag)
-executes now via **mock executors** (`infra/executors.py`, `ActionExecutor` Protocol — the action tools, **this
-stage only**, Constitution III) + an **audit row**; **destructive** (isolate-host/disable-user/block-IP) →
-`NEEDS_APPROVAL` → supervisor parks `AWAITING_APPROVAL` (edge already exists) + writes a `pending` row. Approve
-re-enters `RESPONDING` so the **response stage re-runs to execute** (RD3 — execution never leaves the
-tool-holding stage; no LLM on resume) → `remediated`; reject → `rejected_by_human`; a worker **timeout sweeper**
-expires past-deadline approvals → `ESCALATED`/`approval_expired` (RD7); all **idempotent** (RD6). Distinct
-dispositions (Q2): `auto_remediated`/`remediated`/`rejected_by_human`/`approval_expired`/`escalated_response`.
-**#10 owns the backend approvals endpoint** (Q3): `GET /approvals` + `POST /approvals/{id}/decision` → records +
-resumes (drives `supervisor.resume_incident` synchronously; **API now registers `SupervisorProvider`**, RD4).
-**New persistence** (the one schema change): `approval_requests` + `audit_log` (migration **0006**) via new
-`repositories/approvals.py`/`audit.py`; **`incidents` table unchanged** (new disposition values are text) so the
-supervisor stays its single writer. Pure types in `domain/response.py` (`RemediationPlan`/`RemediationAction`/
-`ActionResult`); `ResponseSettings` (`extra="forbid"`). **v1 records *applied*, never *eliminated*** (Q4,
-FR-020) — `ActionResult.verification` + `remediation_unverified` are **reserved**; the post-remediation
-verification + feedback loop is the designed **§v2c** section, implemented at the **T2** checkpoint (Q5, layering
-contract not traded). Eval: extends the existing **`supervisor-routing`** gate with response fixtures — **no new
-gate** (RD12); remediation-rationale LLM-judge deferred to #13. Bounded supervisor edits only (RD2/RD8): finish
-`resume_incident`, add `expire_incident`, `(RESPONDING,RESOLVED)` disposition passthrough — **not** new
-routing/cap logic. Mock environment; rollback/per-action-granularity out of v1.
+Stack (this component): a **separate-image React SPA** (`frontend/`, Node 20 toolchain — the #1
+second-runtime exception, never in the Python `uv` venv) backed by **read-side** backend endpoints; built
+with the **`/ui-ux-pro-max`** skill (Dark-Mode OLED slate + green accent, Fira Sans/Code, app-shell;
+Vite + React + TS + Tailwind + shadcn/ui + TanStack Query/Table + Recharts + native `EventSource`).
+**Read-only except approve/reject** — the supervisor stays single writer; approve/reject **reuses #10's
+`/approvals/{id}/decision`** (no direct state mutation, no action tools — Constitution III). Net-new
+backend is small + additive: fill the reserved `routers/incidents.py` (`GET /incidents` queue +
+`/{id}` detail + `/{id}/audit` + `/{id}/trace` + `/kpis` + `/stream`), add **admin auth** (none exists:
+username+password in **Vault** → short-lived **HS256 JWT** w/ `role`, via `services/auth.py` +
+`get_current_operator`; PyJWT + stdlib PBKDF2, **no native dep**), and **register** the `incidents` +
+`approvals` routers (currently commented in `routers/__init__.py`) behind that dependency. **No migration**
+— reads existing `incidents`/`approval_requests`/`audit_log`/`trace_spans`; auth is stateless (RD7). Pure
+read DTOs in `domain/dashboard.py`; `IncidentRepository` gains **read** methods only (`list_for_queue`/
+`count_for_queue` + KPI aggregates) — never a second writer. **Server push** = **SSE** (one-directional;
+`GET /incidents/stream`) sourced by an **API-side 2s snapshot poll** (touches neither worker nor
+supervisor; Redis pub/sub documented as the deferred scale-up — RD3/RD4), reconcile-on-reconnect + refetch
+fallback. **Memory-hit KPI** = hits/enriched (denominator = incidents that reached enrichment), read from
+the enrichment `evidence` signal. Redaction is **upstream** (#2) — dashboard asserts via tests, adds **no
+de-redaction path** (RD8). **No new eval gate** — extends the **redaction** gate with a dashboard-view
+check (deterministic UI). Ships as **milestone PRs** (Constitution I): P1 auth+shell+queue/detail → P2
+approval+trace → P3 KPIs+SSE+polish. Packaging: `deploy/frontend/Dockerfile` (node build → nginx static +
+reverse-proxy to `api`), `frontend` service uncommented in `compose.yaml`. Single `admin` role, one
+console; no multi-tenancy/embeddable widget (v1 scope).
 
-Prior components (done): `009-enrichment-agent` — **second LLM stage**: retrieval-only cross-correlation.
+Prior components (done): `010-response-remediation` — the only **acting** stage + the HITL approval
+interrupt. Determinism-first playbook select (catalog match, **no** LLM; ambiguous tail = **one**
+`LlmClient` call); **config-backed default-deny** policy → **auto** allowlist executes via mock executors
+(`infra/executors.py`, `ActionExecutor`) + **audit row**; **destructive** → `AWAITING_APPROVAL` +
+`pending` row. Approve re-enters `RESPONDING` (re-runs to execute, no LLM on resume) → `remediated`;
+reject → `rejected_by_human`; worker **timeout sweeper** → `approval_expired`; all **idempotent**.
+**Owns `GET /approvals` + `POST /approvals/{id}/decision`** (drives `supervisor.resume_incident`; API
+registers `SupervisorProvider`). New persistence `approval_requests` + `audit_log` (migration **0006**)
+via `repositories/approvals.py`/`audit.py`; **`incidents` table unchanged**. Pure `domain/response.py`;
+`ResponseSettings`. v1 records *applied*; `verification` reserved for **§v2c** (T2). Extends
+**`supervisor-routing`** gate — no new gate. Plan: `specs/010-response-remediation/plan.md`.
+`009-enrichment-agent` — **second LLM stage**: retrieval-only cross-correlation.
 A **bounded retrieval fan-out (`asyncio.gather`) + exactly one** `LlmClient` call reads **both directions**
 (external `CorpusRetriever`/`IntelVerdict` #5; internal `MemoryStore.search_similar` + `query_fact(as_of=…)`
 #6) → validated `EnrichmentReport` (`domain/enrichment.py`) → pure `decide_outcome` → ADVANCE/RESOLVED/ESCALATE.

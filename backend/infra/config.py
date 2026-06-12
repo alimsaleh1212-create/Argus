@@ -22,7 +22,7 @@ _KNOWN_ARGUS_SECTIONS = frozenset(
     {
         "app", "vault", "postgres", "minio", "startup", "observability",
         "llm", "redis", "ingest", "supervisor", "triage", "memory",
-        "corpus", "intel", "enrichment", "response",
+        "corpus", "intel", "enrichment", "response", "dashboard",
     }
 )
 _ARGUS_PREFIX = "ARGUS__"
@@ -262,6 +262,18 @@ class MemorySettings(BaseSettings):
     ollama_embedder_dim: Annotated[int, Field(gt=0)] = 768
 
 
+class DashboardSettings(BaseSettings):
+    """Settings for the operations dashboard (#12)."""
+
+    model_config = SettingsConfigDict(extra="forbid")
+
+    admin_username: str = "admin"
+    vault_path_admin: str = "secret/dashboard"
+    token_ttl_minutes: Annotated[int, Field(gt=0)] = 60
+    algorithm: str = "HS256"
+    stream_poll_seconds: Annotated[float, Field(gt=0)] = 2.0
+
+
 class ResponseSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="forbid")
 
@@ -308,6 +320,19 @@ class Settings(BaseSettings):
     corpus: CorpusSettings = Field(default_factory=CorpusSettings)
     intel: IntelSettings = Field(default_factory=IntelSettings)
     response: ResponseSettings = Field(default_factory=ResponseSettings)
+    dashboard: DashboardSettings = Field(default_factory=DashboardSettings)
+
+    @model_validator(mode="after")
+    def _ensure_dashboard_vault_path_required(self) -> Settings:
+        """Guarantee admin Vault path is in vault.required_paths (fail boot if unseeded)."""
+        dash_path = self.dashboard.vault_path_admin
+        if dash_path not in self.vault.required_paths:
+            object.__setattr__(
+                self.vault,
+                "required_paths",
+                list(self.vault.required_paths) + [dash_path],
+            )
+        return self
 
     @model_validator(mode="after")
     def _ensure_memory_vault_path_required(self) -> Settings:
