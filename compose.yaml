@@ -89,6 +89,8 @@ services:
   # .env is optional — only needed when the user has real API keys to provide.
   vault-seed:
     image: hashicorp/vault
+    cap_add:
+      - IPC_LOCK
     depends_on:
       vault:
         condition: service_healthy
@@ -117,7 +119,7 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -164,6 +166,7 @@ services:
       ARGUS__MINIO__ENDPOINT_URL: http://minio:9000
       ARGUS__LLM__OLLAMA_BASE_URL: http://ollama:11434
       ARGUS__REDIS__URL: redis://redis:6379/0
+      ARGUS__OBSERVABILITY__PRESIDIO_ENABLED: "false"
     depends_on:
       postgres:
         condition: service_healthy

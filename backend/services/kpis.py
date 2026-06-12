@@ -21,11 +21,10 @@ async def build_kpi_snapshot(repo: IncidentRepository) -> KpiSnapshot:
 
 
 async def _gather(repo: IncidentRepository):
-    import asyncio
-
-    return await asyncio.gather(
-        repo.kpi_volume_buckets(),
-        repo.kpi_disposition_counts(),
-        repo.kpi_mean_time_to_disposition_ms(),
-        repo.kpi_enriched_and_hit_counts(),
-    )
+    # Must be sequential — asyncio.gather on the same async session causes
+    # SQLAlchemy IllegalStateChangeError (concurrent use of one session).
+    volume = await repo.kpi_volume_buckets()
+    disposition = await repo.kpi_disposition_counts()
+    mttd_ms = await repo.kpi_mean_time_to_disposition_ms()
+    memory_hit = await repo.kpi_enriched_and_hit_counts()
+    return volume, disposition, mttd_ms, memory_hit
