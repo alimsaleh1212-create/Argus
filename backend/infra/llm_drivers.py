@@ -11,23 +11,22 @@ import asyncio
 import json
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+import ollama as ollama_sdk
+
 # Vendor SDK imports — confined to this module (no-bypass FR-001)
 from google import genai
 from google.genai import types as genai_types
-import ollama as ollama_sdk
 
 from backend.domain.llm import (
     LlmError,
     LlmErrorKind,
-    LlmMessage,
     LlmRequest,
     LlmResponse,
-    ProviderId,
     ProviderCapability,
+    ProviderId,
     StopReason,
     TokenUsage,
     ToolCall,
-    ToolSpec,
 )
 
 if TYPE_CHECKING:
@@ -61,13 +60,28 @@ def _classify_gemini_error(exc: Exception) -> LlmErrorKind:
     exc_type = type(exc).__name__.lower()
 
     # Auth failures
-    if any(k in msg for k in ("401", "403", "unauthorized", "forbidden", "api_key", "api key", "unauthenticated")):
+    if any(
+        k in msg
+        for k in (
+            "401",
+            "403",
+            "unauthorized",
+            "forbidden",
+            "api_key",
+            "api key",
+            "unauthenticated",
+        )
+    ):
         return LlmErrorKind.AUTH
-    if any(k in exc_type for k in ("unauthorized", "forbidden", "permissiondenied", "unauthenticated")):
+    if any(
+        k in exc_type for k in ("unauthorized", "forbidden", "permissiondenied", "unauthenticated")
+    ):
         return LlmErrorKind.AUTH
 
     # Invalid request
-    if any(k in msg for k in ("400", "invalid", "bad request", "context window", "too many tokens")):
+    if any(
+        k in msg for k in ("400", "invalid", "bad request", "context window", "too many tokens")
+    ):
         return LlmErrorKind.INVALID_REQUEST
     if any(k in exc_type for k in ("invalidargument", "badrequest")):
         return LlmErrorKind.INVALID_REQUEST
@@ -77,9 +91,15 @@ def _classify_gemini_error(exc: Exception) -> LlmErrorKind:
         return LlmErrorKind.CONTENT_REFUSAL
 
     # Transient
-    if any(k in msg for k in ("429", "503", "502", "500", "rate limit", "overloaded", "unavailable", "timeout")):
+    if any(
+        k in msg
+        for k in ("429", "503", "502", "500", "rate limit", "overloaded", "unavailable", "timeout")
+    ):
         return LlmErrorKind.TRANSIENT
-    if any(k in exc_type for k in ("ratelimit", "serviceunavailable", "internalserver", "timeout", "deadline")):
+    if any(
+        k in exc_type
+        for k in ("ratelimit", "serviceunavailable", "internalserver", "timeout", "deadline")
+    ):
         return LlmErrorKind.TRANSIENT
 
     # Default: transient (retry won't hurt, and most unknown errors are transient)
@@ -90,7 +110,9 @@ def _classify_ollama_error(exc: Exception) -> LlmErrorKind:
     msg = str(exc).lower()
     exc_type = type(exc).__name__.lower()
 
-    if any(k in msg for k in ("connection refused", "cannot connect", "connect error", "unreachable")):
+    if any(
+        k in msg for k in ("connection refused", "cannot connect", "connect error", "unreachable")
+    ):
         return LlmErrorKind.TRANSIENT
     if any(k in exc_type for k in ("connecterror", "timeout")):
         return LlmErrorKind.TRANSIENT
@@ -159,15 +181,17 @@ class GeminiDriver:
                 contents=contents,
                 config=config,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError as exc:
             raise LlmError(
                 kind=LlmErrorKind.TRANSIENT,
                 provider=ProviderId.GEMINI,
                 message="Request timed out",
-            )
+            ) from exc
         except Exception as exc:
             kind = _classify_gemini_error(exc)
-            raise LlmError(kind=kind, provider=ProviderId.GEMINI, message=_safe_message(exc)) from exc
+            raise LlmError(
+                kind=kind, provider=ProviderId.GEMINI, message=_safe_message(exc)
+            ) from exc
 
         return _parse_gemini_response(raw, self._model)
 
@@ -241,11 +265,7 @@ def _build_gemini_config(
         kwargs["tools"] = [genai_types.Tool(function_declarations=decls)]
 
         if request.require_tool:
-            allowed = (
-                [request.require_tool]
-                if isinstance(request.require_tool, str)
-                else None
-            )
+            allowed = [request.require_tool] if isinstance(request.require_tool, str) else None
             mode = "ANY" if allowed else "AUTO"
             kwargs["tool_config"] = genai_types.ToolConfig(
                 function_calling_config=genai_types.FunctionCallingConfig(
@@ -350,7 +370,9 @@ class OllamaDriver:
         # Structured output via format
         if request.response_schema is not None:
             kwargs["format"] = request.response_schema
-        elif request.require_tool and isinstance(request.require_tool, bool) and request.require_tool:
+        elif (
+            request.require_tool and isinstance(request.require_tool, bool) and request.require_tool
+        ):
             pass  # tool use handles the response structure
 
         # Generation options
@@ -366,15 +388,17 @@ class OllamaDriver:
 
         try:
             raw = await self._client.chat(**kwargs)
-        except asyncio.TimeoutError:
+        except TimeoutError as exc:
             raise LlmError(
                 kind=LlmErrorKind.TRANSIENT,
                 provider=ProviderId.OLLAMA,
                 message="Request timed out",
-            )
+            ) from exc
         except Exception as exc:
             kind = _classify_ollama_error(exc)
-            raise LlmError(kind=kind, provider=ProviderId.OLLAMA, message=_safe_message(exc)) from exc
+            raise LlmError(
+                kind=kind, provider=ProviderId.OLLAMA, message=_safe_message(exc)
+            ) from exc
 
         return _parse_ollama_response(raw, self._model)
 

@@ -32,7 +32,12 @@ REDACTED_MARKER = "[REDACTED]"
 
 
 def _make_app(*, incident, audit_rows=None):
-    from backend.dependencies import get_approval_repo, get_audit_repo, get_auth_service, get_incident_repo
+    from backend.dependencies import (
+        get_approval_repo,
+        get_audit_repo,
+        get_auth_service,
+        get_incident_repo,
+    )
     from backend.infra.config import load_settings
     from backend.infra.container import clear_registry
     from backend.main import create_app

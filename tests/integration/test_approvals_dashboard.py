@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -102,8 +102,10 @@ def _make_app(
     app.dependency_overrides[get_auth_service] = lambda: auth_svc
 
     _record = approval_record if approval_record is not None else _make_pending_record()
-    _incident = incident if incident is not None else _make_incident(
-        status="resolved", disposition=supervisor_disposition
+    _incident = (
+        incident
+        if incident is not None
+        else _make_incident(status="resolved", disposition=supervisor_disposition)
     )
 
     async def fake_approval_repo():

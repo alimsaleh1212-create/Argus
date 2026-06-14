@@ -41,12 +41,14 @@ def _incident(summary: str = "Test incident") -> Incident:
 
 def _ok_response(assessment: str = "confirmed") -> LlmResponse:
     return LlmResponse(
-        content=json.dumps({
-            "assessment": assessment,
-            "confidence": 0.85,
-            "correlation_summary": "Signals aligned.",
-            "cited_evidence": ["ev1"],
-        }),
+        content=json.dumps(
+            {
+                "assessment": assessment,
+                "confidence": 0.85,
+                "correlation_summary": "Signals aligned.",
+                "cited_evidence": ["ev1"],
+            }
+        ),
         usage=TokenUsage(prompt_tokens=20, completion_tokens=10),
         model="fake",
         provider=ProviderId.GEMINI,
@@ -107,9 +109,11 @@ async def test_memory_store_receives_only_read_calls():
 @pytest.mark.asyncio
 async def test_injection_laden_context_yields_valid_outcome():
     """Injected instructions in retrieved corpus content do not escape the assessment boundary."""
+
     class InjectionCorpus:
         async def search_reference(self, query, *, k: int) -> list:
-            from backend.domain.corpus import ReferenceHit, ReferenceCorpusEntry, ReferenceKind
+            from backend.domain.corpus import ReferenceCorpusEntry, ReferenceHit, ReferenceKind
+
             return [
                 ReferenceHit(
                     entry=ReferenceCorpusEntry(

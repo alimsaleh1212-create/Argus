@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -58,7 +58,7 @@ def _load_queries() -> list[dict]:
 
 
 def _prior_to_episode(p: dict) -> IncidentEpisode:
-    from backend.domain.memory import EntityRef, EntityKind
+    from backend.domain.memory import EntityKind, EntityRef
 
     entities = []
     for e in p.get("entities", []):
@@ -98,7 +98,7 @@ class _InMemoryStore:
                 scored.append((score, ep))
         scored.sort(key=lambda x: x[0], reverse=True)
         hits = []
-        for rank, (score, ep) in enumerate(scored[:k]):
+        for _rank, (score, ep) in enumerate(scored[:k]):
             hits.append(
                 MemoryHit(
                     incident_id=ep.incident_id,
@@ -157,9 +157,7 @@ async def test_retrieval_gate() -> None:
     hit_rate = sum(hits_list) / len(hits_list)
     mrr = sum(rr_list) / len(rr_list)
 
-    assert hit_rate >= min_hit_at_k, (
-        f"hit@{k} = {hit_rate:.2f} < threshold {min_hit_at_k:.2f}"
-    )
+    assert hit_rate >= min_hit_at_k, f"hit@{k} = {hit_rate:.2f} < threshold {min_hit_at_k:.2f}"
     assert mrr >= min_mrr, f"MRR = {mrr:.2f} < threshold {min_mrr:.2f}"
 
 
@@ -173,15 +171,16 @@ class _InMemoryCorpusStore:
         self._entries = entries
 
     async def search_reference(self, query: Any, *, k: int) -> list:
-        from backend.domain.corpus import ReferenceHit, ReferenceKind
 
         hits: dict = {}
 
         # Technique-keyed
         for entry in self._entries:
-            if entry.key in [t.lower() for t in query.technique_ids] or \
-               entry.key.lower() in [t.lower() for t in query.technique_ids]:
+            if entry.key in [t.lower() for t in query.technique_ids] or entry.key.lower() in [
+                t.lower() for t in query.technique_ids
+            ]:
                 from backend.repositories.corpus import _update_hit
+
                 _update_hit(hits, entry, 1.0, "technique")
 
             # Tag match
@@ -190,6 +189,7 @@ class _InMemoryCorpusStore:
                 overlap = len(set(entry.tags) & set(terms_lower))
                 if overlap:
                     from backend.repositories.corpus import _update_hit
+
                     _update_hit(hits, entry, 0.5, "tag")
 
             # Lexical
@@ -197,6 +197,7 @@ class _InMemoryCorpusStore:
                 for term in query.terms:
                     if term.lower() in entry.title.lower() or term.lower() in entry.content.lower():
                         from backend.repositories.corpus import _update_hit
+
                         _update_hit(hits, entry, 0.3, "term")
 
         result = sorted(hits.values(), key=lambda h: (-h.relevance, h.entry.key))
@@ -215,24 +216,28 @@ def _seed_in_memory_corpus() -> list:
     with open(corpus_dir / "techniques.json") as f:
         for t in json.load(f):
             tags = [t["id"].lower(), t.get("tactic", "").lower()]
-            entries.append(ReferenceCorpusEntry(
-                kind=ReferenceKind.TECHNIQUE,
-                key=t["id"],
-                title=t["title"],
-                content=t["mitigations"],
-                tags=tags,
-            ))
+            entries.append(
+                ReferenceCorpusEntry(
+                    kind=ReferenceKind.TECHNIQUE,
+                    key=t["id"],
+                    title=t["title"],
+                    content=t["mitigations"],
+                    tags=tags,
+                )
+            )
 
     with open(corpus_dir / "runbooks.json") as f:
         for r in json.load(f):
             tags = [tech.lower() for tech in r.get("techniques", [])]
-            entries.append(ReferenceCorpusEntry(
-                kind=ReferenceKind.RUNBOOK,
-                key=r["key"],
-                title=r["title"],
-                content=r["steps"],
-                tags=tags,
-            ))
+            entries.append(
+                ReferenceCorpusEntry(
+                    kind=ReferenceKind.RUNBOOK,
+                    key=r["key"],
+                    title=r["title"],
+                    content=r["steps"],
+                    tags=tags,
+                )
+            )
 
     return entries
 
@@ -265,9 +270,7 @@ async def test_corpus_retrieval_gate() -> None:
 
     assert hits_list, "No corpus queries produced results — check fixtures and bundled data"
     hit_rate = sum(hits_list) / len(hits_list)
-    assert hit_rate >= min_hit, (
-        f"corpus hit@{k} = {hit_rate:.2f} < threshold {min_hit:.2f}"
-    )
+    assert hit_rate >= min_hit, f"corpus hit@{k} = {hit_rate:.2f} < threshold {min_hit:.2f}"
 
 
 # ── Enrichment retrieval gate (SPEC-enrichment-agent #9) ─────────────────────
@@ -290,7 +293,6 @@ def _load_enrichment_cases() -> list[dict]:
 async def test_enrichment_retrieval_gate() -> None:
     """Enrichment retrieval gate: corpus + memory directions scored against fixture labels."""
     from backend.agents.enrichment import build_reference_query, extract_entities
-    from backend.domain.corpus import ReferenceQuery
 
     cfg = _load_enrichment_config()
     k = cfg.get("k", 5)
@@ -306,7 +308,7 @@ async def test_enrichment_retrieval_gate() -> None:
     _prior_seed = [
         IncidentEpisode(
             incident_id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
-            observed_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            observed_at=datetime(2025, 1, 1, tzinfo=UTC),
             summary="Multiple authentication failures brute force admin auth-server-01 T1110",
             verdict="real",
             severity=Severity.HIGH,
@@ -314,7 +316,7 @@ async def test_enrichment_retrieval_gate() -> None:
         ),
         IncidentEpisode(
             incident_id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
-            observed_at=datetime(2025, 2, 1, tzinfo=timezone.utc),
+            observed_at=datetime(2025, 2, 1, tzinfo=UTC),
             summary="Phishing email attachment opened jdoe workstation-07 T1566",
             verdict="real",
             severity=Severity.HIGH,
@@ -322,7 +324,7 @@ async def test_enrichment_retrieval_gate() -> None:
         ),
         IncidentEpisode(
             incident_id=uuid.UUID("00000000-0000-0000-0000-000000000004"),
-            observed_at=datetime(2025, 3, 1, tzinfo=timezone.utc),
+            observed_at=datetime(2025, 3, 1, tzinfo=UTC),
             summary="Anomalous login valid account bob.smith vpn-gateway T1078 203.0.113.99",
             verdict="real",
             severity=Severity.CRITICAL,

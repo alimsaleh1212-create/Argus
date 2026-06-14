@@ -7,7 +7,7 @@ The supervisor remains the single writer of incidents; this repository owns appr
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 

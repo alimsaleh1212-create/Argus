@@ -8,14 +8,15 @@ import pytest
 
 from backend.domain.corpus import (
     ReferenceCorpusEntry,
-    ReferenceHit,
     ReferenceKind,
     ReferenceQuery,
 )
 from backend.repositories.corpus import CorpusRepository, _update_hit
 
 
-def _make_entry(key: str = "T1110", kind: ReferenceKind = ReferenceKind.TECHNIQUE) -> ReferenceCorpusEntry:
+def _make_entry(
+    key: str = "T1110", kind: ReferenceKind = ReferenceKind.TECHNIQUE
+) -> ReferenceCorpusEntry:
     return ReferenceCorpusEntry(
         kind=kind,
         key=key,
@@ -26,6 +27,7 @@ def _make_entry(key: str = "T1110", kind: ReferenceKind = ReferenceKind.TECHNIQU
 
 
 # ── Ranking determinism ──────────────────────────────────────────────────────
+
 
 def test_update_hit_keeps_higher_relevance() -> None:
     hits: dict = {}
@@ -56,6 +58,7 @@ def test_update_hit_dedupes_by_kind_key() -> None:
 
 # ── k truncation ─────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_search_reference_k_truncation() -> None:
     session = MagicMock()
@@ -78,13 +81,12 @@ async def test_search_reference_k_truncation() -> None:
 
     session.execute = AsyncMock(side_effect=_execute)
     repo = CorpusRepository(session)
-    hits = await repo.search_reference(
-        ReferenceQuery(technique_ids=["T1110"]), k=3
-    )
+    hits = await repo.search_reference(ReferenceQuery(technique_ids=["T1110"]), k=3)
     assert len(hits) <= 3
 
 
 # ── empty / no-match ─────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_search_reference_empty_query_returns_empty() -> None:
@@ -111,6 +113,7 @@ async def test_search_reference_no_match_returns_empty() -> None:
 
 # ── redaction applied before upsert ─────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_upsert_does_not_store_redacted_secret() -> None:
     """Redactor is invoked with MEMORY_WRITE boundary before upsert."""
@@ -121,7 +124,7 @@ async def test_upsert_does_not_store_redacted_secret() -> None:
     captured: list[str] = []
 
     redactor = MagicMock()
-    redactor.redact_text = lambda text, boundary: (captured.append(text) or "[REDACTED]")
+    redactor.redact_text = lambda text, boundary: captured.append(text) or "[REDACTED]"
 
     repo = MagicMock()
     repo.upsert_entries = AsyncMock()

@@ -38,11 +38,15 @@ class FakeRepo:
             return self._incident
         return None
 
-    async def advance_status(self, incident_id, *, expected, target, disposition=None, evidence_patch=None) -> bool:
+    async def advance_status(
+        self, incident_id, *, expected, target, disposition=None, evidence_patch=None
+    ) -> bool:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
         self.advances.append({"from": expected, "to": target, "disposition": disposition})
-        self._incident = self._incident.model_copy(update={"status": target, "disposition": disposition})
+        self._incident = self._incident.model_copy(
+            update={"status": target, "disposition": disposition}
+        )
         return True
 
 
@@ -66,14 +70,25 @@ async def test_step_cap_escalates():
     # Cap at 2 steps so the loop hits it quickly
     cfg = SupervisorSettings(max_steps=2, max_tokens=40_000, max_stage_retries=0)
 
-    async def triage(inc): return StageResult(stage=StageName.TRIAGE, outcome=StageOutcome.ADVANCE)
-    async def enrichment(inc): return StageResult(stage=StageName.ENRICHMENT, outcome=StageOutcome.ADVANCE)
-    async def response(inc): return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.ADVANCE)  # illegal but tests cap
+    async def triage(inc):
+        return StageResult(stage=StageName.TRIAGE, outcome=StageOutcome.ADVANCE)
+
+    async def enrichment(inc):
+        return StageResult(stage=StageName.ENRICHMENT, outcome=StageOutcome.ADVANCE)
+
+    async def response(inc):
+        return StageResult(
+            stage=StageName.RESPONSE, outcome=StageOutcome.ADVANCE
+        )  # illegal but tests cap
 
     incident = _incident()
     repo = FakeRepo(incident)
     sv = Supervisor(
-        stages={StageName.TRIAGE: triage, StageName.ENRICHMENT: enrichment, StageName.RESPONSE: response},
+        stages={
+            StageName.TRIAGE: triage,
+            StageName.ENRICHMENT: enrichment,
+            StageName.RESPONSE: response,
+        },
         cfg=cfg,
         tracer=build_tracer(exporter=None),
     )
@@ -108,7 +123,11 @@ async def test_step_cap_never_loops_unboundedly():
     incident = _incident()
     repo = FakeRepo(incident)
     sv = Supervisor(
-        stages={StageName.TRIAGE: triage, StageName.ENRICHMENT: enrichment, StageName.RESPONSE: response},
+        stages={
+            StageName.TRIAGE: triage,
+            StageName.ENRICHMENT: enrichment,
+            StageName.RESPONSE: response,
+        },
         cfg=cfg,
         tracer=build_tracer(exporter=None),
     )
@@ -126,8 +145,11 @@ async def test_step_cap_never_loops_unboundedly():
 @pytest.mark.asyncio
 async def test_token_cap_escalates():
     """When accumulated tokens exceed max_tokens, the incident is escalated."""
+
     async def triage(inc):
-        return StageResult(stage=StageName.TRIAGE, outcome=StageOutcome.ADVANCE, tokens_consumed=500)
+        return StageResult(
+            stage=StageName.TRIAGE, outcome=StageOutcome.ADVANCE, tokens_consumed=500
+        )
 
     # Cap at 100 tokens → triage's 500 tokens push us over
     cfg = SupervisorSettings(max_steps=8, max_tokens=100)
@@ -148,8 +170,11 @@ async def test_token_cap_escalates():
 @pytest.mark.asyncio
 async def test_token_cap_zero_stages_allowed_below_cap():
     """If the first stage stays under the token cap, the incident proceeds normally."""
+
     async def triage(inc):
-        return StageResult(stage=StageName.TRIAGE, outcome=StageOutcome.RESOLVED, tokens_consumed=50)
+        return StageResult(
+            stage=StageName.TRIAGE, outcome=StageOutcome.RESOLVED, tokens_consumed=50
+        )
 
     cfg = SupervisorSettings(max_steps=8, max_tokens=1000)
     incident = _incident()

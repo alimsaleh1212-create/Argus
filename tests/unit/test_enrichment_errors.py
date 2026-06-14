@@ -9,7 +9,14 @@ import pytest
 
 from backend.agents.enrichment import make_enrichment_handler
 from backend.domain.incident import Incident, IncidentStatus, Severity
-from backend.domain.llm import LlmError, LlmErrorKind, LlmResponse, ProviderId, StopReason, TokenUsage
+from backend.domain.llm import (
+    LlmError,
+    LlmErrorKind,
+    LlmResponse,
+    ProviderId,
+    StopReason,
+    TokenUsage,
+)
 from backend.domain.pipeline import ToolError
 from backend.infra.config import EnrichmentSettings
 
@@ -26,7 +33,12 @@ def _incident() -> Incident:
         evidence={
             "verdict": "suspicious",
             "severity": "high",
-            "normalized_event": {"rule_id": "1", "rule_description": "alert", "rule_groups": [], "fields": {}},
+            "normalized_event": {
+                "rule_id": "1",
+                "rule_description": "alert",
+                "rule_groups": [],
+                "fields": {},
+            },
             "summary": "error test incident",
         },
     )
@@ -94,7 +106,9 @@ async def test_unexpected_exception_not_retryable():
 
 @pytest.mark.asyncio
 async def test_malformed_json_raises_tool_error_not_retryable():
-    handler = make_enrichment_handler(MalformedLlm("not json"), None, None, None, EnrichmentSettings())
+    handler = make_enrichment_handler(
+        MalformedLlm("not json"), None, None, None, EnrichmentSettings()
+    )
     with pytest.raises(ToolError) as exc_info:
         await handler(_incident())
     assert exc_info.value.retryable is False
@@ -104,13 +118,17 @@ async def test_malformed_json_raises_tool_error_not_retryable():
 @pytest.mark.asyncio
 async def test_invalid_assessment_raises_malformed_output():
     """Out-of-vocabulary assessment → fail-closed ToolError, not advance/resolve."""
-    bad_payload = json.dumps({
-        "assessment": "maybe",  # not in enum
-        "confidence": 0.9,
-        "correlation_summary": "test",
-        "cited_evidence": ["ev"],
-    })
-    handler = make_enrichment_handler(MalformedLlm(bad_payload), None, None, None, EnrichmentSettings())
+    bad_payload = json.dumps(
+        {
+            "assessment": "maybe",  # not in enum
+            "confidence": 0.9,
+            "correlation_summary": "test",
+            "cited_evidence": ["ev"],
+        }
+    )
+    handler = make_enrichment_handler(
+        MalformedLlm(bad_payload), None, None, None, EnrichmentSettings()
+    )
     with pytest.raises(ToolError) as exc_info:
         await handler(_incident())
     assert exc_info.value.kind == "malformed_output"

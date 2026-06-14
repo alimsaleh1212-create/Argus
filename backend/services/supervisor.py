@@ -56,17 +56,35 @@ TRANSITIONS: dict[tuple[IncidentStatus, str], tuple[IncidentStatus, str | None]]
     (IncidentStatus.GROUNDED, _ROUTE_CRITICAL): (IncidentStatus.RESPONDING, None),
     (IncidentStatus.GROUNDED, _ROUTE_AMBIGUOUS): (IncidentStatus.TRIAGING, None),
     # Triage outcomes
-    (IncidentStatus.TRIAGING, StageOutcome.RESOLVED): (IncidentStatus.RESOLVED, DISP_AUTO_RESOLVED_TRIAGE),
+    (IncidentStatus.TRIAGING, StageOutcome.RESOLVED): (
+        IncidentStatus.RESOLVED,
+        DISP_AUTO_RESOLVED_TRIAGE,
+    ),
     (IncidentStatus.TRIAGING, StageOutcome.ADVANCE): (IncidentStatus.ENRICHING, None),
-    (IncidentStatus.TRIAGING, StageOutcome.ESCALATE): (IncidentStatus.ESCALATED, DISP_ESCALATED_TRIAGE),
+    (IncidentStatus.TRIAGING, StageOutcome.ESCALATE): (
+        IncidentStatus.ESCALATED,
+        DISP_ESCALATED_TRIAGE,
+    ),
     # Enrichment outcomes
     (IncidentStatus.ENRICHING, StageOutcome.ADVANCE): (IncidentStatus.RESPONDING, None),
-    (IncidentStatus.ENRICHING, StageOutcome.RESOLVED): (IncidentStatus.RESOLVED, DISP_AUTO_RESOLVED_ENRICHMENT),
-    (IncidentStatus.ENRICHING, StageOutcome.ESCALATE): (IncidentStatus.ESCALATED, DISP_ESCALATED_ENRICHMENT),
+    (IncidentStatus.ENRICHING, StageOutcome.RESOLVED): (
+        IncidentStatus.RESOLVED,
+        DISP_AUTO_RESOLVED_ENRICHMENT,
+    ),
+    (IncidentStatus.ENRICHING, StageOutcome.ESCALATE): (
+        IncidentStatus.ESCALATED,
+        DISP_ESCALATED_ENRICHMENT,
+    ),
     # Response outcomes — disposition=None so handler-proposed value passes through (RD8)
     (IncidentStatus.RESPONDING, StageOutcome.RESOLVED): (IncidentStatus.RESOLVED, None),
-    (IncidentStatus.RESPONDING, StageOutcome.NEEDS_APPROVAL): (IncidentStatus.AWAITING_APPROVAL, DISP_AWAITING_APPROVAL),
-    (IncidentStatus.RESPONDING, StageOutcome.ESCALATE): (IncidentStatus.ESCALATED, DISP_ESCALATED_RESPONSE),
+    (IncidentStatus.RESPONDING, StageOutcome.NEEDS_APPROVAL): (
+        IncidentStatus.AWAITING_APPROVAL,
+        DISP_AWAITING_APPROVAL,
+    ),
+    (IncidentStatus.RESPONDING, StageOutcome.ESCALATE): (
+        IncidentStatus.ESCALATED,
+        DISP_ESCALATED_RESPONSE,
+    ),
 }
 
 # ---------------------------------------------------------------------------
@@ -74,8 +92,12 @@ TRANSITIONS: dict[tuple[IncidentStatus, str], tuple[IncidentStatus, str | None]]
 # ---------------------------------------------------------------------------
 
 _ENTRY_STATES = frozenset({IncidentStatus.GROUNDED})
-_IN_FLIGHT_STATES = frozenset({IncidentStatus.TRIAGING, IncidentStatus.ENRICHING, IncidentStatus.RESPONDING})
-_TERMINAL_STATES = frozenset({IncidentStatus.RESOLVED, IncidentStatus.ESCALATED, IncidentStatus.FAILED})
+_IN_FLIGHT_STATES = frozenset(
+    {IncidentStatus.TRIAGING, IncidentStatus.ENRICHING, IncidentStatus.RESPONDING}
+)
+_TERMINAL_STATES = frozenset(
+    {IncidentStatus.RESOLVED, IncidentStatus.ESCALATED, IncidentStatus.FAILED}
+)
 _PARKED_STATES = frozenset({IncidentStatus.AWAITING_APPROVAL})
 
 _STATUS_TO_STAGE: dict[IncidentStatus, StageName] = {
@@ -147,7 +169,9 @@ class Supervisor:
 
             # No-op for terminal or parked states
             if current_status in _TERMINAL_STATES or current_status in _PARKED_STATES:
-                logger.info("supervisor_noop", status=current_status.value, incident_id=str(incident_id))
+                logger.info(
+                    "supervisor_noop", status=current_status.value, incident_id=str(incident_id)
+                )
                 return
 
             # Reject invalid entry states (received/grounding — not supervisor territory)
@@ -201,7 +225,9 @@ class Supervisor:
                         target=IncidentStatus.ESCALATED,
                         disposition=DISP_ESCALATED_TOKEN_CAP,
                     )
-                    logger.warning("supervisor_token_cap", tokens=tokens, incident_id=str(incident_id))
+                    logger.warning(
+                        "supervisor_token_cap", tokens=tokens, incident_id=str(incident_id)
+                    )
                     return
 
                 stage_name = _STATUS_TO_STAGE[current_status]

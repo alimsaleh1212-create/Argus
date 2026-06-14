@@ -7,8 +7,8 @@ from pydantic import ValidationError
 
 from backend.infra.config import CorpusSettings, IntelSettings, Settings
 
-
 # ── CorpusSettings ───────────────────────────────────────────────────────────
+
 
 def test_corpus_settings_defaults() -> None:
     s = CorpusSettings()
@@ -28,6 +28,7 @@ def test_corpus_retrieval_k_must_be_positive() -> None:
 
 
 # ── IntelSettings ────────────────────────────────────────────────────────────
+
 
 def test_intel_settings_defaults() -> None:
     s = IntelSettings()
@@ -55,6 +56,7 @@ def test_intel_cache_ttl_must_be_positive() -> None:
 
 
 # ── Settings integration — intel key NOT injected into vault.required_paths ─
+
 
 def test_intel_vault_path_not_injected(monkeypatch: pytest.MonkeyPatch) -> None:
     """The intel api_key_vault_path must NOT be force-added to vault.required_paths.

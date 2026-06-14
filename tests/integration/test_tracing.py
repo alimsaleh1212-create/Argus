@@ -12,14 +12,12 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
 from testcontainers.postgres import PostgresContainer
 
-from backend.domain.telemetry import SpanKind, SpanStatus
+from backend.domain.telemetry import SpanKind
 from backend.infra.tracing import build_tracer, record_llm_usage, span
 
 pytestmark = pytest.mark.integration
@@ -28,16 +26,21 @@ pytestmark = pytest.mark.integration
 @pytest.fixture(scope="module")
 def pg_dsn():
     with PostgresContainer("pgvector/pgvector:pg16") as pg:
-        yield pg.get_connection_url().replace("psycopg2", "asyncpg").replace(
-            "postgresql+asyncpg", "postgresql+asyncpg"
+        yield (
+            pg.get_connection_url()
+            .replace("psycopg2", "asyncpg")
+            .replace("postgresql+asyncpg", "postgresql+asyncpg")
         )
 
 
 @pytest.fixture(scope="module")
 async def db_engine(pg_dsn):
     from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy.pool import NullPool
 
-    engine = create_async_engine(pg_dsn, echo=False)
+    # NullPool prevents connection reuse across tests so asyncpg never tries
+    # to cancel/close a connection on an already-closed function-scoped event loop.
+    engine = create_async_engine(pg_dsn, echo=False, poolclass=NullPool)
     yield engine
     await engine.dispose()
 
@@ -45,55 +48,70 @@ async def db_engine(pg_dsn):
 @pytest.fixture(scope="module")
 async def migrated_engine(db_engine):
     """Apply the trace_spans migration to the test Postgres instance."""
-    from alembic import command
-    from alembic.config import Config
+    import os
+    import subprocess
 
-    cfg = Config("config/alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", str(db_engine.url).replace("+asyncpg", ""))
-    # Run synchronously — alembic is sync
-    import asyncio
-    loop = asyncio.get_event_loop()
-    await asyncio.to_thread(command.upgrade, cfg, "head")
+    # Run alembic as a subprocess (same as test_migrations.py) so asyncpg
+    # is used end-to-end and DNS resolution is not affected by the event loop.
+    env = {
+        **os.environ,
+        "ARGUS__POSTGRES__DSN": db_engine.url.render_as_string(hide_password=False),
+    }
+    result = subprocess.run(
+        ["uv", "run", "alembic", "-c", "config/alembic.ini", "upgrade", "head"],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"alembic upgrade failed:\n{result.stdout}\n{result.stderr}")
     yield db_engine
-    await asyncio.to_thread(command.downgrade, cfg, "-1")
+    # No teardown needed — the testcontainer is destroyed at module end.
 
 
 class TestTraceMigration:
     async def test_migration_up_and_down(self, pg_dsn) -> None:
-        """trace_spans migration applies and rolls back cleanly."""
-        from alembic import command
-        from alembic.config import Config
+        """trace_spans migration (0002) applies and rolls back cleanly."""
+        import os
+        import subprocess
 
-        cfg = Config("config/alembic.ini")
-        cfg.set_main_option("sqlalchemy.url", pg_dsn.replace("+asyncpg", ""))
-
-        await asyncio.to_thread(command.upgrade, cfg, "head")
-        # Verify the table exists
-        from sqlalchemy import inspect, text
+        from sqlalchemy import text
         from sqlalchemy.ext.asyncio import create_async_engine
 
+        # Run alembic as subprocess so asyncpg is used and DNS works in threads.
+        # Target 0002 specifically (trace_spans) so the test remains focused.
+        env = {**os.environ, "ARGUS__POSTGRES__DSN": pg_dsn}
+
+        subprocess.run(
+            ["uv", "run", "alembic", "-c", "config/alembic.ini", "upgrade", "0002"],
+            env=env,
+            check=True,
+        )
         engine = create_async_engine(pg_dsn)
         async with engine.connect() as conn:
             result = await conn.execute(
                 text("SELECT tablename FROM pg_tables WHERE tablename='trace_spans'")
             )
             rows = result.fetchall()
-        assert len(rows) == 1, "trace_spans table should exist after upgrade"
+        assert len(rows) == 1, "trace_spans table should exist after upgrade to 0002"
 
-        await asyncio.to_thread(command.downgrade, cfg, "-1")
+        subprocess.run(
+            ["uv", "run", "alembic", "-c", "config/alembic.ini", "downgrade", "0001"],
+            env=env,
+            check=True,
+        )
         async with engine.connect() as conn:
             result = await conn.execute(
                 text("SELECT tablename FROM pg_tables WHERE tablename='trace_spans'")
             )
             rows = result.fetchall()
-        assert len(rows) == 0, "trace_spans table should be gone after downgrade"
+        assert len(rows) == 0, "trace_spans table should be gone after downgrade to 0001"
         await engine.dispose()
 
 
 class TestTraceStore:
     async def test_one_tree_no_orphans(self, migrated_engine) -> None:
         """A synthetic incident yields exactly one trace tree with no orphans (SC-003)."""
-        from backend.infra.tracing import build_tracer, span
         from backend.infra.trace_repository import TraceRepository
 
         repo = TraceRepository(migrated_engine)
@@ -102,12 +120,18 @@ class TestTraceStore:
 
         with span(tracer, "root", SpanKind.ROOT, correlation_id=correlation_id) as root_s:
             with span(
-                tracer, "triage.step", SpanKind.AGENT_STEP,
-                correlation_id=correlation_id, parent_span_id=root_s.span_id
+                tracer,
+                "triage.step",
+                SpanKind.AGENT_STEP,
+                correlation_id=correlation_id,
+                parent_span_id=root_s.span_id,
             ) as step_s:
                 with span(
-                    tracer, "llm.call", SpanKind.LLM_CALL,
-                    correlation_id=correlation_id, parent_span_id=step_s.span_id
+                    tracer,
+                    "llm.call",
+                    SpanKind.LLM_CALL,
+                    correlation_id=correlation_id,
+                    parent_span_id=step_s.span_id,
                 ) as llm_s:
                     usage = MagicMock()
                     usage.prompt_tokens = 80
@@ -131,8 +155,8 @@ class TestTraceStore:
                 assert s.parent_span_id in span_ids, f"Orphan: {s.span_id}"
 
     async def test_llm_span_tokens_persisted(self, migrated_engine) -> None:
-        from backend.infra.tracing import build_tracer, span, record_llm_usage
         from backend.infra.trace_repository import TraceRepository
+        from backend.infra.tracing import record_llm_usage
 
         repo = TraceRepository(migrated_engine)
         tracer = build_tracer(exporter=repo, max_attr_bytes=8192)
@@ -153,8 +177,8 @@ class TestTraceStore:
         assert llm_span.llm_model == "test-model-v2"
 
     async def test_missing_usage_stored_as_none(self, migrated_engine) -> None:
-        from backend.infra.tracing import build_tracer, span, record_llm_usage
         from backend.infra.trace_repository import TraceRepository
+        from backend.infra.tracing import record_llm_usage
 
         repo = TraceRepository(migrated_engine)
         tracer = build_tracer(exporter=repo, max_attr_bytes=8192)

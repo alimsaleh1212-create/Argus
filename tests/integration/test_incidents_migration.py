@@ -32,9 +32,7 @@ class TestIncidentsMigration:
             dsn = pg_container.get_dsn().replace("+asyncpg", "")
             conn = await asyncpg.connect(dsn)
             try:
-                rows = await conn.fetch(
-                    "SELECT tablename FROM pg_tables WHERE schemaname='public'"
-                )
+                rows = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname='public'")
                 return [r["tablename"] for r in rows]
             finally:
                 await conn.close()
@@ -68,9 +66,7 @@ class TestIncidentsMigration:
             dsn = pg_container.get_dsn().replace("+asyncpg", "")
             conn = await asyncpg.connect(dsn)
             try:
-                rows = await conn.fetch(
-                    "SELECT tablename FROM pg_tables WHERE schemaname='public'"
-                )
+                rows = await conn.fetch("SELECT tablename FROM pg_tables WHERE schemaname='public'")
                 return [r["tablename"] for r in rows]
             finally:
                 await conn.close()

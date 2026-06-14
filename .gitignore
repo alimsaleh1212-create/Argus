@@ -18,10 +18,12 @@ env/
 .env
 .env.local
 .env.*.local
+.env.*-bak
 
 # pytest / coverage
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 coverage.xml
 *.cover

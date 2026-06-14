@@ -59,7 +59,6 @@ def _make_grounded_incident(
 
 @pytest.mark.e2e
 class TestMemoryE2E:
-
     # T018 — episode written and retrievable
     @pytest.mark.asyncio
     async def test_disposition_writes_episode(self) -> None:

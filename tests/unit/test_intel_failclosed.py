@@ -70,7 +70,6 @@ async def test_forced_timeout_returns_unknown() -> None:
 @pytest.mark.asyncio
 async def test_write_fact_error_swallowed_verdict_still_returned() -> None:
     """A write_fact error must not propagate — verdict is still returned."""
-    import httpx
 
     client = _make_client()
     client._store.write_fact = AsyncMock(side_effect=RuntimeError("neo4j down"))

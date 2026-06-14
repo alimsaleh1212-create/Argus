@@ -24,6 +24,14 @@ class VaultClient:
     Resolves all required secret paths at startup; raises on any failure
     so the process refuses to boot (FR-003, FR-004).
     Error messages name the path only — never the value (FR-005).
+
+    Two access modes, both returning KV data as ``dict[str, str]`` (callers
+    never parse JSON):
+      - ``get_secret(path)``   — sync, returns an already-resolved required path
+        from the in-memory cache. Use for paths listed in required_paths.
+      - ``fetch_secret(path)`` — async, fetches an optional path on demand and
+        caches it. Use for config-gated secrets (e.g. threat intel) that must
+        not block boot when absent.
     """
 
     def __init__(self, vault_cfg: Any, startup_cfg: Any) -> None:
@@ -33,7 +41,7 @@ class VaultClient:
         self._required_paths = vault_cfg.required_paths
         self._timeout = startup_cfg.dependency_timeout_s
         self._retries = startup_cfg.connect_retries
-        self._resolved: dict[str, str] = {}
+        self._resolved: dict[str, dict[str, str]] = {}
 
     # ------------------------------------------------------------------
     # Public interface
@@ -50,23 +58,36 @@ class VaultClient:
                 self._resolved[path] = value
                 logger.info("vault_secret_resolved", path=path)
 
-    def get_secret(self, path: str) -> str:
-        """Return an already-resolved secret value by its KV path."""
+    def get_secret(self, path: str) -> dict[str, str]:
+        """Return an already-resolved required secret's KV data by its path."""
         if path not in self._resolved:
             raise KeyError(f"Secret path '{path}' was not resolved at startup")
         return self._resolved[path]
+
+    async def fetch_secret(self, path: str) -> dict[str, str]:
+        """Fetch an optional secret on demand (cached). Raises RuntimeError on failure.
+
+        For config-gated secrets not in required_paths; callers treating the
+        secret as optional should catch and degrade rather than fail boot.
+        """
+        if path in self._resolved:
+            return self._resolved[path]
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            value = await self._fetch_with_retry(client, path)
+        self._resolved[path] = value
+        return value
 
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
 
-    async def _fetch_with_retry(self, client: httpx.AsyncClient, path: str) -> str:
+    async def _fetch_with_retry(self, client: httpx.AsyncClient, path: str) -> dict[str, str]:
         # Strip leading mount-name prefix if present (e.g. "secret/minio" with kv_mount="secret")
         # so that vault paths stored in config as "secret/X" don't double the mount in the URL.
         clean = path.lstrip("/")
         mount_prefix = f"{self._kv_mount}/"
         if clean.startswith(mount_prefix):
-            clean = clean[len(mount_prefix):]
+            clean = clean[len(mount_prefix) :]
         url = f"{self._addr}/v1/{self._kv_mount}/data/{clean}"
         headers = {"X-Vault-Token": self._token}
 
@@ -100,10 +121,7 @@ class VaultClient:
         data = payload.get("data", {}).get("data", {})
         if not data:
             raise RuntimeError(f"Required secret path '{path}' exists but contains no data fields")
-        # Return the raw data dict as JSON string; consumers parse as needed.
-        import json
-
-        return json.dumps(data)
+        return data
 
 
 # ---------------------------------------------------------------------------

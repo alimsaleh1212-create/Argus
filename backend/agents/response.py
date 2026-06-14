@@ -9,7 +9,6 @@ This is the ONLY stage injected action executors (Constitution III).
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
@@ -17,11 +16,7 @@ from pathlib import Path
 
 from backend.domain.incident import Incident
 from backend.domain.pipeline import StageName, StageOutcome, StageResult, ToolError
-from backend.repositories.approvals import ApprovalRepository
-from backend.repositories.audit import AuditRepository
-
 from backend.domain.response import (
-    ApprovalStatus,
     ActionExecutor,
     ActionResult,
     ActionStatus,
@@ -30,18 +25,23 @@ from backend.domain.response import (
     RemediationPlan,
     RiskClass,
 )
+from backend.repositories.approvals import ApprovalRepository
+from backend.repositories.audit import AuditRepository
 
 try:
     from backend.infra.logging import get_logger
+
     _logger = get_logger(__name__)
 except Exception:
     import logging
+
     _logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
 # Playbook catalog types
 # ---------------------------------------------------------------------------
+
 
 class PlaybookEntry:
     def __init__(self, id: str, description: str, criteria: dict, actions: list[dict]) -> None:
@@ -58,7 +58,7 @@ def load_playbook_catalog(catalog_dir: str) -> PlaybookCatalog:
     """Load the playbook catalog from the config-backed directory (RD10)."""
     catalog_path = Path(catalog_dir)
     if not catalog_path.is_absolute():
-        catalog_path = Path(os.getcwd()) / catalog_dir
+        catalog_path = Path.cwd() / catalog_dir
 
     entries: PlaybookCatalog = []
     try:
@@ -72,12 +72,14 @@ def load_playbook_catalog(catalog_dir: str) -> PlaybookCatalog:
             with file.open() as f:
                 data = yaml.safe_load(f)
             for pb in data.get("playbooks", []):
-                entries.append(PlaybookEntry(
-                    id=pb["id"],
-                    description=pb.get("description", ""),
-                    criteria=pb.get("criteria", {}),
-                    actions=pb.get("actions", []),
-                ))
+                entries.append(
+                    PlaybookEntry(
+                        id=pb["id"],
+                        description=pb.get("description", ""),
+                        criteria=pb.get("criteria", {}),
+                        actions=pb.get("actions", []),
+                    )
+                )
         except Exception as exc:
             _logger.warning("playbook_catalog_load_error", file=str(file), error=str(exc))
     return entries
@@ -117,10 +119,15 @@ _SYSTEM_PROMPTS: dict[str, str] = {"v1": _SYSTEM_PROMPT_V1}
 # Deterministic playbook matching (RD1)
 # ---------------------------------------------------------------------------
 
+
 def _criteria_match(criteria: dict, evidence: dict) -> bool:
     """Return True if all criteria fields match the incident evidence."""
     ne_raw = evidence.get("normalized_event") or {}
-    severity = evidence.get("severity") or (ne_raw.get("severity") if isinstance(ne_raw, dict) else "") or ""
+    severity = (
+        evidence.get("severity")
+        or (ne_raw.get("severity") if isinstance(ne_raw, dict) else "")
+        or ""
+    )
     rule_groups: list[str] = (ne_raw.get("rule_groups") or []) if isinstance(ne_raw, dict) else []
 
     if "severity" in criteria:
@@ -149,13 +156,15 @@ def _build_actions(
         except (KeyError, ValueError):
             continue  # unknown type → drop (FR-005)
         target = ad.get("target", "incident")
-        actions.append(RemediationAction(
-            type=atype,
-            target=target,
-            params=ad.get("params", {}),
-            risk=RiskClass.AUTO,
-            idempotency_key=f"{incident_id}:{playbook_id}:{atype.value}:{target}",
-        ))
+        actions.append(
+            RemediationAction(
+                type=atype,
+                target=target,
+                params=ad.get("params", {}),
+                risk=RiskClass.AUTO,
+                idempotency_key=f"{incident_id}:{playbook_id}:{atype.value}:{target}",
+            )
+        )
     return actions
 
 
@@ -279,6 +288,7 @@ async def select_playbook(
 # Pure default-deny policy (RD10)
 # ---------------------------------------------------------------------------
 
+
 def classify(plan: RemediationPlan, cfg: object) -> RemediationPlan:
     """Classify each action's risk: AUTO iff its type is in the auto_execute allowlist.
 
@@ -296,8 +306,10 @@ def classify(plan: RemediationPlan, cfg: object) -> RemediationPlan:
 # LLM error mapping (reuse triage pattern)
 # ---------------------------------------------------------------------------
 
+
 def _map_and_raise_llm_error(exc: Exception) -> None:
     from backend.domain.llm import LlmError, LlmErrorKind
+
     if isinstance(exc, LlmError):
         retryable = exc.kind in (LlmErrorKind.TRANSIENT, LlmErrorKind.EXHAUSTED)
         raise ToolError(retryable=retryable, kind=f"llm_{exc.kind.value}") from exc
@@ -316,6 +328,7 @@ def _tokens(response: object) -> int:
 # ---------------------------------------------------------------------------
 # Per-action execution with idempotency + audit
 # ---------------------------------------------------------------------------
+
 
 async def _execute_with_audit(
     *,
@@ -362,6 +375,7 @@ async def _execute_with_audit(
 # ---------------------------------------------------------------------------
 # Handler factory (DI by closure — Constitution III)
 # ---------------------------------------------------------------------------
+
 
 def make_response_handler(
     llm: object,
@@ -457,11 +471,13 @@ async def _pass_a(
             outcome=StageOutcome.NEEDS_APPROVAL,
             tokens_consumed=tokens_consumed,
             disposition=None,
-            evidence_patch={"response": {
-                "plan": plan.model_dump(mode="json"),
-                "results": [r.model_dump(mode="json") for r in results],
-                "approval_id": approval_id,
-            }},
+            evidence_patch={
+                "response": {
+                    "plan": plan.model_dump(mode="json"),
+                    "results": [r.model_dump(mode="json") for r in results],
+                    "approval_id": approval_id,
+                }
+            },
             note=note,
         )
 
@@ -471,11 +487,13 @@ async def _pass_a(
         outcome=StageOutcome.RESOLVED,
         tokens_consumed=tokens_consumed,
         disposition="auto_remediated",
-        evidence_patch={"response": {
-            "plan": plan.model_dump(mode="json"),
-            "results": [r.model_dump(mode="json") for r in results],
-            "approval_id": None,
-        }},
+        evidence_patch={
+            "response": {
+                "plan": plan.model_dump(mode="json"),
+                "results": [r.model_dump(mode="json") for r in results],
+                "approval_id": None,
+            }
+        },
         note=note,
     )
 
@@ -512,12 +530,14 @@ async def _pass_b(
         outcome=StageOutcome.RESOLVED,
         tokens_consumed=0,
         disposition="remediated",
-        evidence_patch={"response": {
-            "pass": "B",
-            "plan_id": plan_id,
-            "results": [r.model_dump(mode="json") for r in results],
-            "approval_id": getattr(approved, "id", None),
-        }},
+        evidence_patch={
+            "response": {
+                "pass": "B",
+                "plan_id": plan_id,
+                "results": [r.model_dump(mode="json") for r in results],
+                "approval_id": getattr(approved, "id", None),
+            }
+        },
         note=f"resume execution: approved by {decided_by}",
     )
 
@@ -526,11 +546,14 @@ async def _pass_b(
 # Legacy stub — fallback for degraded boot (supervisor_provider uses it when no LLM/DB)
 # ---------------------------------------------------------------------------
 
+
 async def run_response(incident: Incident) -> StageResult:
     """Fallback stub used when LLM or DB is absent at boot (degraded mode)."""
     flags: list[str] = (incident.evidence or {}).get("flags", [])
     if "destructive" in flags:
-        return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.NEEDS_APPROVAL, tokens_consumed=0)
+        return StageResult(
+            stage=StageName.RESPONSE, outcome=StageOutcome.NEEDS_APPROVAL, tokens_consumed=0
+        )
     return StageResult(
         stage=StageName.RESPONSE,
         outcome=StageOutcome.RESOLVED,

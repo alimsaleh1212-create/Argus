@@ -7,10 +7,9 @@ import uuid
 
 import pytest
 
-from backend.agents.response import PlaybookEntry, classify, select_playbook
+from backend.agents.response import PlaybookEntry, select_playbook
 from backend.domain.incident import Incident, IncidentStatus, Severity
 from backend.domain.pipeline import ToolError
-from backend.domain.response import ActionType, RemediationPlan, RiskClass
 from backend.infra.config import ResponseSettings
 
 
@@ -19,7 +18,9 @@ def _incident(severity: str = "medium", rule_groups: list[str] | None = None) ->
     return Incident(
         id=uuid.uuid4(),
         status=IncidentStatus.RESPONDING,
-        severity=Severity(severity) if severity in ("low", "medium", "high", "critical") else Severity.MEDIUM,
+        severity=Severity(severity)
+        if severity in ("low", "medium", "high", "critical")
+        else Severity.MEDIUM,
         correlation_id="corr-select",
         dedup_fingerprint="fp-select",
         source="wazuh",
@@ -71,6 +72,7 @@ def _catalog_no_match() -> list[PlaybookEntry]:
 # Deterministic path (no LLM)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_select_deterministic_single_match():
     inc = _incident(severity="medium")
@@ -112,6 +114,7 @@ async def test_select_empty_catalog_raises():
 # Ambiguous tail → one LLM call
 # ---------------------------------------------------------------------------
 
+
 class _FakeLlm:
     def __init__(self, payload: dict, fail: bool = False) -> None:
         self._payload = payload
@@ -123,6 +126,7 @@ class _FakeLlm:
         if self._fail:
             raise RuntimeError("llm_down")
         from backend.domain.llm import LlmResponse, ProviderId, StopReason, TokenUsage
+
         return LlmResponse(
             content=json.dumps(self._payload),
             usage=TokenUsage(prompt_tokens=10, completion_tokens=5),

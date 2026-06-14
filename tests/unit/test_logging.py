@@ -80,13 +80,13 @@ class TestCorrelationId:
         clear_incident()
 
         lines = _lines(log_capture)
-        inc001_lines = [l for l in lines if l.get("correlation_id") == "inc_001"]
-        inc002_lines = [l for l in lines if l.get("correlation_id") == "inc_002"]
+        inc001_lines = [line for line in lines if line.get("correlation_id") == "inc_001"]
+        inc002_lines = [line for line in lines if line.get("correlation_id") == "inc_002"]
         assert len(inc001_lines) >= 1
         assert len(inc002_lines) >= 1
         # Each incident's lines only contain its own id
-        for l in inc001_lines:
-            assert l["correlation_id"] == "inc_001"
+        for line in inc001_lines:
+            assert line["correlation_id"] == "inc_001"
 
     def test_no_incident_context_renders_dash(self, log_capture: io.StringIO) -> None:
         # No bind_incident call

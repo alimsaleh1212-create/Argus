@@ -147,9 +147,9 @@ def make_triage_handler(llm: object, cfg: object) -> StageHandler:
 
         outcome, disposition = decide_outcome(judgment, cfg)
         tokens = _tokens(response)
-        note = (
-            f"verdict={judgment.verdict} conf={judgment.confidence:.2f}: {judgment.rationale}"
-        )[:200]
+        note = (f"verdict={judgment.verdict} conf={judgment.confidence:.2f}: {judgment.rationale}")[
+            :200
+        ]
 
         return StageResult(
             stage=StageName.TRIAGE,

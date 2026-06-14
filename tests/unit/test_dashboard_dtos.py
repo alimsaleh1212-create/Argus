@@ -10,14 +10,10 @@ from pydantic import ValidationError
 
 from backend.domain.dashboard import (
     IncidentSummary,
-    KpiSnapshot,
     LoginRequest,
     MemoryHit,
-    OperatorSession,
     QueuePage,
     SpanView,
-    TokenResponse,
-    VolumeBucket,
 )
 
 

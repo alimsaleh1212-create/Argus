@@ -9,7 +9,6 @@ Verifies that:
 from __future__ import annotations
 
 import ast
-import sys
 from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).parent.parent.parent / "backend"
@@ -35,7 +34,7 @@ def test_supervisor_does_not_import_llm_client():
     supervisor_path = BACKEND_ROOT / "services" / "supervisor.py"
     imports = _get_imports(supervisor_path)
 
-    llm_modules = {"backend.infra.llm", "backend.infra.llm_drivers", "backend.infra.llm_drivers"}
+    llm_modules = {"backend.infra.llm", "backend.infra.llm_drivers"}
     bad = [i for i in imports if any(i.startswith(m) for m in llm_modules)]
     assert bad == [], f"supervisor.py must not import LLM modules; found: {bad}"
 
@@ -53,7 +52,12 @@ def test_domain_pipeline_has_no_outward_imports():
     """domain/pipeline.py must not import from services, repositories, or infra."""
     pipeline_path = BACKEND_ROOT / "domain" / "pipeline.py"
     imports = _get_imports(pipeline_path)
-    outward_prefixes = ("backend.services", "backend.repositories", "backend.infra", "backend.routers")
+    outward_prefixes = (
+        "backend.services",
+        "backend.repositories",
+        "backend.infra",
+        "backend.routers",
+    )
     bad = [i for i in imports if any(i.startswith(p) for p in outward_prefixes)]
     assert bad == [], f"domain/pipeline.py must not have outward imports; found: {bad}"
 

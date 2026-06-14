@@ -52,9 +52,7 @@ async def _run() -> None:
     # DB session
     dsn = settings.postgres.dsn.get_secret_value()
     engine = create_async_engine(dsn, pool_pre_ping=True, echo=False)
-    factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
-        engine, expire_on_commit=False
-    )
+    factory: async_sessionmaker[AsyncSession] = async_sessionmaker(engine, expire_on_commit=False)
 
     # Memory store — try Graphiti; degrade to NullMemory if unavailable
     store = await _build_store(settings)
@@ -118,13 +116,15 @@ async def _build_store(settings) -> object:  # type: ignore[type-arg]
         from backend.infra.memory import GraphitiMemory
         from backend.infra.vault import VaultClient
 
-        vault = VaultClient(settings.vault)
-        creds = await vault.get_secret(mem_cfg.neo4j_vault_path)
+        # Standalone script: no lifespan container, so build a client and fetch
+        # the paths it needs on demand.
+        vault = VaultClient(settings.vault, settings.startup)
+        creds = await vault.fetch_secret(mem_cfg.neo4j_vault_path)
         neo4j_user = creds.get("username", "neo4j")
         neo4j_password = creds.get("password", "")
         neo4j_uri = creds.get("uri", mem_cfg.neo4j_uri)
 
-        llm_key_creds = await vault.get_secret(settings.llm.gemini_vault_path)
+        llm_key_creds = await vault.fetch_secret(settings.llm.gemini_vault_path)
         gemini_key = llm_key_creds.get("api_key", "")
         llm_client = GeminiClient(config=LLMConfig(api_key=gemini_key))
         embedder = GeminiEmbedder(

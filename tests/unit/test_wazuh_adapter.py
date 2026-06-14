@@ -10,7 +10,7 @@ import pytest
 
 class TestWazuhToNormalized:
     def test_happy_path_mapping(self) -> None:
-        from backend.domain.incident import WazuhAlert, WazuhAgent, WazuhRule
+        from backend.domain.incident import WazuhAgent, WazuhAlert, WazuhRule
         from backend.services.wazuh import normalize
 
         alert = WazuhAlert(
@@ -71,9 +71,8 @@ class TestSeverityBand:
         assert level_to_severity(level).value == expected
 
     def test_missing_level_returns_medium_with_flag(self) -> None:
-        from backend.domain.incident import WazuhAlert, WazuhRule
-        from backend.services.wazuh import normalize, level_to_severity
         from backend.domain.incident import Severity
+        from backend.services.wazuh import level_to_severity
 
         result = level_to_severity(None)
         assert result == Severity.MEDIUM

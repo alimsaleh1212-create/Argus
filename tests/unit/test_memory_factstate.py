@@ -6,7 +6,7 @@ given a set of TemporalFacts the correct current-vs-superseded flags are set.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -14,9 +14,9 @@ from backend.domain.memory import EntityKind, EntityRef, FactState, TemporalFact
 
 _ENTITY = EntityRef(kind=EntityKind.ADDRESS, value="198.51.100.5")
 
-_T1 = datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
-_T2 = datetime(2024, 1, 15, 14, 0, 0, tzinfo=timezone.utc)
-_NOW = datetime(2024, 1, 15, 18, 0, 0, tzinfo=timezone.utc)
+_T1 = datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC)
+_T2 = datetime(2024, 1, 15, 14, 0, 0, tzinfo=UTC)
+_NOW = datetime(2024, 1, 15, 18, 0, 0, tzinfo=UTC)
 
 
 def _window_select(
@@ -52,6 +52,7 @@ def _window_select(
 
 
 # ── reputation_flip: benign@t1 → malicious@t2 ────────────────────────────────
+
 
 @pytest.fixture()
 def reputation_flip_facts() -> list[TemporalFact]:
@@ -104,11 +105,16 @@ def test_window_benign_fact_still_exists(reputation_flip_facts) -> None:
 
 # ── host_role_change ─────────────────────────────────────────────────────────
 
+
 def test_host_role_change() -> None:
     host = EntityRef(kind=EntityKind.HOST, value="server-01")
     facts = [
-        TemporalFact(entity=host, fact_type="role", value="honeypot", valid_from=_T1, valid_until=_T2),
-        TemporalFact(entity=host, fact_type="role", value="payroll-server", valid_from=_T2, valid_until=None),
+        TemporalFact(
+            entity=host, fact_type="role", value="honeypot", valid_from=_T1, valid_until=_T2
+        ),
+        TemporalFact(
+            entity=host, fact_type="role", value="payroll-server", valid_from=_T2, valid_until=None
+        ),
     ]
     state_t1 = _window_select(facts, as_of=_T1)
     assert state_t1.fact is not None and state_t1.fact.value == "honeypot"
@@ -121,6 +127,7 @@ def test_host_role_change() -> None:
 
 # ── empty store ───────────────────────────────────────────────────────────────
 
+
 def test_empty_facts_returns_empty_state() -> None:
     state = _window_select([], as_of=_NOW)
     assert state.fact is None
@@ -130,10 +137,13 @@ def test_empty_facts_returns_empty_state() -> None:
 
 # ── no matching window ────────────────────────────────────────────────────────
 
+
 def test_no_matching_window_before_first_fact() -> None:
-    before_t1 = datetime(2024, 1, 14, 0, 0, 0, tzinfo=timezone.utc)
+    before_t1 = datetime(2024, 1, 14, 0, 0, 0, tzinfo=UTC)
     facts = [
-        TemporalFact(entity=_ENTITY, fact_type="reputation", value="benign", valid_from=_T1, valid_until=None),
+        TemporalFact(
+            entity=_ENTITY, fact_type="reputation", value="benign", valid_from=_T1, valid_until=None
+        ),
     ]
     state = _window_select(facts, as_of=before_t1)
     assert state.fact is None
@@ -142,9 +152,16 @@ def test_no_matching_window_before_first_fact() -> None:
 
 # ── single current fact (no superseded) ─────────────────────────────────────
 
+
 def test_single_current_fact() -> None:
     facts = [
-        TemporalFact(entity=_ENTITY, fact_type="reputation", value="malicious", valid_from=_T1, valid_until=None),
+        TemporalFact(
+            entity=_ENTITY,
+            fact_type="reputation",
+            value="malicious",
+            valid_from=_T1,
+            valid_until=None,
+        ),
     ]
     state = _window_select(facts, as_of=_NOW)
     assert state.fact is not None and state.fact.value == "malicious"

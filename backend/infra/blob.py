@@ -58,26 +58,20 @@ class BlobClientProvider:
 
     @contextlib.asynccontextmanager
     async def build(self, settings: Any) -> AsyncGenerator[BlobClient, None]:
-        # In production the access/secret are resolved from Vault secrets.
-        # For the foundation, we read them from the Vault-resolved data if
-        # available, or fall back to the provider-level override (tests).
-        vault_client = getattr(settings, "_vault_client", None)
-        if vault_client and settings.vault.required_paths:
-            import json
-
-            for path in settings.vault.required_paths:
-                try:
-                    raw = vault_client.get_secret(path)
-                    data = json.loads(raw)
-                    access_key = data.get("access_key", self._access_key or "minioadmin")
-                    secret_key = data.get("secret_key", self._secret_key or "minioadmin")
-                    break
-                except Exception:
-                    access_key = self._access_key or "minioadmin"
-                    secret_key = self._secret_key or "minioadmin"
-        else:
-            access_key = self._access_key or "minioadmin"
-            secret_key = self._secret_key or "minioadmin"
+        # Read MinIO credentials from the already-resolved Vault singleton at the
+        # explicit secret/minio path. Falls back to the provider-level override
+        # (used by tests, which build without a Vault container).
+        access_key = self._access_key or "minioadmin"
+        secret_key = self._secret_key or "minioadmin"
+        container = getattr(settings, "_container", None)
+        vault_client = getattr(container, "vault_client", None) if container else None
+        if vault_client is not None:
+            try:
+                data = vault_client.get_secret("secret/minio")
+                access_key = data.get("access_key", access_key)
+                secret_key = data.get("secret_key", secret_key)
+            except Exception as exc:
+                logger.warning("blob_vault_credentials_unavailable", error=str(exc))
 
         session = aioboto3.Session(
             aws_access_key_id=access_key,

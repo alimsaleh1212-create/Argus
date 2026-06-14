@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import contextlib
 import uuid
-from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -30,6 +29,7 @@ def _incident() -> Incident:
 
 def _catalog():
     from backend.agents.response import PlaybookEntry
+
     return [
         PlaybookEntry(
             id="watchlist_only",
@@ -48,15 +48,21 @@ class _FakeAuditRepo:
     async def is_applied(self, key: str) -> bool:
         return key in self._applied
 
-    async def append(self, *, incident_id, actor, action, target=None, outcome, idempotency_key=None):
+    async def append(
+        self, *, incident_id, actor, action, target=None, outcome, idempotency_key=None
+    ):
         if outcome == "applied" and idempotency_key:
             if idempotency_key in self._applied:
                 return False
             self._applied.add(idempotency_key)
-        self.rows.append({
-            "actor": actor, "action": action, "outcome": outcome,
-            "idempotency_key": idempotency_key,
-        })
+        self.rows.append(
+            {
+                "actor": actor,
+                "action": action,
+                "outcome": outcome,
+                "idempotency_key": idempotency_key,
+            }
+        )
         return True
 
 
@@ -64,7 +70,9 @@ class _FakeApprovalRepo:
     async def get_approved_pending_for(self, incident_id):
         return None
 
-    async def create_pending(self, *, incident_id, plan_id, pending_actions, rationale, deadline_at):
+    async def create_pending(
+        self, *, incident_id, plan_id, pending_actions, rationale, deadline_at
+    ):
         return 1
 
 
@@ -92,7 +100,11 @@ async def test_duplicate_execute_writes_one_audit_row():
         patch("backend.agents.response.AuditRepository", return_value=audit_repo),
     ):
         handler = make_response_handler(
-            llm=None, session_factory=_session_factory, executors=executors, cfg=cfg, catalog=catalog
+            llm=None,
+            session_factory=_session_factory,
+            executors=executors,
+            cfg=cfg,
+            catalog=catalog,
         )
         # First call
         result1 = await handler(incident)
@@ -111,7 +123,7 @@ async def test_duplicate_execute_writes_one_audit_row():
 async def test_idempotent_skip_returns_applied_synthetic_result():
     """When an action is already applied (pre-check), a synthetic APPLIED result is returned."""
     from backend.agents.response import _execute_with_audit
-    from backend.domain.response import ActionStatus, ActionType, RemediationAction, RiskClass
+    from backend.domain.response import ActionStatus, RemediationAction
     from backend.infra.executors import build_mock_executors
 
     incident_id = uuid.uuid4()
@@ -170,7 +182,9 @@ async def test_duplicate_resume_guard():
         async def get(self, iid):
             return self._inc if self._inc.id == iid else None
 
-        async def advance_status(self, iid, *, expected, target, disposition=None, evidence_patch=None):
+        async def advance_status(
+            self, iid, *, expected, target, disposition=None, evidence_patch=None
+        ):
             self.advance_calls += 1
             if self._inc.id != iid or self._inc.status != expected:
                 return False

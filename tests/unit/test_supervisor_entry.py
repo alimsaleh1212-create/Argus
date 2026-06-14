@@ -20,7 +20,6 @@ from backend.infra.config import SupervisorSettings
 from backend.infra.tracing import build_tracer
 from backend.services.supervisor import Supervisor
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -65,7 +64,9 @@ class FakeRepo:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
         self.advances.append({"from": expected, "to": target, "disposition": disposition})
-        self._incident = self._incident.model_copy(update={"status": target, "disposition": disposition})
+        self._incident = self._incident.model_copy(
+            update={"status": target, "disposition": disposition}
+        )
         return True
 
 
@@ -96,7 +97,9 @@ def _noop_stages() -> dict:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("status", [IncidentStatus.RESOLVED, IncidentStatus.ESCALATED, IncidentStatus.FAILED])
+@pytest.mark.parametrize(
+    "status", [IncidentStatus.RESOLVED, IncidentStatus.ESCALATED, IncidentStatus.FAILED]
+)
 async def test_terminal_incident_is_noop(status: IncidentStatus):
     incident = _incident(status)
     repo = FakeRepo(incident)
@@ -160,11 +163,13 @@ async def test_triaging_resumes_from_triage_only():
 
     incident = _incident(IncidentStatus.TRIAGING)
     repo = FakeRepo(incident)
-    sv = _make_supervisor({
-        StageName.TRIAGE: triage,
-        StageName.ENRICHMENT: should_not_call,
-        StageName.RESPONSE: should_not_call,
-    })
+    sv = _make_supervisor(
+        {
+            StageName.TRIAGE: triage,
+            StageName.ENRICHMENT: should_not_call,
+            StageName.RESPONSE: should_not_call,
+        }
+    )
     await sv.run_incident(incident.id, repo)
     assert calls == ["triage"]
 

@@ -78,9 +78,7 @@ class TraceRepository:
         """Load all spans for an incident and assemble a TraceTree (SC-003)."""
         async with self._engine.connect() as conn:
             result = await conn.execute(
-                text(
-                    "SELECT * FROM trace_spans WHERE correlation_id = :cid ORDER BY started_at"
-                ),
+                text("SELECT * FROM trace_spans WHERE correlation_id = :cid ORDER BY started_at"),
                 {"cid": correlation_id},
             )
             rows = result.mappings().all()

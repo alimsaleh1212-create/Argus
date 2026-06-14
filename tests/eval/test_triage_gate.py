@@ -18,7 +18,6 @@ import pytest
 from backend.agents.triage import make_triage_handler
 from backend.domain.incident import Incident, IncidentStatus, Severity
 from backend.domain.llm import LlmResponse, ProviderId, StopReason, TokenUsage
-from backend.domain.triage import TriageVerdict
 from backend.infra.config import TriageSettings
 
 FIXTURES_DIR = pathlib.Path(__file__).parent.parent / "fixtures" / "triage_labeled"
@@ -49,8 +48,9 @@ def _incident_from_fixture(fx: dict[str, Any]) -> Incident:
     )
 
 
-def _macro_f1(tp_real: int, fp_real: int, fn_real: int,
-              tp_noise: int, fp_noise: int, fn_noise: int) -> float:
+def _macro_f1(
+    tp_real: int, fp_real: int, fn_real: int, tp_noise: int, fp_noise: int, fn_noise: int
+) -> float:
     def f1(tp: int, fp: int, fn: int) -> float:
         if tp + fp == 0 or tp + fn == 0:
             return 0.0
@@ -162,7 +162,10 @@ async def test_triage_gate_abstention_bound():
     for fx in fixtures:
         inc = _incident_from_fixture(fx)
         result = await handler(inc)
-        if result.evidence_patch and result.evidence_patch.get("triage", {}).get("verdict") == "uncertain":
+        if (
+            result.evidence_patch
+            and result.evidence_patch.get("triage", {}).get("verdict") == "uncertain"
+        ):
             abstentions += 1
         elif result.outcome.value == "escalate":
             abstentions += 1

@@ -20,6 +20,7 @@ from backend.dependencies import (
 )
 from backend.domain.dashboard import (
     ApprovalView,
+    AuditPage,
     AuditView,
     IncidentDetailView,
     KpiSnapshot,
@@ -33,6 +34,20 @@ from backend.services.dashboard_stream import incident_stream
 from backend.services.kpis import build_kpi_snapshot
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
+
+
+def _audit_views(rows: list) -> list[AuditView]:
+    """Map audit_log rows to AuditView DTOs (shared by detail + audit endpoints)."""
+    return [
+        AuditView(
+            actor=row.actor,
+            action=row.action,
+            target=row.target,
+            outcome=row.outcome,
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]
 
 
 def _span_to_view(span: Span) -> SpanView:
@@ -65,12 +80,12 @@ _EMPTY_TELEMETRY = TelemetryView(
 @router.get("", response_model=QueuePage)
 async def list_incidents(
     view: Annotated[str, Query(pattern="^(active|resolved|all)$")] = "active",
-    status: Annotated[list[str], Query(alias="status")] = None,  # noqa: B006
-    severity: Annotated[list[str], Query(alias="severity")] = None,  # noqa: B006
+    status: Annotated[list[str] | None, Query(alias="status")] = None,
+    severity: Annotated[list[str] | None, Query(alias="severity")] = None,
     sort: str = "-updated_at",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
-    repo=Depends(get_incident_repo),  # noqa: B008
+    repo=Depends(get_incident_repo),
 ) -> QueuePage:
     status = status or []
     severity = severity or []
@@ -99,7 +114,7 @@ async def list_incidents(
 
 @router.get("/kpis", response_model=KpiSnapshot)
 async def get_kpis(
-    repo=Depends(get_incident_repo),  # noqa: B008
+    repo=Depends(get_incident_repo),
 ) -> KpiSnapshot:
     return await build_kpi_snapshot(repo)
 
@@ -107,12 +122,10 @@ async def get_kpis(
 @router.get("/stream")
 async def stream(
     request: Request,
-    repo=Depends(get_incident_repo),  # noqa: B008
+    repo=Depends(get_incident_repo),
 ) -> StreamingResponse:
-    try:
-        poll_seconds = float(request.app.state.container.settings.dashboard.stream_poll_seconds)
-    except AttributeError:
-        poll_seconds = 2.0
+    # Validated config field (gt=0, default 2.0), set on app.state at startup.
+    poll_seconds = request.app.state.settings.dashboard.stream_poll_seconds
 
     return StreamingResponse(
         incident_stream(repo, poll_seconds=poll_seconds),
@@ -127,25 +140,15 @@ async def stream(
 @router.get("/{incident_id}", response_model=IncidentDetailView)
 async def get_incident(
     incident_id: uuid.UUID,
-    incident_repo=Depends(get_incident_repo),  # noqa: B008
-    audit_repo=Depends(get_audit_repo),  # noqa: B008
-    approval_repo=Depends(get_approval_repo),  # noqa: B008
+    incident_repo=Depends(get_incident_repo),
+    audit_repo=Depends(get_audit_repo),
+    approval_repo=Depends(get_approval_repo),
 ) -> IncidentDetailView:
     incident = await incident_repo.get(incident_id)
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")
 
-    audit_rows = await audit_repo.list_for_incident(incident_id)
-    audit = [
-        AuditView(
-            actor=row.actor,
-            action=row.action,
-            target=row.target,
-            outcome=row.outcome,
-            created_at=row.created_at,
-        )
-        for row in audit_rows
-    ]
+    audit = _audit_views(await audit_repo.list_for_incident(incident_id))
 
     pending_approval: ApprovalView | None = None
     if incident.status.value == "awaiting_approval":
@@ -184,8 +187,8 @@ async def get_incident(
 @router.get("/{incident_id}/trace", response_model=TraceTreeView)
 async def get_trace(
     incident_id: uuid.UUID,
-    incident_repo=Depends(get_incident_repo),  # noqa: B008
-    trace_repo=Depends(get_trace_repo),  # noqa: B008
+    incident_repo=Depends(get_incident_repo),
+    trace_repo=Depends(get_trace_repo),
 ) -> TraceTreeView:
     incident = await incident_repo.get(incident_id)
     if incident is None:
@@ -222,26 +225,14 @@ async def get_trace(
     )
 
 
-@router.get("/{incident_id}/audit")
+@router.get("/{incident_id}/audit", response_model=AuditPage)
 async def get_audit(
     incident_id: uuid.UUID,
-    incident_repo=Depends(get_incident_repo),  # noqa: B008
-    audit_repo=Depends(get_audit_repo),  # noqa: B008
-) -> dict:
+    incident_repo=Depends(get_incident_repo),
+    audit_repo=Depends(get_audit_repo),
+) -> AuditPage:
     incident = await incident_repo.get(incident_id)
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")
 
-    rows = await audit_repo.list_for_incident(incident_id)
-    return {
-        "audit": [
-            {
-                "actor": row.actor,
-                "action": row.action,
-                "target": row.target,
-                "outcome": row.outcome,
-                "created_at": row.created_at.isoformat(),
-            }
-            for row in rows
-        ]
-    }
+    return AuditPage(audit=_audit_views(await audit_repo.list_for_incident(incident_id)))

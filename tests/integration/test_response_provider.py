@@ -11,7 +11,6 @@ import json
 import os
 import subprocess
 import uuid
-from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -40,7 +39,7 @@ def pg_container():
 
 @pytest_asyncio.fixture
 async def db_session(pg_container):
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     engine = create_async_engine(pg_container.get_dsn(), echo=False)
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -51,6 +50,7 @@ async def db_session(pg_container):
 
 def _auto_incident() -> object:
     from backend.domain.incident import Incident, IncidentStatus, Severity
+
     return Incident(
         id=uuid.uuid4(),
         status=IncidentStatus.RESPONDING,
@@ -59,12 +59,16 @@ def _auto_incident() -> object:
         dedup_fingerprint="fp-auto",
         source="wazuh",
         raw_alert={},
-        evidence={"severity": "medium", "normalized_event": {"severity": "medium", "rule_groups": []}},
+        evidence={
+            "severity": "medium",
+            "normalized_event": {"severity": "medium", "rule_groups": []},
+        },
     )
 
 
 def _catalog_auto_only():
     from backend.agents.response import PlaybookEntry
+
     return [
         PlaybookEntry(
             id="watchlist_and_ticket",
@@ -78,6 +82,7 @@ def _catalog_auto_only():
 async def _persist_incident(factory, incident):
     """Persist an incident to the DB so FK constraints on audit_log are satisfied."""
     from backend.repositories.incidents import IncidentRepository
+
     async with factory() as session:
         repo = IncidentRepository(session)
         return await repo.create(incident)
@@ -91,12 +96,15 @@ class _FakeLlm:
     async def generate(self, request, *, correlation_id=None):
         self.call_count += 1
         from backend.domain.llm import LlmResponse, ProviderId, StopReason, TokenUsage
+
         return LlmResponse(
-            content=json.dumps({
-                "playbook_id": self._playbook_id,
-                "confidence": 0.9,
-                "rationale": "test selection",
-            }),
+            content=json.dumps(
+                {
+                    "playbook_id": self._playbook_id,
+                    "confidence": 0.9,
+                    "rationale": "test selection",
+                }
+            ),
             usage=TokenUsage(prompt_tokens=10, completion_tokens=5),
             model="test",
             provider=ProviderId.GEMINI,
@@ -182,7 +190,7 @@ class TestResponseProviderAutoPath:
         )
         incident = _auto_incident()
         await _persist_incident(factory, incident)
-        result = await handler(incident)
+        await handler(incident)
         assert llm.call_count == 1
 
 
@@ -208,11 +216,16 @@ class TestResponseProviderRealLlm:
         incident = _auto_incident()
 
         handler = make_response_handler(
-            llm=real_llm_client, session_factory=factory, executors=executors, cfg=cfg, catalog=catalog
+            llm=real_llm_client,
+            session_factory=factory,
+            executors=executors,
+            cfg=cfg,
+            catalog=catalog,
         )
         # Just check it doesn't crash — real LLM output may vary
         try:
             from backend.domain.pipeline import StageOutcome
+
             result = await handler(incident)
             assert result.outcome in (StageOutcome.RESOLVED, StageOutcome.ESCALATE)
         except Exception:
@@ -227,8 +240,8 @@ class TestResponseProviderDegradation:
         """Executor raising ConnectionError → ToolError(retryable=True) propagates to caller."""
         session, factory = db_session
         from backend.agents.response import make_response_handler
-        from backend.domain.pipeline import StageOutcome, ToolError
-        from backend.domain.response import ActionExecutor, ActionResult, ActionStatus, ActionType
+        from backend.domain.pipeline import ToolError
+        from backend.domain.response import ActionExecutor, ActionType
         from backend.infra.config import ResponseSettings
 
         class _FailingExecutor(ActionExecutor):
@@ -236,10 +249,12 @@ class TestResponseProviderDegradation:
                 raise ConnectionError("network down")
 
         from backend.infra.executors import build_mock_executors
+
         executors = build_mock_executors()
         executors[ActionType.ADD_TO_WATCHLIST] = _FailingExecutor()
 
         from backend.agents.response import PlaybookEntry
+
         catalog = [
             PlaybookEntry(
                 id="auto_watchlist",
@@ -275,6 +290,7 @@ class TestResponseProviderDegradation:
                 class _R:
                     content = "not valid json {"
                     usage = None
+
                 return _R()
 
         catalog = [
@@ -286,8 +302,11 @@ class TestResponseProviderDegradation:
         await _persist_incident(factory, incident)
 
         handler = make_response_handler(
-            llm=_MalformedLlm(), session_factory=factory,
-            executors=build_mock_executors(), cfg=cfg, catalog=catalog,
+            llm=_MalformedLlm(),
+            session_factory=factory,
+            executors=build_mock_executors(),
+            cfg=cfg,
+            catalog=catalog,
         )
 
         with pytest.raises(ToolError) as exc_info:
@@ -309,18 +328,19 @@ class TestResponseProviderDegradation:
         incident_id = uuid.uuid4()
         async with factory() as s:
             inc_repo = IncidentRepository(s)
-            await inc_repo.create(Incident(
-                id=incident_id,
-                status=IncidentStatus.RESOLVED,
-                severity=Severity.CRITICAL,
-                correlation_id=str(incident_id),
-                dedup_fingerprint=f"fp-dup-resume-{incident_id.hex}",
-                source="wazuh",
-                raw_alert={},
-                disposition="remediated",
-            ))
+            await inc_repo.create(
+                Incident(
+                    id=incident_id,
+                    status=IncidentStatus.RESOLVED,
+                    severity=Severity.CRITICAL,
+                    correlation_id=str(incident_id),
+                    dedup_fingerprint=f"fp-dup-resume-{incident_id.hex}",
+                    source="wazuh",
+                    raw_alert={},
+                    disposition="remediated",
+                )
+            )
 
-        from backend.domain.pipeline import StageName
         sup = Supervisor(stages={}, cfg=SupervisorSettings(), tracer=build_tracer(exporter=None))
 
         # First approve — guard fails immediately (incident not in AWAITING_APPROVAL)
@@ -343,5 +363,3 @@ class TestResponseProviderDegradation:
         # disposition is None because create() doesn't persist disposition
         assert first is None
         assert second is None
-
-

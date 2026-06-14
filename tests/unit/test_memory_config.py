@@ -7,8 +7,8 @@ from pydantic import ValidationError
 
 from backend.infra.config import MemorySettings, Settings
 
-
 # ── MemorySettings defaults ──────────────────────────────────────────────────
+
 
 def test_memory_settings_defaults() -> None:
     s = MemorySettings()
@@ -53,6 +53,7 @@ def test_memory_settings_retrieval_timeout_positive() -> None:
 
 
 # ── Settings.memory vault-path wiring ────────────────────────────────────────
+
 
 def test_settings_memory_vault_path_injected(monkeypatch: pytest.MonkeyPatch) -> None:
     """When memory.enabled=True, the neo4j_vault_path must appear in vault.required_paths."""

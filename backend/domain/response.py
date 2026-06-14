@@ -34,6 +34,7 @@ class ActionStatus(StrEnum):
 
 class VerificationVerdict(StrEnum):
     """RESERVED for §v2c (T2) — unused in v1."""
+
     VERIFIED = "verified"
     UNVERIFIED = "unverified"
     REGRESSED = "regressed"

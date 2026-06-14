@@ -28,6 +28,7 @@ def _key() -> str:
 # RemediationAction
 # ---------------------------------------------------------------------------
 
+
 def test_action_valid():
     a = RemediationAction(
         type=ActionType.ADD_TO_WATCHLIST,
@@ -64,6 +65,7 @@ def test_action_invalid_type():
 # ---------------------------------------------------------------------------
 # RemediationPlan
 # ---------------------------------------------------------------------------
+
 
 def _action(atype: ActionType = ActionType.ADD_TO_WATCHLIST) -> RemediationAction:
     return RemediationAction(
@@ -116,7 +118,7 @@ def test_plan_frozen():
         rationale="r",
         selected_by="llm",
     )
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         plan.plan_id = "changed"  # type: ignore[misc]
 
 
@@ -140,6 +142,7 @@ def test_plan_has_approval_required_true():
 # ---------------------------------------------------------------------------
 # ActionResult
 # ---------------------------------------------------------------------------
+
 
 def test_result_applied_no_verification():
     r = ActionResult(
@@ -174,6 +177,7 @@ def test_result_not_executed():
 # ---------------------------------------------------------------------------
 # Enums round-trip
 # ---------------------------------------------------------------------------
+
 
 def test_approval_status_values():
     assert ApprovalStatus.PENDING.value == "pending"

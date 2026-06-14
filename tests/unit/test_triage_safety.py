@@ -11,7 +11,7 @@ import pytest
 from backend.agents.triage import make_triage_handler
 from backend.domain.incident import Incident, IncidentStatus, Severity
 from backend.domain.llm import LlmResponse, ProviderId, StopReason, TokenUsage
-from backend.domain.pipeline import StageHandler, StageOutcome
+from backend.domain.pipeline import StageOutcome
 from backend.infra.config import TriageSettings
 
 
@@ -24,18 +24,21 @@ def _incident(evidence: dict | None = None) -> Incident:
         dedup_fingerprint="fp-safe",
         source="wazuh",
         raw_alert={},
-        evidence=evidence or {"verdict": "suspicious", "severity": "medium", "normalized_event": {}, "summary": "t"},
+        evidence=evidence
+        or {"verdict": "suspicious", "severity": "medium", "normalized_event": {}, "summary": "t"},
     )
 
 
 def _resp(verdict: str = "real") -> LlmResponse:
     return LlmResponse(
-        content=json.dumps({
-            "verdict": verdict,
-            "confidence": 0.9,
-            "rationale": "ok",
-            "cited_evidence": ["ev"],
-        }),
+        content=json.dumps(
+            {
+                "verdict": verdict,
+                "confidence": 0.9,
+                "rationale": "ok",
+                "cited_evidence": ["ev"],
+            }
+        ),
         usage=TokenUsage(prompt_tokens=10, completion_tokens=10),
         model="m",
         provider=ProviderId.GEMINI,
@@ -88,7 +91,9 @@ async def test_handler_writes_no_state(monkeypatch: pytest.MonkeyPatch):
     written = []
 
     class TrackingLlm:
-        async def generate(self, request: object, *, correlation_id: str | None = None) -> LlmResponse:
+        async def generate(
+            self, request: object, *, correlation_id: str | None = None
+        ) -> LlmResponse:
             return _resp("real")
 
     handler = make_triage_handler(TrackingLlm(), TriageSettings())

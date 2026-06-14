@@ -4,19 +4,23 @@ from __future__ import annotations
 
 import json
 import uuid
+import uuid as _uuid
+from datetime import UTC, datetime
 
 import pytest
 
 from backend.agents.enrichment import make_enrichment_handler
-from backend.domain.corpus import EntityKind, EntityRef, ReferenceHit, ReferenceCorpusEntry, ReferenceKind, IntelVerdict
-from backend.domain.enrichment import EnrichmentReport
+from backend.domain.corpus import (
+    EntityRef,
+    ReferenceCorpusEntry,
+    ReferenceHit,
+    ReferenceKind,
+)
 from backend.domain.incident import Incident, IncidentStatus, Severity
 from backend.domain.llm import LlmResponse, ProviderId, StopReason, TokenUsage
 from backend.domain.memory import EpisodeQuery, FactState, MemoryHit
 from backend.domain.pipeline import StageName, StageOutcome
 from backend.infra.config import EnrichmentSettings
-from datetime import datetime, UTC
-import uuid as _uuid
 
 
 def _incident() -> Incident:

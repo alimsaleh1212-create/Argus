@@ -78,9 +78,9 @@ class TestRedisTaskQueue:
 
     async def test_dequeue_returns_none_when_empty(self, queue) -> None:
         # With a block timeout of 0.1s, an empty queue should return None quickly
-        from backend.infra.queue import RedisTaskQueue
-
         import redis.asyncio as aioredis
+
+        from backend.infra.queue import RedisTaskQueue
 
         host = queue._redis.connection_pool.connection_kwargs.get("host", "localhost")
         port = queue._redis.connection_pool.connection_kwargs.get("port", 6379)

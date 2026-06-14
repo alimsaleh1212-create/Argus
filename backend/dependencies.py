@@ -11,12 +11,15 @@ substitutes a double without touching consumer code (FR-020).
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import Depends, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.domain.dashboard import OperatorSession
+from backend.infra.auth import AuthError
 from backend.infra.blob import BlobClient
 from backend.infra.db import DbEngine
 from backend.infra.vault import VaultClient
@@ -122,19 +125,17 @@ async def get_current_operator(
     token_param: str | None = Query(default=None, alias="token"),
     auth_svc=Depends(get_auth_service),
 ):
-    """Validate bearer token (REST) or ?token= query param (SSE EventSource).
+    """Validate a bearer token (REST), or a ``?token=`` query param on the SSE
+    stream route only (EventSource cannot set Authorization headers).
 
     Returns OperatorSession on success; raises HTTP 401 on any failure.
     """
-    from datetime import UTC, datetime
-
-    from backend.domain.dashboard import OperatorSession
-    from backend.services.auth import AuthError
-
     raw_token: str | None = None
     if credentials is not None:
         raw_token = credentials.credentials
-    elif token_param is not None:
+    elif token_param is not None and request.url.path.endswith("/stream"):
+        # Query-param tokens land in proxy/access logs, so only the SSE route —
+        # which has no header alternative — is allowed to use one.
         raw_token = token_param
 
     if not raw_token:
@@ -143,7 +144,7 @@ async def get_current_operator(
     try:
         payload = auth_svc.verify_token(raw_token)
     except AuthError:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Not authenticated") from None
 
     return OperatorSession(
         subject=payload["sub"],

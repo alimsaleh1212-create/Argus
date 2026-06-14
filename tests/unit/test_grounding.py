@@ -7,14 +7,11 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
-
 
 def _make_incident(level: int | None = 10, agent_name: str | None = "web-01"):
     from backend.domain.incident import (
         Incident,
         IncidentStatus,
-        NormalizedEvent,
         Severity,
     )
 

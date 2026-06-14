@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -78,15 +77,17 @@ class TestLlmReadinessGate:
 
     def test_ready_503_when_llm_not_healthy(self) -> None:
         """/ready returns 503 when the llm dependency is not healthy (SC-010)."""
-        from backend.domain.health import DependencyStatus
 
         with patch(
-            "backend.routers.health.run_readiness_probes", new=AsyncMock(return_value=[
-                DependencyStatus(name="vault", healthy=True),
-                DependencyStatus(name="postgres", healthy=True),
-                DependencyStatus(name="minio", healthy=True),
-                DependencyStatus(name="llm", healthy=False, detail="No providers reachable"),
-            ])
+            "backend.routers.health.run_readiness_probes",
+            new=AsyncMock(
+                return_value=[
+                    DependencyStatus(name="vault", healthy=True),
+                    DependencyStatus(name="postgres", healthy=True),
+                    DependencyStatus(name="minio", healthy=True),
+                    DependencyStatus(name="llm", healthy=False, detail="No providers reachable"),
+                ]
+            ),
         ):
             app = _make_app_with_health()
             with TestClient(app) as client:
@@ -99,15 +100,17 @@ class TestLlmReadinessGate:
 
     def test_ready_200_when_llm_healthy(self) -> None:
         """/ready returns 200 when llm dep is healthy (FR-019 / SC-010)."""
-        from backend.domain.health import DependencyStatus
 
         with patch(
-            "backend.routers.health.run_readiness_probes", new=AsyncMock(return_value=[
-                DependencyStatus(name="vault", healthy=True),
-                DependencyStatus(name="postgres", healthy=True),
-                DependencyStatus(name="minio", healthy=True),
-                DependencyStatus(name="llm", healthy=True),
-            ])
+            "backend.routers.health.run_readiness_probes",
+            new=AsyncMock(
+                return_value=[
+                    DependencyStatus(name="vault", healthy=True),
+                    DependencyStatus(name="postgres", healthy=True),
+                    DependencyStatus(name="minio", healthy=True),
+                    DependencyStatus(name="llm", healthy=True),
+                ]
+            ),
         ):
             app = _make_app_with_health()
             with TestClient(app) as client:

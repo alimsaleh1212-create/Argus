@@ -55,7 +55,9 @@ async def test_guardrail_error_does_not_raise() -> None:
     """Any guardrail error is swallowed and does not block the lookup."""
     client = _make_client()
 
-    with patch("backend.infra.guardrails.get_guardrail", side_effect=RuntimeError("guardrail crash")):
+    with patch(
+        "backend.infra.guardrails.get_guardrail", side_effect=RuntimeError("guardrail crash")
+    ):
         with patch("httpx.AsyncClient") as mock_cls:
             mock_ctx = AsyncMock()
             mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)

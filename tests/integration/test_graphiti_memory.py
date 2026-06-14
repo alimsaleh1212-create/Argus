@@ -12,10 +12,9 @@ Run with:
 
 from __future__ import annotations
 
-import json
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -32,7 +31,7 @@ pytestmark = pytest.mark.integration
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-_T1 = datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
+_T1 = datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC)
 _T2 = _T1 + timedelta(hours=5)
 _NOW = _T2 + timedelta(hours=4)
 
@@ -76,7 +75,7 @@ def memory_settings(neo4j_container) -> MemorySettings:
         neo4j_uri=bolt_url,
         retrieval_k=5,
         retrieval_timeout_s=30.0,
-        embedding_model="text-embedding-004",
+        gemini_embedding_model="text-embedding-004",
     )
 
 
@@ -98,7 +97,7 @@ async def graphiti_memory(neo4j_container, memory_settings):
     embedder = GeminiEmbedder(
         config=GeminiEmbedderConfig(
             api_key=GEMINI_API_KEY,
-            embedding_model=memory_settings.embedding_model,
+            embedding_model=memory_settings.gemini_embedding_model,
         )
     )
     graphiti = Graphiti(
@@ -119,6 +118,7 @@ async def graphiti_memory(neo4j_container, memory_settings):
 
 # ── Milestone a: write_episode ────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_write_episode_does_not_raise(graphiti_memory) -> None:
     ep = _make_episode("write-001", "SSH brute-force from 203.0.113.10", "escalated_enrichment")
@@ -135,14 +135,23 @@ async def test_write_episode_idempotent(graphiti_memory) -> None:
 
 # ── Milestone b: search_similar ───────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_write_then_retrieve(graphiti_memory) -> None:
     """Write 2-3 episodes then search_similar for one similar to a prior — returns it in top-k."""
     eps = [
-        _make_episode("ret-001", "SSH brute-force from 203.0.113.10", "escalated_enrichment",
-                      entities=[EntityRef(kind=EntityKind.ADDRESS, value="203.0.113.10")]),
-        _make_episode("ret-002", "Port scan from 198.51.100.5 against db-server", "auto_resolved_noise",
-                      entities=[EntityRef(kind=EntityKind.HOST, value="db-server")]),
+        _make_episode(
+            "ret-001",
+            "SSH brute-force from 203.0.113.10",
+            "escalated_enrichment",
+            entities=[EntityRef(kind=EntityKind.ADDRESS, value="203.0.113.10")],
+        ),
+        _make_episode(
+            "ret-002",
+            "Port scan from 198.51.100.5 against db-server",
+            "auto_resolved_noise",
+            entities=[EntityRef(kind=EntityKind.HOST, value="db-server")],
+        ),
         _make_episode("ret-003", "Routine scanner probe on port 22", "auto_resolved_noise"),
     ]
     for ep in eps:
@@ -177,13 +186,12 @@ async def test_empty_store_returns_empty(memory_settings) -> None:
     with Neo4jContainer(image="neo4j:5.26", password="cold-pw") as c:
         bolt = c.get_connection_url()
         llm = GeminiClient(config=LLMConfig(api_key=GEMINI_API_KEY))
-        embedder = GeminiEmbedder(
-            config=GeminiEmbedderConfig(api_key=GEMINI_API_KEY)
-        )
+        embedder = GeminiEmbedder(config=GeminiEmbedderConfig(api_key=GEMINI_API_KEY))
         g = Graphiti(uri=bolt, user="neo4j", password="cold-pw", llm_client=llm, embedder=embedder)
         await g.build_indices_and_constraints()
 
         from backend.infra.memory import GraphitiMemory
+
         mem = GraphitiMemory(graphiti=g, settings=memory_settings)
         results = await mem.search_similar(EpisodeQuery(text="attack"), k=5)
         assert results == []
@@ -191,6 +199,7 @@ async def test_empty_store_returns_empty(memory_settings) -> None:
 
 
 # ── Milestone c: temporal_validity ────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_temporal_validity(graphiti_memory) -> None:

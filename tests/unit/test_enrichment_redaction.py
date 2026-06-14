@@ -45,12 +45,14 @@ class FakeLlm:
 
     async def generate(self, request, *, correlation_id=None):
         return LlmResponse(
-            content=json.dumps({
-                "assessment": "confirmed",
-                "confidence": 0.8,
-                "correlation_summary": self._summary,
-                "cited_evidence": ["rule_id=9999"],
-            }),
+            content=json.dumps(
+                {
+                    "assessment": "confirmed",
+                    "confidence": 0.8,
+                    "correlation_summary": self._summary,
+                    "cited_evidence": ["rule_id=9999"],
+                }
+            ),
             usage=TokenUsage(prompt_tokens=20, completion_tokens=10),
             model="fake",
             provider=ProviderId.GEMINI,
@@ -62,7 +64,8 @@ class InjectionCorpus:
     """Returns corpus content with a planted secret."""
 
     async def search_reference(self, query, *, k: int) -> list:
-        from backend.domain.corpus import ReferenceHit, ReferenceCorpusEntry, ReferenceKind
+        from backend.domain.corpus import ReferenceCorpusEntry, ReferenceHit, ReferenceKind
+
         return [
             ReferenceHit(
                 entry=ReferenceCorpusEntry(

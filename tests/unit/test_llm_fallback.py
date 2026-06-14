@@ -5,7 +5,6 @@ All tests use injected driver fakes — zero real provider calls (SC-008).
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -46,10 +45,10 @@ def _driver(provider_id: ProviderId, response=None, error=None):
 
 
 def _make_client(gemini_driver, ollama_driver, primary=ProviderId.GEMINI, fallback_order=None):
-    from backend.infra.llm import LlmClient
     from backend.infra.config import LlmSettings
-    from backend.infra.tracing import build_tracer
+    from backend.infra.llm import LlmClient
     from backend.infra.redaction import build_redactor
+    from backend.infra.tracing import build_tracer
 
     fallback_order = fallback_order or [ProviderId.GEMINI, ProviderId.OLLAMA]
     settings = LlmSettings(
@@ -79,7 +78,9 @@ class TestStatelessFallback:
         """Transient error on primary → next provider serves (FR-007 / SC-003)."""
         gemini = _driver(
             ProviderId.GEMINI,
-            error=LlmError(kind=LlmErrorKind.TRANSIENT, provider=ProviderId.GEMINI, message="timeout"),
+            error=LlmError(
+                kind=LlmErrorKind.TRANSIENT, provider=ProviderId.GEMINI, message="timeout"
+            ),
         )
         ollama = _driver(ProviderId.OLLAMA, response=_fake_response(provider=ProviderId.OLLAMA))
         client = _make_client(gemini, ollama)
@@ -121,7 +122,9 @@ class TestStatelessFallback:
         """INVALID_REQUEST error surfaces immediately — no failover (FR-008)."""
         gemini = _driver(
             ProviderId.GEMINI,
-            error=LlmError(kind=LlmErrorKind.INVALID_REQUEST, provider=ProviderId.GEMINI, message="too long"),
+            error=LlmError(
+                kind=LlmErrorKind.INVALID_REQUEST, provider=ProviderId.GEMINI, message="too long"
+            ),
         )
         ollama = _driver(ProviderId.OLLAMA)
         client = _make_client(gemini, ollama)
@@ -135,7 +138,9 @@ class TestStatelessFallback:
         """CONTENT_REFUSAL surfaces immediately — branchable, no failover (FR-008)."""
         gemini = _driver(
             ProviderId.GEMINI,
-            error=LlmError(kind=LlmErrorKind.CONTENT_REFUSAL, provider=ProviderId.GEMINI, message="refused"),
+            error=LlmError(
+                kind=LlmErrorKind.CONTENT_REFUSAL, provider=ProviderId.GEMINI, message="refused"
+            ),
         )
         ollama = _driver(ProviderId.OLLAMA)
         client = _make_client(gemini, ollama)
@@ -171,7 +176,8 @@ class TestStatelessFallback:
 
         # Ollama-first config
         client = _make_client(
-            gemini, ollama,
+            gemini,
+            ollama,
             primary=ProviderId.OLLAMA,
             fallback_order=[ProviderId.OLLAMA, ProviderId.GEMINI],
         )
@@ -256,10 +262,10 @@ class TestFailClosed:
 class TestDriverMap:
     async def test_provider_in_fallback_order_but_not_in_driver_map_is_skipped(self) -> None:
         """A provider_id in fallback_order with no matching driver is silently skipped."""
-        from backend.infra.llm import LlmClient
         from backend.infra.config import LlmSettings
-        from backend.infra.tracing import build_tracer
+        from backend.infra.llm import LlmClient
         from backend.infra.redaction import build_redactor
+        from backend.infra.tracing import build_tracer
 
         ollama = _driver(ProviderId.OLLAMA, response=_fake_response(provider=ProviderId.OLLAMA))
 
@@ -303,10 +309,10 @@ class TestTimeout:
 
         ollama = _driver(ProviderId.OLLAMA, response=_fake_response(provider=ProviderId.OLLAMA))
 
-        from backend.infra.llm import LlmClient
         from backend.infra.config import LlmSettings
-        from backend.infra.tracing import build_tracer
+        from backend.infra.llm import LlmClient
         from backend.infra.redaction import build_redactor
+        from backend.infra.tracing import build_tracer
 
         settings = LlmSettings(
             primary=ProviderId.GEMINI,
@@ -341,10 +347,10 @@ class TestTimeout:
         async def slow(_req):
             await asyncio.sleep(60)
 
-        from backend.infra.llm import LlmClient
         from backend.infra.config import LlmSettings
-        from backend.infra.tracing import build_tracer
+        from backend.infra.llm import LlmClient
         from backend.infra.redaction import build_redactor
+        from backend.infra.tracing import build_tracer
 
         gemini = MagicMock()
         gemini.provider_id = ProviderId.GEMINI

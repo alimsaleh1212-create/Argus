@@ -7,7 +7,6 @@ enabled versus a baseline with it minimized.  All span export is in-memory
 
 from __future__ import annotations
 
-import statistics
 import time
 from unittest.mock import MagicMock
 
@@ -35,24 +34,28 @@ def _baseline_incident(correlation_id: str) -> float:
     return time.perf_counter() - start
 
 
-def _observed_incident(
-    redactor, tracer, correlation_id: str
-) -> float:
+def _observed_incident(redactor, tracer, correlation_id: str) -> float:
     """Same work but wrapped in the full observability seam."""
     start = time.perf_counter()
     bind_incident(correlation_id)
     try:
         with span(tracer, "root", SpanKind.ROOT, correlation_id=correlation_id) as root_s:
             with span(
-                tracer, "triage.step", SpanKind.AGENT_STEP,
-                correlation_id=correlation_id, parent_span_id=root_s.span_id,
+                tracer,
+                "triage.step",
+                SpanKind.AGENT_STEP,
+                correlation_id=correlation_id,
+                parent_span_id=root_s.span_id,
                 attrs={"input": "safe payload"},
             ):
                 _ = sum(range(1000))  # same synthetic work
 
             with span(
-                tracer, "llm.call", SpanKind.LLM_CALL,
-                correlation_id=correlation_id, parent_span_id=root_s.span_id,
+                tracer,
+                "llm.call",
+                SpanKind.LLM_CALL,
+                correlation_id=correlation_id,
+                parent_span_id=root_s.span_id,
             ) as llm_s:
                 usage = MagicMock()
                 usage.prompt_tokens = 10
@@ -79,17 +82,15 @@ class TestSynchronousOverhead:
             _observed_incident(redactor, tracer, f"warmup_o_{i}")
 
         baselines = [_baseline_incident(f"base_{i}") for i in range(_ITERATIONS)]
-        observed = [
-            _observed_incident(redactor, tracer, f"obs_{i}") for i in range(_ITERATIONS)
-        ]
+        observed = [_observed_incident(redactor, tracer, f"obs_{i}") for i in range(_ITERATIONS)]
 
         p95_base = sorted(baselines)[int(_ITERATIONS * 0.95)]
         p95_obs = sorted(observed)[int(_ITERATIONS * 0.95)]
         absolute_overhead_ms = (p95_obs - p95_base) * 1000
 
         print(
-            f"\n[overhead] p95_base={p95_base*1000:.3f}ms "
-            f"p95_obs={p95_obs*1000:.3f}ms "
+            f"\n[overhead] p95_base={p95_base * 1000:.3f}ms "
+            f"p95_obs={p95_obs * 1000:.3f}ms "
             f"absolute_overhead={absolute_overhead_ms:.3f}ms"
         )
 
@@ -115,4 +116,4 @@ class TestSynchronousOverhead:
         elapsed = time.perf_counter() - start
 
         # Should complete in well under 50ms even on a slow CI machine
-        assert elapsed < 0.05, f"span() took {elapsed*1000:.1f}ms — export may be on-path"
+        assert elapsed < 0.05, f"span() took {elapsed * 1000:.1f}ms — export may be on-path"

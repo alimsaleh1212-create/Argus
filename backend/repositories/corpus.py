@@ -56,9 +56,7 @@ class CorpusRepository:
 
     # -- read -----------------------------------------------------------------
 
-    async def search_reference(
-        self, query: ReferenceQuery, *, k: int
-    ) -> list[ReferenceHit]:
+    async def search_reference(self, query: ReferenceQuery, *, k: int) -> list[ReferenceHit]:
         if not query.technique_ids and not query.terms:
             return []
 
@@ -127,6 +125,7 @@ class CorpusRepository:
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+
 
 def _row_to_entry(row: sa.engine.Row) -> ReferenceCorpusEntry:  # type: ignore[type-arg]
     return ReferenceCorpusEntry(

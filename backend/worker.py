@@ -145,6 +145,7 @@ async def _sweep_expired_approvals(settings, db_engine, supervisor) -> None:
                 expired = await approval_repo.list_pending_expired(now)
                 for record in expired:
                     from backend.domain.response import ApprovalStatus
+
                     resolved = await approval_repo.resolve(
                         record.id,
                         to=ApprovalStatus.EXPIRED,
@@ -167,10 +168,10 @@ async def _sweep_expired_approvals(settings, db_engine, supervisor) -> None:
 
 
 async def _main_async() -> None:
+    from backend.corpus_provider import CorpusProvider
     from backend.infra.cache import CacheProvider
     from backend.infra.config import load_settings
     from backend.infra.container import clear_registry, register_provider
-    from backend.infra.corpus import CorpusProvider
     from backend.infra.db import register_db_provider
     from backend.infra.intel import IntelProvider
     from backend.infra.lifespan import argus_lifespan

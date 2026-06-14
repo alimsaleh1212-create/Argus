@@ -41,6 +41,7 @@ def _make_app(*, mock_repo=None):
     app.dependency_overrides[get_auth_service] = lambda: auth_svc
 
     if mock_repo is not None:
+
         async def fake_incident_repo():
             yield mock_repo
 
@@ -139,7 +140,7 @@ class TestKpisEndpoint:
         assert "volume_over_time" in resp.json()
 
     def test_kpis_zero_enriched_rate_is_null(self) -> None:
-        from backend.domain.dashboard import MemoryHit, VolumeBucket
+        from backend.domain.dashboard import MemoryHit
 
         mock = AsyncMock()
         mock.kpi_volume_buckets = AsyncMock(return_value=[])

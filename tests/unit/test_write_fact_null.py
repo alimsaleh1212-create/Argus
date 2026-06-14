@@ -9,8 +9,8 @@ import pytest
 from backend.domain.memory import EntityKind, EntityRef, MemoryStore, TemporalFact
 from backend.infra.memory import GraphitiMemory, NullMemory
 
-
 # ── NullMemory.write_fact ────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_null_memory_write_fact_noop() -> None:
@@ -40,6 +40,7 @@ async def test_null_memory_write_fact_noop_returns_none() -> None:
 
 # ── Protocol isinstance checks ───────────────────────────────────────────────
 
+
 def test_null_memory_satisfies_protocol() -> None:
     assert isinstance(NullMemory(), MemoryStore)
 
@@ -47,6 +48,8 @@ def test_null_memory_satisfies_protocol() -> None:
 def test_graphiti_memory_satisfies_protocol() -> None:
     # GraphitiMemory has the right signature even though its write_fact raises NotImplementedError
     # (body lands in T021); the Protocol structural check is on signatures, not behavior.
-    assert issubclass(GraphitiMemory, MemoryStore) or isinstance(
-        GraphitiMemory.__dict__.get("write_fact"), type(lambda: None).__class__
-    ) or hasattr(GraphitiMemory, "write_fact")
+    assert (
+        issubclass(GraphitiMemory, MemoryStore)
+        or isinstance(GraphitiMemory.__dict__.get("write_fact"), type(lambda: None).__class__)
+        or hasattr(GraphitiMemory, "write_fact")
+    )

@@ -23,6 +23,7 @@ def _judgment(verdict: str, confidence: float) -> TriageJudgment:
 
 # --- ADVANCE ---
 
+
 def test_real_above_advance_min_advances():
     outcome, disp = decide_outcome(_judgment("real", 0.9), _cfg())
     assert outcome == StageOutcome.ADVANCE
@@ -36,6 +37,7 @@ def test_real_at_advance_min_advances():
 
 
 # --- RESOLVED ---
+
 
 def test_noise_above_resolve_min_resolves():
     outcome, disp = decide_outcome(_judgment("noise", 0.8), _cfg())
@@ -51,6 +53,7 @@ def test_noise_at_resolve_min_resolves():
 
 # --- ESCALATE (uncertain) ---
 
+
 def test_uncertain_always_escalates():
     outcome, disp = decide_outcome(_judgment("uncertain", 0.95), _cfg())
     assert outcome == StageOutcome.ESCALATE
@@ -58,6 +61,7 @@ def test_uncertain_always_escalates():
 
 
 # --- ESCALATE (low confidence) ---
+
 
 def test_real_below_advance_min_escalates():
     outcome, disp = decide_outcome(_judgment("real", 0.59), _cfg())
@@ -73,6 +77,7 @@ def test_noise_below_advance_min_escalates():
 
 # --- ESCALATE (noise above advance but below resolve) ---
 
+
 def test_noise_between_advance_and_resolve_escalates():
     outcome, disp = decide_outcome(_judgment("noise", 0.65), _cfg())
     assert outcome == StageOutcome.ESCALATE
@@ -80,6 +85,7 @@ def test_noise_between_advance_and_resolve_escalates():
 
 
 # --- Boundary: strictly below abstains ---
+
 
 def test_real_strictly_below_advance_min_escalates():
     outcome, _ = decide_outcome(_judgment("real", 0.5999), _cfg(advance=0.6))

@@ -10,14 +10,12 @@ from __future__ import annotations
 
 import io
 import json
-from contextlib import contextmanager
-from datetime import timezone
 from unittest.mock import MagicMock
 
 import pytest
 
 from backend.domain.redaction import Boundary
-from backend.domain.telemetry import SpanKind, SpanStatus
+from backend.domain.telemetry import SpanKind
 from backend.infra.logging import bind_incident, clear_incident, configure_logging
 from backend.infra.redaction import build_redactor
 from backend.infra.tracing import build_tracer, record_llm_usage, span
@@ -43,6 +41,7 @@ def _run_synthetic_incident(
     bind_incident(correlation_id)
     try:
         import structlog
+
         logger = structlog.get_logger("e2e.test")
 
         with span(tracer, "root", SpanKind.ROOT, correlation_id=correlation_id) as root_s:
@@ -55,16 +54,22 @@ def _run_synthetic_incident(
             )
 
             with span(
-                tracer, "triage.step", SpanKind.AGENT_STEP,
-                correlation_id=correlation_id, parent_span_id=root_s.span_id,
+                tracer,
+                "triage.step",
+                SpanKind.AGENT_STEP,
+                correlation_id=correlation_id,
+                parent_span_id=root_s.span_id,
                 attrs={"input": f"token={SEEDED_BEARER}"},
             ) as triage_s:
                 spans.append(triage_s)
                 logger.info("triage_complete", result="benign")
 
             with span(
-                tracer, "llm.call", SpanKind.LLM_CALL,
-                correlation_id=correlation_id, parent_span_id=root_s.span_id,
+                tracer,
+                "llm.call",
+                SpanKind.LLM_CALL,
+                correlation_id=correlation_id,
+                parent_span_id=root_s.span_id,
                 attrs={"prompt": f"Analyze this: {SEEDED_AWS_KEY}"},
             ) as llm_s:
                 spans.append(llm_s)
@@ -142,8 +147,8 @@ class TestZeroLeaks:
         _run_synthetic_incident(buf, cid)
 
         buf.seek(0)
-        lines = [json.loads(l) for l in buf.read().splitlines() if l.strip()]
-        incident_lines = [l for l in lines if l.get("correlation_id") == cid]
+        lines = [json.loads(line) for line in buf.read().splitlines() if line.strip()]
+        incident_lines = [line for line in lines if line.get("correlation_id") == cid]
         assert len(incident_lines) >= 1
         for line in incident_lines:
             assert line["correlation_id"] == cid

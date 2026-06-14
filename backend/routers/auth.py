@@ -22,9 +22,7 @@ async def login(
 
     Always returns a generic 401 on failure — no user enumeration.
     """
-    if not auth_service.verify_credentials(
-        body.username, body.password.get_secret_value()
-    ):
+    if not auth_service.verify_credentials(body.username, body.password.get_secret_value()):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token, expires_in = auth_service.issue_token(subject=body.username, role="admin")

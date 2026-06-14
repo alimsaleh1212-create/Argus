@@ -5,8 +5,6 @@ All tests use faked drivers — zero real provider calls (SC-008).
 
 from __future__ import annotations
 
-import importlib
-import pkgutil
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -20,9 +18,9 @@ from backend.domain.llm import (
     LlmResponse,
     ProviderId,
     StopReason,
+    TokenUsage,
     ToolCall,
     ToolSpec,
-    TokenUsage,
 )
 
 
@@ -47,10 +45,10 @@ def _make_client(
     raise_error: LlmError | None = None,
 ) -> Any:
     """Build an LlmClient with both drivers replaced by AsyncMocks."""
-    from backend.infra.llm import LlmClient
     from backend.infra.config import LlmSettings
-    from backend.infra.tracing import build_tracer
+    from backend.infra.llm import LlmClient
     from backend.infra.redaction import build_redactor
+    from backend.infra.tracing import build_tracer
 
     settings = LlmSettings()
 
@@ -73,7 +71,9 @@ def _make_client(
     else:
         driver.generate = AsyncMock(return_value=fake_response or _make_fake_response())
 
-    client = LlmClient(settings=settings, drivers={ProviderId.GEMINI: driver, ProviderId.OLLAMA: driver}, obs=obs)
+    client = LlmClient(
+        settings=settings, drivers={ProviderId.GEMINI: driver, ProviderId.OLLAMA: driver}, obs=obs
+    )
     return client, driver
 
 
@@ -130,7 +130,7 @@ class TestToolScoping:
         resp_with_tool = resp_with_tool.model_copy(update={"stop_reason": StopReason.TOOL_USE})
         client, driver = _make_client(fake_response=resp_with_tool)
         req = LlmRequest(messages=[LlmMessage(role="user", content="hello")], tools=[tool])
-        resp = await client.generate(req, correlation_id="test-5")
+        await client.generate(req, correlation_id="test-5")
         # The request forwarded to the driver should carry the specified tools
         forwarded_req = driver.generate.call_args[0][0]
         assert len(forwarded_req.tools) == 1
@@ -142,7 +142,11 @@ class TestStructuredOutput:
         """When response_schema is set and content is valid JSON, returns normally."""
         import json
 
-        schema = {"type": "object", "properties": {"verdict": {"type": "string"}}, "required": ["verdict"]}
+        schema = {
+            "type": "object",
+            "properties": {"verdict": {"type": "string"}},
+            "required": ["verdict"],
+        }
         valid_content = json.dumps({"verdict": "benign"})
         resp = _make_fake_response(content=valid_content)
         client, _ = _make_client(fake_response=resp)
@@ -157,7 +161,11 @@ class TestStructuredOutput:
         """When response_schema is set and content fails validation, raises CONTRACT_UNSATISFIED."""
         import json
 
-        schema = {"type": "object", "properties": {"verdict": {"type": "string"}}, "required": ["verdict"]}
+        schema = {
+            "type": "object",
+            "properties": {"verdict": {"type": "string"}},
+            "required": ["verdict"],
+        }
         # Response missing required field
         bad_content = json.dumps({"other": "value"})
         resp = _make_fake_response(content=bad_content)
@@ -265,9 +273,7 @@ class TestNoBypasGuard:
         import os
 
         forbidden_importers: list[str] = []
-        backend_root = os.path.join(
-            os.path.dirname(__file__), "..", "..", "backend"
-        )
+        backend_root = os.path.join(os.path.dirname(__file__), "..", "..", "backend")
         for dirpath, _dirs, files in os.walk(backend_root):
             for fname in files:
                 if not fname.endswith(".py"):
@@ -293,5 +299,5 @@ class TestNoBypasGuard:
                                 forbidden_importers.append(f"{rel}: {name}")
 
         assert forbidden_importers == [], (
-            f"Vendor SDK imported outside llm_drivers.py:\n" + "\n".join(forbidden_importers)
+            "Vendor SDK imported outside llm_drivers.py:\n" + "\n".join(forbidden_importers)
         )

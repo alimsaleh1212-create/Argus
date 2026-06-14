@@ -49,7 +49,7 @@ def _bootstrap_providers() -> None:
 
         register_provider(QueueProvider())
     if "corpus" not in existing_names:
-        from backend.infra.corpus import CorpusProvider
+        from backend.corpus_provider import CorpusProvider
 
         register_provider(CorpusProvider())
     if "supervisor" not in existing_names:

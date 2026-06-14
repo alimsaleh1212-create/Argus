@@ -34,6 +34,7 @@ _EMPTY_FACT_STATE = FactState(fact=None, is_current=False, has_superseded=False)
 
 # ── NullMemory ───────────────────────────────────────────────────────────────
 
+
 class NullMemory:
     """No-op MemoryStore — used when memory is disabled or Neo4j is unreachable."""
 
@@ -58,6 +59,7 @@ class NullMemory:
 
 # ── GraphitiMemory ───────────────────────────────────────────────────────────
 
+
 class GraphitiMemory:
     """Graphiti + Neo4j 5.26 implementation of the MemoryStore Protocol."""
 
@@ -77,9 +79,7 @@ class GraphitiMemory:
                 "verdict": episode.verdict,
                 "severity": episode.severity.value,
                 "disposition": episode.disposition,
-                "entities": [
-                    {"kind": e.kind.value, "value": e.value} for e in episode.entities
-                ],
+                "entities": [{"kind": e.kind.value, "value": e.value} for e in episode.entities],
                 "fields": episode.fields,
             }
         )
@@ -109,9 +109,7 @@ class GraphitiMemory:
             logger.warning("memory_search_error", error=str(exc))
             return []
 
-    async def _search_similar_inner(
-        self, query: EpisodeQuery, *, k: int
-    ) -> list[MemoryHit]:
+    async def _search_similar_inner(self, query: EpisodeQuery, *, k: int) -> list[MemoryHit]:
         edges = await self._graphiti.search(query.text, num_results=k * 5)
         if not edges:
             return []
@@ -119,7 +117,7 @@ class GraphitiMemory:
         # Collect unique episode UUIDs from matching edges (preserve relevance order)
         seen: dict[str, int] = {}
         for rank, edge in enumerate(edges):
-            for ep_uuid in (edge.episodes or []):
+            for ep_uuid in edge.episodes or []:
                 if ep_uuid not in seen:
                     seen[ep_uuid] = rank
 
@@ -186,6 +184,7 @@ class GraphitiMemory:
 
         # Write the new fact as an episode so Graphiti indexes it.
         import json as _json
+
         body = _json.dumps(
             {
                 "entity_kind": fact.entity.kind,
@@ -284,9 +283,7 @@ class GraphitiMemory:
                 matching_row = row
                 break  # rows are DESC by valid_at; first match wins
 
-        has_superseded = any(
-            row.get("valid_until") is not None for row in rows
-        )
+        has_superseded = any(row.get("valid_until") is not None for row in rows)
 
         if matching_row is None:
             return FactState(fact=None, is_current=False, has_superseded=has_superseded)
@@ -315,15 +312,14 @@ class GraphitiMemory:
 
 # ── MemoryProvider ───────────────────────────────────────────────────────────
 
+
 class MemoryProvider:
     """Lifespan singleton that builds GraphitiMemory or degrades to NullMemory."""
 
     name = "memory"
 
     @asynccontextmanager
-    async def build(
-        self, settings: Any
-    ) -> AsyncGenerator[NullMemory | GraphitiMemory, None]:
+    async def build(self, settings: Any) -> AsyncGenerator[NullMemory | GraphitiMemory, None]:
         mem_settings: MemorySettings = settings.memory
 
         if not mem_settings.enabled:
@@ -342,11 +338,10 @@ class MemoryProvider:
 
         graphiti = None
         try:
-            # Resolve Neo4j credentials from Vault
-            from backend.infra.vault import VaultClient
-
-            vault = VaultClient(settings.vault)
-            creds = await vault.get_secret(mem_settings.neo4j_vault_path)
+            # Read Neo4j credentials from the already-resolved Vault singleton
+            # (secret/memory is in the worker's required_paths).
+            vault = settings._container.vault_client
+            creds = vault.get_secret(mem_settings.neo4j_vault_path)
             neo4j_user = creds.get("username", "neo4j")
             neo4j_password = creds.get("password", "")
             neo4j_uri = creds.get("uri", mem_settings.neo4j_uri)
@@ -383,7 +378,7 @@ class MemoryProvider:
                 )
             else:
                 # Default: Gemini — shares the api_key already in Vault at secret/llm
-                llm_key_secret = await vault.get_secret(settings.llm.gemini_vault_path)
+                llm_key_secret = vault.get_secret(settings.llm.gemini_vault_path)
                 gemini_key = llm_key_secret.get("api_key", "")
                 llm_client = GeminiClient(config=LLMConfig(api_key=gemini_key))
                 embedder = GeminiEmbedder(

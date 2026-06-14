@@ -29,9 +29,7 @@ def test_valid_report_with_findings():
 
 
 def test_valid_report_without_findings():
-    r = EnrichmentReport.model_validate(
-        _valid_report(external_findings=[], internal_findings=[])
-    )
+    r = EnrichmentReport.model_validate(_valid_report(external_findings=[], internal_findings=[]))
     assert r.external_findings == []
     assert r.internal_findings == []
 
@@ -68,7 +66,7 @@ def test_rejects_extra_fields():
 
 def test_frozen():
     r = EnrichmentReport.model_validate(_valid_report())
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         r.confidence = 0.5  # type: ignore[misc]
 
 

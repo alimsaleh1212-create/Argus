@@ -30,8 +30,7 @@ def _make_settings():
 class TestDedupE2E:
     async def test_same_alert_twice_returns_deduplicated(self) -> None:
         """Second POST of the same alert returns deduplicated=True with existing id."""
-        from backend.domain.incident import Incident, IncidentStatus, IngestResult, Severity
-        from backend.infra.cache import claim_fingerprint, lookup_fingerprint
+        from backend.domain.incident import Incident, IncidentStatus, Severity
         from backend.services.intake import accept
 
         existing_id = uuid.uuid4()
@@ -62,7 +61,7 @@ class TestDedupE2E:
 
         # First call: claim_fingerprint returns True (first sighting)
         with patch("backend.services.intake.IncidentRepository", return_value=mock_repo):
-            with patch("backend.services.intake.claim_fingerprint", return_value=True) as mock_claim:
+            with patch("backend.services.intake.claim_fingerprint", return_value=True):
                 result1 = await accept(
                     session=mock_session,
                     queue=mock_queue,
@@ -77,7 +76,9 @@ class TestDedupE2E:
         # Second call: claim_fingerprint returns False (duplicate within TTL)
         with patch("backend.services.intake.IncidentRepository", return_value=mock_repo):
             with patch("backend.services.intake.claim_fingerprint", return_value=False):
-                with patch("backend.services.intake.lookup_fingerprint", return_value=str(existing_id)):
+                with patch(
+                    "backend.services.intake.lookup_fingerprint", return_value=str(existing_id)
+                ):
                     result2 = await accept(
                         session=mock_session,
                         queue=mock_queue,

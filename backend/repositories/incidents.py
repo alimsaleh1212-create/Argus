@@ -9,15 +9,13 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.domain.dashboard import IncidentSummary, MemoryHit, QueuePage, VolumeBucket
+from backend.domain.dashboard import IncidentSummary, MemoryHit, VolumeBucket
 from backend.domain.incident import Evidence, Incident, IncidentStatus, NormalizedEvent, Severity
 
 _TABLE = sa.text  # convenience alias
 
 _TERMINAL_STATUSES = frozenset({"resolved", "escalated", "failed"})
-_ACTIVE_STATUSES = frozenset(
-    {s.value for s in IncidentStatus} - _TERMINAL_STATUSES
-)
+_ACTIVE_STATUSES = frozenset({s.value for s in IncidentStatus} - _TERMINAL_STATUSES)
 
 _ALLOWED_SORTS: dict[str, str] = {
     "-updated_at": "updated_at DESC",
@@ -186,9 +184,7 @@ class IncidentRepository:
     async def mark_failed(self, incident_id: uuid.UUID, reason: str = "") -> None:
         now = datetime.now(UTC)
         await self._session.execute(
-            sa.text(
-                "UPDATE incidents SET status = 'failed', updated_at = :now WHERE id = :id"
-            ),
+            sa.text("UPDATE incidents SET status = 'failed', updated_at = :now WHERE id = :id"),
             {"id": str(incident_id), "now": now},
         )
         await self._session.commit()
@@ -256,9 +252,7 @@ class IncidentRepository:
             "ORDER BY bucket DESC "
             "LIMIT :limit"
         )
-        result = await self._session.execute(
-            sa.text(sql), {"bh": bucket_hours, "limit": limit}
-        )
+        result = await self._session.execute(sa.text(sql), {"bh": bucket_hours, "limit": limit})
         rows = result.mappings().all()
         return [VolumeBucket(bucket=row["bucket"], count=row["count"]) for row in rows]
 

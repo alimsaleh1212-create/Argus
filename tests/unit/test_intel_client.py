@@ -6,16 +6,16 @@ Redactor is a lightweight pass-through mock to avoid loading spacy/presidio.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.domain.memory import EntityKind
 from backend.infra.intel import ThreatIntelClient
 
 
-def _make_settings(enabled: bool = True, base_url: str = "http://intel.test", timeout_s: float = 1.0):
+def _make_settings(
+    enabled: bool = True, base_url: str = "http://intel.test", timeout_s: float = 1.0
+):
     cfg = MagicMock()
     cfg.enabled = enabled
     cfg.source_name = "test-intel"
@@ -52,6 +52,7 @@ def _make_client(enabled: bool = True, api_key: str = "test-key") -> ThreatIntel
 
 # ── Disabled fast-path ───────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_disabled_returns_unknown_no_call() -> None:
     client = _make_client(enabled=False)
@@ -72,6 +73,7 @@ async def test_no_api_key_returns_unknown_no_call() -> None:
 
 # ── Cache hit ────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_cache_hit_no_external_call() -> None:
     client = _make_client()
@@ -83,6 +85,7 @@ async def test_cache_hit_no_external_call() -> None:
 
 
 # ── Timeout / HTTP error → unknown ──────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_timeout_returns_unknown() -> None:
@@ -107,14 +110,17 @@ async def test_http_error_returns_unknown() -> None:
         mock_ctx = AsyncMock()
         mock_http_cls.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
         mock_http_cls.return_value.__aexit__ = AsyncMock(return_value=False)
-        mock_ctx.get = AsyncMock(side_effect=_httpx.HTTPStatusError(
-            "500", request=MagicMock(), response=MagicMock(status_code=500)
-        ))
+        mock_ctx.get = AsyncMock(
+            side_effect=_httpx.HTTPStatusError(
+                "500", request=MagicMock(), response=MagicMock(status_code=500)
+            )
+        )
         result = await client.lookup("1.2.3.4")
     assert result.verdict == "unknown"
 
 
 # ── Non-unknown verdict calls write_fact ─────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_non_unknown_verdict_calls_write_fact() -> None:
@@ -147,6 +153,7 @@ async def test_unknown_verdict_does_not_call_write_fact() -> None:
 
 
 # ── Redaction: planted secret never appears in written fact or cache ─────────
+
 
 @pytest.mark.asyncio
 async def test_redaction_applied_before_cache_and_write() -> None:

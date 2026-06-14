@@ -15,8 +15,8 @@ from backend.domain.corpus import (
     ReferenceQuery,
 )
 
-
 # ── ReferenceCorpusEntry ─────────────────────────────────────────────────────
+
 
 def test_entry_basic() -> None:
     e = ReferenceCorpusEntry(
@@ -52,11 +52,12 @@ def test_entry_extra_forbid() -> None:
 
 def test_entry_frozen() -> None:
     e = ReferenceCorpusEntry(kind=ReferenceKind.TECHNIQUE, key="T1", title="t", content="c")
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         e.key = "other"  # type: ignore[misc]
 
 
 # ── ReferenceHit ─────────────────────────────────────────────────────────────
+
 
 def _make_entry() -> ReferenceCorpusEntry:
     return ReferenceCorpusEntry(
@@ -86,6 +87,7 @@ def test_hit_extra_forbid() -> None:
 
 
 # ── IntelVerdict ─────────────────────────────────────────────────────────────
+
 
 def test_intel_verdict_enum_bounded() -> None:
     for v in ("benign", "malicious", "suspicious", "unknown"):
@@ -120,6 +122,7 @@ def test_intel_verdict_extra_forbid() -> None:
 
 
 # ── ReferenceQuery ───────────────────────────────────────────────────────────
+
 
 def test_reference_query_defaults() -> None:
     q = ReferenceQuery()

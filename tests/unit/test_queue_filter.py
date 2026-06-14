@@ -6,8 +6,6 @@ constants without touching the database.
 
 from __future__ import annotations
 
-import pytest
-
 from backend.repositories.incidents import (
     _ACTIVE_STATUSES,
     _ALLOWED_SORTS,
@@ -70,9 +68,9 @@ class TestStatusFilter:
             view="all", statuses=["awaiting_approval"], severities=None
         )
         assert "st" not in str(params_all)
-        assert "st0" in str(dict(
-            _build_queue_where(view="all", statuses=["awaiting_approval"], severities=None)[1]
-        ))
+        assert "st0" in str(
+            dict(_build_queue_where(view="all", statuses=["awaiting_approval"], severities=None)[1])
+        )
 
 
 class TestSeverityFilter:

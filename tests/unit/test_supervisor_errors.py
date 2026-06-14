@@ -42,11 +42,15 @@ class FakeRepo:
             return self._incident
         return None
 
-    async def advance_status(self, incident_id, *, expected, target, disposition=None, evidence_patch=None) -> bool:
+    async def advance_status(
+        self, incident_id, *, expected, target, disposition=None, evidence_patch=None
+    ) -> bool:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
         self.advances.append({"from": expected, "to": target, "disposition": disposition})
-        self._incident = self._incident.model_copy(update={"status": target, "disposition": disposition})
+        self._incident = self._incident.model_copy(
+            update={"status": target, "disposition": disposition}
+        )
         return True
 
 
@@ -145,6 +149,7 @@ async def test_non_retryable_error_escalates_immediately():
 @pytest.mark.asyncio
 async def test_unexpected_exception_escalates_and_does_not_propagate():
     """An unexpected exception from a stage escalates the incident and never escapes run_incident."""
+
     async def broken_triage(inc):
         raise RuntimeError("unexpected crash")
 

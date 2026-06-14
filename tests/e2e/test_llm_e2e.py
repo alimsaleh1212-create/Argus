@@ -29,8 +29,8 @@ from backend.domain.llm import (
 
 def _make_e2e_client(gemini_raises=False):
     """Build LlmClient with primary forced down → secondary serves."""
-    from backend.infra.llm import LlmClient
     from backend.infra.config import LlmSettings
+    from backend.infra.llm import LlmClient
     from backend.infra.redaction import build_redactor
     from backend.infra.tracing import build_tracer
 
@@ -47,7 +47,9 @@ def _make_e2e_client(gemini_raises=False):
     gemini.provider_id = ProviderId.GEMINI
     if gemini_raises:
         gemini.generate = AsyncMock(
-            side_effect=LlmError(kind=LlmErrorKind.TRANSIENT, provider=ProviderId.GEMINI, message="down")
+            side_effect=LlmError(
+                kind=LlmErrorKind.TRANSIENT, provider=ProviderId.GEMINI, message="down"
+            )
         )
     else:
         gemini.generate = AsyncMock(
@@ -112,8 +114,8 @@ class TestLlmE2E:
         assert resp_g.provider == ProviderId.GEMINI
 
         # Ollama-first (switch primary)
-        from backend.infra.llm import LlmClient
         from backend.infra.config import LlmSettings
+        from backend.infra.llm import LlmClient
         from backend.infra.redaction import build_redactor
         from backend.infra.tracing import build_tracer
 

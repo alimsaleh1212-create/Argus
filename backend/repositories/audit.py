@@ -8,7 +8,6 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,10 +32,7 @@ class AuditRepository:
     async def is_applied(self, idempotency_key: str) -> bool:
         """Return True if an applied row with this idempotency_key already exists."""
         result = await self._session.execute(
-            sa.text(
-                "SELECT 1 FROM audit_log "
-                "WHERE idempotency_key = :key AND outcome = 'applied'"
-            ),
+            sa.text("SELECT 1 FROM audit_log WHERE idempotency_key = :key AND outcome = 'applied'"),
             {"key": idempotency_key},
         )
         return result.first() is not None
@@ -57,7 +53,6 @@ class AuditRepository:
         (already executed — idempotent skip, RD6). All other rows are always inserted.
         Returns True if a row was inserted, False if the unique constraint blocked it.
         """
-        import json
 
         if idempotency_key is not None and outcome == "applied":
             result = await self._session.execute(
@@ -107,14 +102,16 @@ class AuditRepository:
         )
         rows = []
         for row in result.mappings().all():
-            rows.append(AuditRow(
-                id=row["id"],
-                incident_id=uuid.UUID(str(row["incident_id"])),
-                actor=row["actor"],
-                action=row["action"],
-                target=row.get("target"),
-                outcome=row["outcome"],
-                idempotency_key=row.get("idempotency_key"),
-                created_at=row["created_at"],
-            ))
+            rows.append(
+                AuditRow(
+                    id=row["id"],
+                    incident_id=uuid.UUID(str(row["incident_id"])),
+                    actor=row["actor"],
+                    action=row["action"],
+                    target=row.get("target"),
+                    outcome=row["outcome"],
+                    idempotency_key=row.get("idempotency_key"),
+                    created_at=row["created_at"],
+                )
+            )
         return rows

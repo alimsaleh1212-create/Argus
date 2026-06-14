@@ -18,7 +18,11 @@ class SupervisorProvider:
 
     @contextlib.asynccontextmanager
     async def build(self, settings: Any) -> AsyncGenerator[Any, None]:
-        from backend.agents.response import load_playbook_catalog, make_response_handler, run_response
+        from backend.agents.response import (
+            load_playbook_catalog,
+            make_response_handler,
+            run_response,
+        )
         from backend.domain.pipeline import StageName
         from backend.infra.tracing import build_tracer
         from backend.services.supervisor import Supervisor
@@ -26,21 +30,25 @@ class SupervisorProvider:
         cfg = getattr(settings, "supervisor", None)
         if cfg is None:
             from backend.infra.config import SupervisorSettings
+
             cfg = SupervisorSettings()
 
         triage_cfg = getattr(settings, "triage", None)
         if triage_cfg is None:
             from backend.infra.config import TriageSettings
+
             triage_cfg = TriageSettings()
 
         enrichment_cfg = getattr(settings, "enrichment", None)
         if enrichment_cfg is None:
             from backend.infra.config import EnrichmentSettings
+
             enrichment_cfg = EnrichmentSettings()
 
         response_cfg = getattr(settings, "response", None)
         if response_cfg is None:
             from backend.infra.config import ResponseSettings
+
             response_cfg = ResponseSettings()
 
         tracer_bundle = getattr(getattr(settings, "_container", None), "observability", None)
@@ -55,6 +63,7 @@ class SupervisorProvider:
 
         if llm_client is not None:
             from backend.agents.triage import make_triage_handler
+
             triage_handler = make_triage_handler(llm_client, triage_cfg)
         else:
             from backend.domain.incident import Incident
@@ -69,6 +78,7 @@ class SupervisorProvider:
 
         if llm_client is not None:
             from backend.agents.enrichment import make_enrichment_handler
+
             enrichment_handler = make_enrichment_handler(
                 llm_client, corpus_retriever, memory_store, intel_client, enrichment_cfg
             )
@@ -85,8 +95,9 @@ class SupervisorProvider:
 
         # Build the real response handler when LLM + DB engine are available (T015)
         if llm_client is not None and db_engine is not None:
-            from backend.infra.executors import build_mock_executors
             from sqlalchemy.ext.asyncio import async_sessionmaker
+
+            from backend.infra.executors import build_mock_executors
 
             session_factory = async_sessionmaker(db_engine.engine, expire_on_commit=False)
             executors = build_mock_executors()

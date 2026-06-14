@@ -17,8 +17,13 @@ from backend.domain.incident import Incident, IncidentStatus, Severity
 from backend.domain.pipeline import StageName, StageOutcome, StageResult
 from backend.infra.config import SupervisorSettings
 from backend.infra.tracing import build_tracer
-from backend.services.supervisor import Supervisor, _ROUTE_AMBIGUOUS, _ROUTE_CRITICAL, _ROUTE_NOISE, route_grounded
-
+from backend.services.supervisor import (
+    _ROUTE_AMBIGUOUS,
+    _ROUTE_CRITICAL,
+    _ROUTE_NOISE,
+    Supervisor,
+    route_grounded,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -26,8 +31,13 @@ from backend.services.supervisor import Supervisor, _ROUTE_AMBIGUOUS, _ROUTE_CRI
 
 
 def _incident(severity: Severity, flags: list[str] | None = None) -> Incident:
-    evidence = {"flags": flags or [], "verdict": "test", "severity": severity.value,
-                "normalized_event": {}, "summary": ""}
+    evidence = {
+        "flags": flags or [],
+        "verdict": "test",
+        "severity": severity.value,
+        "normalized_event": {},
+        "summary": "",
+    }
     return Incident(
         id=uuid.uuid4(),
         status=IncidentStatus.GROUNDED,
@@ -50,16 +60,22 @@ class FakeRepo:
             return self._incident
         return None
 
-    async def advance_status(self, incident_id, *, expected, target, disposition=None, evidence_patch=None) -> bool:
+    async def advance_status(
+        self, incident_id, *, expected, target, disposition=None, evidence_patch=None
+    ) -> bool:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
         self.advances.append({"from": expected, "to": target, "disposition": disposition})
-        self._incident = self._incident.model_copy(update={"status": target, "disposition": disposition})
+        self._incident = self._incident.model_copy(
+            update={"status": target, "disposition": disposition}
+        )
         return True
 
 
 def _make_supervisor(stages: dict, cfg: SupervisorSettings | None = None) -> Supervisor:
-    return Supervisor(stages=stages, cfg=cfg or SupervisorSettings(), tracer=build_tracer(exporter=None))
+    return Supervisor(
+        stages=stages, cfg=cfg or SupervisorSettings(), tracer=build_tracer(exporter=None)
+    )
 
 
 # ---------------------------------------------------------------------------

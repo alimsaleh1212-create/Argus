@@ -50,6 +50,12 @@ class AuditView(BaseModel):
     created_at: datetime
 
 
+class AuditPage(BaseModel):
+    """Audit trail for one incident."""
+
+    audit: list[AuditView]
+
+
 class ApprovalView(BaseModel):
     """Projection of approval_requests for the UI."""
 
@@ -95,7 +101,7 @@ class SpanView(BaseModel):
     ended_at: datetime | None = None
     latency_ms: int | None = None
     llm_model: str | None = None
-    tokens_in: int | None = None   # null = "unknown", never coerced to 0
+    tokens_in: int | None = None  # null = "unknown", never coerced to 0
     tokens_out: int | None = None  # null = "unknown", never coerced to 0
     attributes: dict[str, Any] = Field(default_factory=dict)
     error_message: str | None = None

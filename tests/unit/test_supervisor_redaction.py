@@ -12,7 +12,6 @@ from typing import Any
 import pytest
 
 from backend.domain.incident import Incident, IncidentStatus, Severity
-from backend.domain.pipeline import StageName, StageOutcome, StageResult
 from backend.infra.config import SupervisorSettings
 from backend.infra.tracing import build_tracer
 from backend.services.supervisor import Supervisor
@@ -30,8 +29,14 @@ def _incident_with_secret() -> Incident:
         dedup_fingerprint="fp-redaction",
         source="wazuh",
         raw_alert={"rule": {"level": 2}, "detail": _SECRET},
-        evidence={"flags": [], "verdict": "test", "severity": "low", "summary": f"key={_SECRET}",
-                  "normalized_event": {}, "retrieved_context": []},
+        evidence={
+            "flags": [],
+            "verdict": "test",
+            "severity": "low",
+            "summary": f"key={_SECRET}",
+            "normalized_event": {},
+            "retrieved_context": [],
+        },
     )
 
 
@@ -47,11 +52,15 @@ class RecordingRepo:
             return self._incident
         return None
 
-    async def advance_status(self, incident_id, *, expected, target, disposition=None, evidence_patch=None) -> bool:
+    async def advance_status(
+        self, incident_id, *, expected, target, disposition=None, evidence_patch=None
+    ) -> bool:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
         self.advances.append({"from": expected, "to": target, "disposition": disposition})
-        self._incident = self._incident.model_copy(update={"status": target, "disposition": disposition})
+        self._incident = self._incident.model_copy(
+            update={"status": target, "disposition": disposition}
+        )
         return True
 
 
@@ -70,7 +79,6 @@ class RecordingTracer:
 @pytest.mark.asyncio
 async def test_supervisor_spans_do_not_contain_planted_secret():
     """Span attributes emitted during run_incident must not contain the planted secret."""
-    from backend.infra.tracing import span as _span
 
     incident = _incident_with_secret()
     repo = RecordingRepo(incident)
