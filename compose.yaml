@@ -126,7 +126,8 @@ services:
       retries: 20
       start_period: 30s
 
-  # One-shot: pull the pinned fallback model so the stack works from a fresh clone.
+  # One-shot: pull the embedding model used by Graphiti memory (nomic-embed-text).
+  # The LLM model (gemma4:31b-cloud) is cloud-hosted — no local pull needed.
   ollama-pull:
     image: ollama/ollama
     depends_on:
@@ -134,7 +135,7 @@ services:
         condition: service_healthy
     environment:
       OLLAMA_HOST: http://ollama:11434
-    entrypoint: ["ollama", "pull", "qwen2:0.5b"]
+    entrypoint: ["ollama", "pull", "nomic-embed-text"]
     restart: on-failure
 
   # One-shot: applies Alembic schema migrations before the API starts.
