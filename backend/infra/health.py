@@ -43,7 +43,9 @@ async def check_vault(settings: Any) -> DependencyStatus:
 async def check_postgres(settings: Any) -> DependencyStatus:
     """Probe Postgres by opening a short-lived async connection."""
     timeout = getattr(settings.startup, "dependency_timeout_s", 5.0)
-    dsn = settings.postgres.dsn.get_secret_value()
+    # Settings carries a SQLAlchemy DSN ("postgresql+asyncpg://…"); raw asyncpg
+    # only accepts the libpq scheme ("postgresql://…"), so strip the dialect.
+    dsn = settings.postgres.dsn.get_secret_value().replace("+asyncpg", "")
     try:
         import asyncpg
 

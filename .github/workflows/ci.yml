@@ -115,7 +115,19 @@ jobs:
           cp .env.example .env
           docker compose up -d --wait --timeout 120
       - name: Assert readiness
-        run: curl -fsS http://localhost:8000/ready
+        run: |
+          # --wait only guarantees container healthchecks (api = /health liveness);
+          # /ready probes all deps, so poll it with a window.
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/ready; then
+              echo "✓ /ready returned 200"; exit 0
+            fi
+            echo "waiting for /ready ($i/30)…"; sleep 2
+          done
+          echo "::error::/ready never returned 200 — final body + api logs:"
+          curl -s http://localhost:8000/ready || true
+          docker compose logs api --tail 80 || true
+          exit 1
       - name: Tear down
         if: always()
         run: docker compose down -v
