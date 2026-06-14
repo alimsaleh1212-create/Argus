@@ -6,10 +6,6 @@ TDD: these must FAIL before domain/incident.py is implemented.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-
-import pytest
-from pydantic import ValidationError
 
 
 class TestIncidentStatusEnum:
@@ -177,7 +173,7 @@ class TestIncident:
 
 class TestIngestResult:
     def test_new_incident_result(self) -> None:
-        from backend.domain.incident import IngestResult, IncidentStatus
+        from backend.domain.incident import IncidentStatus, IngestResult
 
         result = IngestResult(
             incident_id=uuid.uuid4(),
@@ -187,7 +183,7 @@ class TestIngestResult:
         assert result.deduplicated is False
 
     def test_dedup_result(self) -> None:
-        from backend.domain.incident import IngestResult, IncidentStatus
+        from backend.domain.incident import IncidentStatus, IngestResult
 
         result = IngestResult(
             incident_id=uuid.uuid4(),

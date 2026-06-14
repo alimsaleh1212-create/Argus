@@ -41,11 +41,15 @@ class FakeRepo:
             return self._incident
         return None
 
-    async def advance_status(self, incident_id, *, expected, target, disposition=None, evidence_patch=None) -> bool:
+    async def advance_status(
+        self, incident_id, *, expected, target, disposition=None, evidence_patch=None
+    ) -> bool:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
         self.advances.append({"from": expected, "to": target, "disposition": disposition})
-        self._incident = self._incident.model_copy(update={"status": target, "disposition": disposition})
+        self._incident = self._incident.model_copy(
+            update={"status": target, "disposition": disposition}
+        )
         return True
 
 
@@ -61,7 +65,6 @@ def _make_supervisor(stages: dict) -> Supervisor:
 @pytest.mark.asyncio
 async def test_needs_approval_parks_incident():
     """Response returning NEEDS_APPROVAL → incident parks in awaiting_approval, loop stops."""
-    after_park_calls = 0
 
     async def response(inc):
         return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.NEEDS_APPROVAL)
@@ -79,7 +82,6 @@ async def test_needs_approval_parks_incident():
 @pytest.mark.asyncio
 async def test_loop_stops_after_park():
     """After parking, run_incident does not call any more stages."""
-    post_park_calls = 0
 
     async def response(inc):
         return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.NEEDS_APPROVAL)

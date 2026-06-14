@@ -16,17 +16,17 @@ Covers:
 
 from __future__ import annotations
 
-import re
-
 import pytest
 
-from backend.domain.redaction import Boundary, SensitiveClass
+from backend.domain.redaction import Boundary
 from backend.infra.redaction import build_redactor
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
 FAKE_AWS_KEY = "AKIAIOSFODNN7EXAMPLE"
-FAKE_BEARER = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+FAKE_BEARER = (
+    "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+)
 FAKE_PEM = "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA0Z3VS5JJcds3xHn/ygWep4\n-----END RSA PRIVATE KEY-----"
 FAKE_KV = "apikey=abc123secretvalue"
 FAKE_EMAIL = "alice@example.com"
@@ -50,6 +50,7 @@ def redactor_with_presidio():
 
 
 # ── CREDENTIAL: scrubbed everywhere (FR-006a) ─────────────────────────────
+
 
 class TestCredentialEverywhere:
     @pytest.mark.parametrize("boundary", list(Boundary))
@@ -85,15 +86,20 @@ class TestCredentialEverywhere:
 
 # ── PII: output boundaries only; raw at internal boundaries (FR-006b) ────────
 
+
 class TestPIIBoundaryPolicy:
-    @pytest.mark.parametrize("boundary", [
-        Boundary.LOG, Boundary.TRACE, Boundary.PROMPT,
-        Boundary.SNAPSHOT, Boundary.DASHBOARD,
-    ])
+    @pytest.mark.parametrize(
+        "boundary",
+        [
+            Boundary.LOG,
+            Boundary.TRACE,
+            Boundary.PROMPT,
+            Boundary.SNAPSHOT,
+            Boundary.DASHBOARD,
+        ],
+    )
     def test_email_redacted_at_output_boundary(self, redactor_with_presidio, boundary) -> None:
-        result = redactor_with_presidio.redact_text(
-            f"user email is {FAKE_EMAIL}", boundary
-        )
+        result = redactor_with_presidio.redact_text(f"user email is {FAKE_EMAIL}", boundary)
         assert FAKE_EMAIL not in result
 
     @pytest.mark.parametrize("boundary", [Boundary.MEMORY_WRITE, Boundary.OPERATIONAL])
@@ -105,36 +111,34 @@ class TestPIIBoundaryPolicy:
 
 # ── OPERATIONAL_IDENTIFIER: raw internally, redacted at output ───────────────
 
+
 class TestOperationalIdentifier:
     @pytest.mark.parametrize("boundary", [Boundary.MEMORY_WRITE, Boundary.OPERATIONAL])
     def test_ip_survives_at_internal_boundary(self, redactor_with_presidio, boundary) -> None:
-        result = redactor_with_presidio.redact_text(
-            f"source_ip={FAKE_IP}", boundary
-        )
+        result = redactor_with_presidio.redact_text(f"source_ip={FAKE_IP}", boundary)
         assert FAKE_IP in result
 
-    @pytest.mark.parametrize("boundary", [
-        Boundary.LOG, Boundary.TRACE, Boundary.PROMPT,
-        Boundary.SNAPSHOT, Boundary.DASHBOARD,
-    ])
+    @pytest.mark.parametrize(
+        "boundary",
+        [
+            Boundary.LOG,
+            Boundary.TRACE,
+            Boundary.PROMPT,
+            Boundary.SNAPSHOT,
+            Boundary.DASHBOARD,
+        ],
+    )
     def test_ip_redacted_at_output_boundary(self, redactor_with_presidio, boundary) -> None:
-        result = redactor_with_presidio.redact_text(
-            f"source_ip={FAKE_IP}", boundary
-        )
+        result = redactor_with_presidio.redact_text(f"source_ip={FAKE_IP}", boundary)
         assert FAKE_IP not in result
 
 
 # ── Nested traversal and idempotency (FR-004) ────────────────────────────────
 
+
 class TestNestedAndIdempotent:
     def test_nested_three_levels_deep(self, redactor) -> None:
-        data = {
-            "level1": {
-                "level2": {
-                    "level3": f"secret={FAKE_AWS_KEY}"
-                }
-            }
-        }
+        data = {"level1": {"level2": {"level3": f"secret={FAKE_AWS_KEY}"}}}
         result = redactor.redact_mapping(data, Boundary.LOG)
         assert FAKE_AWS_KEY not in str(result)
 
@@ -170,6 +174,7 @@ class TestNestedAndIdempotent:
 
 # ── High-entropy heuristic (FR-005) ─────────────────────────────────────────
 
+
 class TestEntropyHeuristic:
     def test_high_entropy_token_flagged(self, redactor) -> None:
         result = redactor.redact_text(FAKE_HIGH_ENTROPY, Boundary.LOG)
@@ -182,6 +187,7 @@ class TestEntropyHeuristic:
 
 
 # ── Fail-closed (FR-003) ─────────────────────────────────────────────────────
+
 
 class TestFailClosed:
     def test_redactor_error_yields_fail_closed_placeholder(self, monkeypatch) -> None:

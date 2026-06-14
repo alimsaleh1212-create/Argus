@@ -32,6 +32,7 @@ def _docker_available() -> bool:
 
 
 @pytest.mark.e2e
+@pytest.mark.needs_compose
 @pytest.mark.skipif(not _docker_available(), reason="Docker not available")
 class TestComposeSmokeE2E:
     def test_compose_up_reaches_healthy(self) -> None:

@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-import pytest
-
 from backend.domain.telemetry import Span, SpanKind, SpanStatus, TelemetryRecord, TraceTree
-from backend.routers.incidents import _span_to_view, _EMPTY_TELEMETRY
+from backend.routers.incidents import _EMPTY_TELEMETRY, _span_to_view
 
 _T0 = datetime(2026, 6, 12, 9, 0, 0, tzinfo=UTC)
 _T1 = _T0 + timedelta(milliseconds=500)

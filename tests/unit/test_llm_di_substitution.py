@@ -6,12 +6,10 @@ so consumers run unchanged with zero real provider calls.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
-
-import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
+from backend.dependencies import get_llm
 from backend.domain.llm import (
     LlmMessage,
     LlmRequest,
@@ -20,7 +18,6 @@ from backend.domain.llm import (
     StopReason,
     TokenUsage,
 )
-from backend.dependencies import get_llm
 
 
 class FakeLlm:
@@ -28,7 +25,9 @@ class FakeLlm:
 
     call_count: int = 0
 
-    async def generate(self, request: LlmRequest, *, correlation_id: str, parent_span_id=None) -> LlmResponse:
+    async def generate(
+        self, request: LlmRequest, *, correlation_id: str, parent_span_id=None
+    ) -> LlmResponse:
         self.call_count += 1
         return LlmResponse(
             content="fake",

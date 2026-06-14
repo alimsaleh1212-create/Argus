@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -12,7 +12,7 @@ from backend.domain.incident import Severity
 from backend.domain.memory import EntityKind, EntityRef, EpisodeQuery, FactState, IncidentEpisode
 from backend.infra.memory import NullMemory
 
-_NOW = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
 _UUID = uuid.uuid4()
 
 
@@ -28,6 +28,7 @@ def _episode() -> IncidentEpisode:
 
 
 # ── NullMemory contract ───────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_null_memory_write_is_noop() -> None:
@@ -63,11 +64,11 @@ async def test_null_memory_query_fact_with_as_of() -> None:
 
 # ── record_episode swallows a store that raises ───────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_record_episode_swallows_store_error() -> None:
     """record_episode must not raise when the store throws — FR-006."""
     from backend.domain.incident import Incident, IncidentStatus
-    from backend.domain.redaction import Boundary
     from backend.services.memory import record_episode
 
     failing_store = AsyncMock()
@@ -96,6 +97,7 @@ async def test_record_episode_swallows_store_error() -> None:
 
 
 # ── NullMemory satisfies MemoryStore Protocol ────────────────────────────────
+
 
 def test_null_memory_satisfies_protocol() -> None:
     from backend.domain.memory import MemoryStore

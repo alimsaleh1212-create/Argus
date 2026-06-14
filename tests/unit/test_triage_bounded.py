@@ -22,7 +22,12 @@ def _incident() -> Incident:
         dedup_fingerprint="fp-bound",
         source="wazuh",
         raw_alert={},
-        evidence={"verdict": "suspicious", "severity": "medium", "normalized_event": {}, "summary": "t"},
+        evidence={
+            "verdict": "suspicious",
+            "severity": "medium",
+            "normalized_event": {},
+            "summary": "t",
+        },
     )
 
 

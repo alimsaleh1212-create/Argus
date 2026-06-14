@@ -20,9 +20,23 @@ from backend.domain.llm import ProviderId
 
 _KNOWN_ARGUS_SECTIONS = frozenset(
     {
-        "app", "vault", "postgres", "minio", "startup", "observability",
-        "llm", "redis", "ingest", "supervisor", "triage", "memory",
-        "corpus", "intel", "enrichment", "response", "dashboard",
+        "app",
+        "vault",
+        "postgres",
+        "minio",
+        "startup",
+        "observability",
+        "llm",
+        "redis",
+        "ingest",
+        "supervisor",
+        "triage",
+        "memory",
+        "corpus",
+        "intel",
+        "enrichment",
+        "response",
+        "dashboard",
     }
 )
 _ARGUS_PREFIX = "ARGUS__"

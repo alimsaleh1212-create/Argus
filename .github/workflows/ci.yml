@@ -21,8 +21,13 @@ jobs:
       - run: uv run ruff format --check backend/ tests/
       - run: uv run lint-imports
 
-  test:
-    name: Unit + integration (coverage ≥80%)
+  # ── Tiered tests ────────────────────────────────────────────────────────────
+  # Each tier runs on its OWN fresh runner, so memory is isolated and the heavy
+  # testcontainers tier never competes with the fast tier. Coverage data from
+  # each tier is uploaded, then merged in the `coverage` gate below.
+
+  test-unit:
+    name: Unit (fast, no Docker)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,12 +35,79 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync
-      - run: uv run pytest tests/unit tests/integration --cov=backend --cov-fail-under=80 -q
+      - name: Run unit tier
+        run: COVERAGE_FILE=.coverage.unit uv run pytest tests/unit --cov=backend --cov-report= -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cov-unit
+          path: .coverage.unit
+          include-hidden-files: true
+
+  test-integration:
+    name: Integration (testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync
+      - name: Run integration tier
+        run: COVERAGE_FILE=.coverage.integration uv run pytest tests/integration --cov=backend --cov-report= -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cov-integration
+          path: .coverage.integration
+          include-hidden-files: true
+
+  test-e2e:
+    name: E2E in-process (no Docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync
+      - name: Run in-process e2e tier (excludes compose-only tests)
+        run: COVERAGE_FILE=.coverage.e2e uv run pytest tests/e2e -m "not needs_compose" --cov=backend --cov-report= -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cov-e2e
+          path: .coverage.e2e
+          include-hidden-files: true
+
+  coverage:
+    name: Coverage gate (≥80%)
+    runs-on: ubuntu-latest
+    needs: [test-unit, test-integration, test-e2e]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync
+      - uses: actions/download-artifact@v4
+        with:
+          name: cov-unit
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: cov-integration
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: cov-e2e
+          path: .
+      - name: Combine + enforce gate
+        run: |
+          uv run coverage combine .coverage.unit .coverage.integration .coverage.e2e
+          uv run coverage report --fail-under=80
 
   smoke:
     name: E2E smoke (compose up → /ready)
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, coverage]
     steps:
       - uses: actions/checkout@v4
       - name: Start stack

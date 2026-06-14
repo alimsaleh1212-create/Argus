@@ -6,7 +6,6 @@ Live test: gated on GEMINI_API_KEY presence (skipped in keyless CI).
 
 from __future__ import annotations
 
-import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,7 +17,6 @@ from backend.domain.llm import (
     LlmResponse,
     ProviderId,
     StopReason,
-    TokenUsage,
 )
 
 
@@ -30,8 +28,8 @@ def _gemini_key_present() -> bool:
 class TestGeminiDriverMapping:
     async def test_request_response_mapping_mocked(self) -> None:
         """GeminiDriver maps uniform request/response correctly via mocked SDK."""
-        from backend.infra.llm_drivers import GeminiDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import GeminiDriver
 
         settings = LlmSettings(gemini_model="gemini-1.5-flash")
 
@@ -66,8 +64,8 @@ class TestGeminiDriverMapping:
 
     async def test_usage_normalization_mocked(self) -> None:
         """Gemini usage_metadata → TokenUsage.prompt_tokens / completion_tokens."""
-        from backend.infra.llm_drivers import GeminiDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import GeminiDriver
 
         settings = LlmSettings(gemini_model="gemini-1.5-flash")
 
@@ -95,16 +93,20 @@ class TestGeminiDriverMapping:
         assert resp.usage.prompt_tokens == 42
         assert resp.usage.completion_tokens == 7
 
-    @pytest.mark.skipif(not _gemini_key_present(), reason="GEMINI_API_KEY not set — live test skipped")
+    @pytest.mark.skipif(
+        not _gemini_key_present(), reason="GEMINI_API_KEY not set — live test skipped"
+    )
     async def test_live_gemini_smoke(self) -> None:
         """Live Gemini smoke test — requires GEMINI_API_KEY env var."""
-        from backend.infra.llm_drivers import GeminiDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import GeminiDriver
 
         api_key = os.environ["GEMINI_API_KEY"]
         settings = LlmSettings(gemini_model="gemini-1.5-flash")
         driver = GeminiDriver(settings, api_key=api_key)
-        req = LlmRequest(messages=[LlmMessage(role="user", content="Reply with the single word: pong")])
+        req = LlmRequest(
+            messages=[LlmMessage(role="user", content="Reply with the single word: pong")]
+        )
         resp = await driver.generate(req)
 
         assert isinstance(resp, LlmResponse)

@@ -38,9 +38,7 @@ class TestIntakeAccept:
         mock_cache.set = AsyncMock(return_value=True)
 
         mock_redactor = MagicMock()
-        mock_redactor.redact_mapping = MagicMock(
-            return_value={"rule": {"level": 10, "id": "5763"}}
-        )
+        mock_redactor.redact_mapping = MagicMock(return_value={"rule": {"level": 10, "id": "5763"}})
 
         fake_incident = Incident(
             id=uuid.uuid4(),

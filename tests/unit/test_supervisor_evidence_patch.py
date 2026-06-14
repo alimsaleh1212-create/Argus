@@ -47,7 +47,12 @@ class FakeRepo:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
         self.advance_calls.append(
-            {"from": expected, "to": target, "disposition": disposition, "evidence_patch": evidence_patch}
+            {
+                "from": expected,
+                "to": target,
+                "disposition": disposition,
+                "evidence_patch": evidence_patch,
+            }
         )
         self._incident = self._incident.model_copy(update={"status": target})
         return True
@@ -78,22 +83,26 @@ async def test_supervisor_forwards_evidence_patch_on_advance():
 
     # Enrichment and response stubs so the loop can terminate
     async def fake_enrichment(_inc: Incident) -> StageResult:
-        return StageResult(stage=StageName.ENRICHMENT, outcome=StageOutcome.ADVANCE, tokens_consumed=0)
+        return StageResult(
+            stage=StageName.ENRICHMENT, outcome=StageOutcome.ADVANCE, tokens_consumed=0
+        )
 
     async def fake_response(_inc: Incident) -> StageResult:
-        return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.RESOLVED, tokens_consumed=0)
+        return StageResult(
+            stage=StageName.RESPONSE, outcome=StageOutcome.RESOLVED, tokens_consumed=0
+        )
 
-    sup = _supervisor({
-        StageName.TRIAGE: fake_triage,
-        StageName.ENRICHMENT: fake_enrichment,
-        StageName.RESPONSE: fake_response,
-    })
+    sup = _supervisor(
+        {
+            StageName.TRIAGE: fake_triage,
+            StageName.ENRICHMENT: fake_enrichment,
+            StageName.RESPONSE: fake_response,
+        }
+    )
     await sup.run_incident(incident.id, repo)
 
     # The triage→enriching transition must have carried the patch
-    triage_advance = next(
-        c for c in repo.advance_calls if c["from"] == IncidentStatus.TRIAGING
-    )
+    triage_advance = next(c for c in repo.advance_calls if c["from"] == IncidentStatus.TRIAGING)
     assert triage_advance["evidence_patch"] == patch
 
 
@@ -112,14 +121,14 @@ async def test_supervisor_passes_none_patch_when_stage_returns_none():
             evidence_patch=None,
         )
 
-    sup = _supervisor({
-        StageName.TRIAGE: fake_triage,
-        StageName.ENRICHMENT: lambda _: None,  # type: ignore[arg-type]
-        StageName.RESPONSE: lambda _: None,    # type: ignore[arg-type]
-    })
+    sup = _supervisor(
+        {
+            StageName.TRIAGE: fake_triage,
+            StageName.ENRICHMENT: lambda _: None,  # type: ignore[arg-type]
+            StageName.RESPONSE: lambda _: None,  # type: ignore[arg-type]
+        }
+    )
     await sup.run_incident(incident.id, repo)
 
-    triage_advance = next(
-        c for c in repo.advance_calls if c["from"] == IncidentStatus.TRIAGING
-    )
+    triage_advance = next(c for c in repo.advance_calls if c["from"] == IncidentStatus.TRIAGING)
     assert triage_advance["evidence_patch"] is None

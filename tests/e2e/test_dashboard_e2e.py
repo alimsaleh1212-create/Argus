@@ -138,9 +138,7 @@ def _make_app():
         repo.list_for_queue = AsyncMock(return_value=[summary])
         repo.count_for_queue = AsyncMock(return_value=1)
         repo.get = AsyncMock(return_value=incident)
-        repo.kpi_volume_buckets = AsyncMock(
-            return_value=[VolumeBucket(bucket=_NOW, count=1)]
-        )
+        repo.kpi_volume_buckets = AsyncMock(return_value=[VolumeBucket(bucket=_NOW, count=1)])
         repo.kpi_disposition_counts = AsyncMock(return_value={"auto_remediated": 1})
         repo.kpi_mean_time_to_disposition_ms = AsyncMock(return_value=30_000)
         repo.kpi_enriched_and_hit_counts = AsyncMock(
@@ -237,20 +235,30 @@ class TestDashboardE2E:
             assert client.get(f"/incidents/{_INC_ID}/audit").status_code == 401
 
     def test_unknown_incident_returns_404(self) -> None:
-        unknown_id = uuid.UUID("bbbbbbbb-0000-0000-0000-000000000002")
-        with TestClient(self.app, raise_server_exceptions=False) as client:
-            token = self._login(client)
-            headers = {"Authorization": f"Bearer {token}"}
+        from backend.dependencies import get_incident_repo
 
-            resp = client.get(f"/incidents/{unknown_id}", headers=headers)
-            # The mock returns the seeded incident for _INC_ID; unknown_id returns None → 404
-            # We need a separate app where get returns None for unknown_id
-            # The mock always returns the seeded incident, so this will succeed unless we override
-            # Test the audit endpoint which checks incident existence independently
-            resp = client.get(f"/incidents/{unknown_id}/audit", headers=headers)
-            # audit also checks incident first — returns 404 if not found
-            # But our mock repo.get returns _INC_ID incident for all IDs
-            # This verifies auth works; the 404 case is covered in integration tests
+        unknown_id = uuid.UUID("bbbbbbbb-0000-0000-0000-000000000002")
+
+        # Override the incident repo so get() returns None for any id → 404 path.
+        async def empty_incident_repo():
+            repo = AsyncMock()
+            repo.get = AsyncMock(return_value=None)
+            yield repo
+
+        self.app.dependency_overrides[get_incident_repo] = empty_incident_repo
+        try:
+            with TestClient(self.app, raise_server_exceptions=False) as client:
+                token = self._login(client)
+                headers = {"Authorization": f"Bearer {token}"}
+
+                detail = client.get(f"/incidents/{unknown_id}", headers=headers)
+                assert detail.status_code == 404
+
+                # The audit endpoint also checks incident existence first.
+                audit = client.get(f"/incidents/{unknown_id}/audit", headers=headers)
+                assert audit.status_code == 404
+        finally:
+            self.app.dependency_overrides.pop(get_incident_repo, None)
 
     def test_queue_filter_by_status_applied(self) -> None:
         with TestClient(self.app, raise_server_exceptions=False) as client:

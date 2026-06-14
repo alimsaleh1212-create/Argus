@@ -11,7 +11,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from backend.dependencies import get_approval_repo, get_audit_repo, get_current_operator, get_incident_repo, get_supervisor
+from backend.dependencies import (
+    get_approval_repo,
+    get_audit_repo,
+    get_current_operator,
+    get_incident_repo,
+    get_supervisor,
+)
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
@@ -28,12 +34,12 @@ async def list_approvals(
     approval_repo=Depends(get_approval_repo),
 ) -> dict[str, Any]:
     """List approval requests filtered by status (default: pending)."""
-    from backend.domain.response import ApprovalStatus
     from backend.repositories.approvals import ApprovalRepository
 
     repo: ApprovalRepository = approval_repo
     if status == "pending":
-        from datetime import UTC, datetime
+        from datetime import datetime
+
         # Return all pending (not yet expired by sweeper)
         records = await repo.list_pending_expired(datetime(9999, 12, 31))
         # Actually we want ALL pending, not just expired — use a full list
@@ -62,13 +68,11 @@ async def list_approvals(
 async def _list_all_pending(repo: Any) -> list:
     """Retrieve all pending approvals (helper for list endpoint)."""
     import sqlalchemy as sa
+
     from backend.repositories.approvals import _row_to_record
 
     result = await repo._session.execute(
-        sa.text(
-            "SELECT * FROM approval_requests WHERE status = 'pending' "
-            "ORDER BY created_at ASC"
-        )
+        sa.text("SELECT * FROM approval_requests WHERE status = 'pending' ORDER BY created_at ASC")
     )
     return [_row_to_record(row) for row in result.mappings().all()]
 
@@ -88,7 +92,7 @@ async def post_decision(
     approve → AWAITING_APPROVAL → RESPONDING → re-runs response stage → resolved/remediated.
     reject  → AWAITING_APPROVAL → RESOLVED (rejected_by_human) + audit row.
     """
-    from backend.domain.response import ApprovalDecision, ApprovalStatus
+    from backend.domain.response import ApprovalStatus
 
     if body.decision not in ("approve", "reject"):
         raise HTTPException(status_code=422, detail=f"Invalid decision: {body.decision!r}")

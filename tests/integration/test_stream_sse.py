@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
@@ -53,7 +52,12 @@ def _make_app(*, summaries=None, kpi_counts=None):
     app.dependency_overrides[get_auth_service] = lambda: auth_svc
 
     _summaries = summaries or []
-    _kpi_counts = kpi_counts or {"active": 0, "awaiting_approval": 0, "auto_resolved": 0, "escalated": 0}
+    _kpi_counts = kpi_counts or {
+        "active": 0,
+        "awaiting_approval": 0,
+        "auto_resolved": 0,
+        "escalated": 0,
+    }
 
     async def fake_incident_repo():
         repo = AsyncMock()
@@ -86,9 +90,9 @@ def _parse_first_event(raw: bytes) -> dict:
     data = None
     for line in text.splitlines():
         if line.startswith("event: "):
-            event_type = line[len("event: "):]
+            event_type = line[len("event: ") :]
         elif line.startswith("data: "):
-            data = json.loads(line[len("data: "):])
+            data = json.loads(line[len("data: ") :])
         if event_type and data is not None:
             break
     return {"event": event_type, "data": data}

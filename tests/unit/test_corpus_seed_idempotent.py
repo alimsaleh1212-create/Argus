@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from backend.domain.corpus import ReferenceCorpusEntry, ReferenceKind
+from backend.domain.corpus import ReferenceCorpusEntry
 from backend.services.corpus import seed_reference, seed_reputation
 
 
@@ -20,6 +20,7 @@ def _make_redactor():
 
 # ── seed_reference idempotency ───────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_seed_reference_calls_upsert_once() -> None:
     redactor = _make_redactor()
@@ -28,10 +29,20 @@ async def test_seed_reference_calls_upsert_once() -> None:
 
     records = {
         "techniques": [
-            {"id": "T1110", "title": "Brute Force", "tactic": "credential-access", "mitigations": "Use MFA."}
+            {
+                "id": "T1110",
+                "title": "Brute Force",
+                "tactic": "credential-access",
+                "mitigations": "Use MFA.",
+            }
         ],
         "runbooks": [
-            {"key": "rb-bf", "title": "BF Runbook", "techniques": ["T1110"], "steps": "1) do thing."}
+            {
+                "key": "rb-bf",
+                "title": "BF Runbook",
+                "techniques": ["T1110"],
+                "steps": "1) do thing.",
+            }
         ],
     }
 
@@ -104,16 +115,21 @@ async def test_seed_reference_all_malformed_no_upsert() -> None:
 
 # ── seed_reputation ──────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_seed_reputation_calls_write_fact() -> None:
-    from backend.infra.memory import NullMemory
 
     redactor = _make_redactor()
     store = MagicMock()
     store.write_fact = AsyncMock()
 
     records = [
-        {"indicator": "1.2.3.4", "kind": "address", "reputation": "malicious", "as_of": "2026-01-01T00:00:00Z"}
+        {
+            "indicator": "1.2.3.4",
+            "kind": "address",
+            "reputation": "malicious",
+            "as_of": "2026-01-01T00:00:00Z",
+        }
     ]
     await seed_reputation(records, redactor, store)
     store.write_fact.assert_called_once()
@@ -127,7 +143,12 @@ async def test_seed_reputation_null_memory_no_raise() -> None:
     store = NullMemory()
 
     records = [
-        {"indicator": "1.2.3.4", "kind": "address", "reputation": "malicious", "as_of": "2026-01-01T00:00:00Z"}
+        {
+            "indicator": "1.2.3.4",
+            "kind": "address",
+            "reputation": "malicious",
+            "as_of": "2026-01-01T00:00:00Z",
+        }
     ]
     # NullMemory.write_fact is a no-op — must not raise
     await seed_reputation(records, redactor, store)

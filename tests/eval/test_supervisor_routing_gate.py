@@ -7,7 +7,6 @@ Per contracts/supervisor-routing-eval.md — threshold: 1.0 (all fixtures must p
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
 import pytest
 
@@ -16,7 +15,6 @@ from backend.domain.pipeline import StageName, StageOutcome, StageResult, ToolEr
 from backend.infra.config import SupervisorSettings
 from backend.infra.tracing import build_tracer
 from backend.services.supervisor import Supervisor
-
 
 # ---------------------------------------------------------------------------
 # Fake repo
@@ -33,10 +31,14 @@ class FakeRepo:
             return self._incident
         return None
 
-    async def advance_status(self, incident_id, *, expected, target, disposition=None, evidence_patch=None) -> bool:
+    async def advance_status(
+        self, incident_id, *, expected, target, disposition=None, evidence_patch=None
+    ) -> bool:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
-        self._incident = self._incident.model_copy(update={"status": target, "disposition": disposition})
+        self._incident = self._incident.model_copy(
+            update={"status": target, "disposition": disposition}
+        )
         return True
 
 
@@ -46,8 +48,13 @@ class FakeRepo:
 
 
 def _make_incident(severity: str, flags: list[str] | None = None) -> Incident:
-    evidence = {"flags": flags or [], "verdict": "test", "severity": severity,
-                "normalized_event": {}, "summary": "eval"}
+    evidence = {
+        "flags": flags or [],
+        "verdict": "test",
+        "severity": severity,
+        "normalized_event": {},
+        "summary": "eval",
+    }
     return Incident(
         id=uuid.uuid4(),
         status=IncidentStatus.GROUNDED,
@@ -160,7 +167,9 @@ async def test_fixture_ambiguous_full_depth():
 
     incident = _make_incident("high")
     repo = FakeRepo(incident)
-    sv = _make_supervisor({StageName.TRIAGE: triage, StageName.ENRICHMENT: enrichment, StageName.RESPONSE: response})
+    sv = _make_supervisor(
+        {StageName.TRIAGE: triage, StageName.ENRICHMENT: enrichment, StageName.RESPONSE: response}
+    )
     await sv.run_incident(incident.id, repo)
 
     final = await repo.get(incident.id)
@@ -171,6 +180,7 @@ async def test_fixture_ambiguous_full_depth():
 @pytest.mark.asyncio
 async def test_fixture_destructive_parks():
     """destructive_parks: response returns NEEDS_APPROVAL → awaiting_approval."""
+
     async def response(inc):
         return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.NEEDS_APPROVAL)
 
@@ -200,12 +210,15 @@ async def test_fixture_indeterminate_severity():
 
     assert "triage" in calls, "Expected triage to be called for indeterminate severity"
     final = await repo.get(incident.id)
-    assert final.disposition != "auto_resolved_noise", "Should not fast-path with severity_defaulted"
+    assert final.disposition != "auto_resolved_noise", (
+        "Should not fast-path with severity_defaulted"
+    )
 
 
 @pytest.mark.asyncio
 async def test_fixture_stage_error_escalates():
     """stage_error_escalates: triage raises non-retryable ToolError → escalated_stage_error."""
+
     async def error_triage(inc):
         raise ToolError(retryable=False, kind="inject_error")
 
@@ -222,9 +235,15 @@ async def test_fixture_stage_error_escalates():
 @pytest.mark.asyncio
 async def test_fixture_cap_breach_escalates():
     """cap_breach_escalates: stages loop ADVANCE past max_steps → escalated_step_cap."""
-    async def triage(inc): return StageResult(stage=StageName.TRIAGE, outcome=StageOutcome.ADVANCE)
-    async def enrichment(inc): return StageResult(stage=StageName.ENRICHMENT, outcome=StageOutcome.ADVANCE)
-    async def response(inc): return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.ESCALATE)
+
+    async def triage(inc):
+        return StageResult(stage=StageName.TRIAGE, outcome=StageOutcome.ADVANCE)
+
+    async def enrichment(inc):
+        return StageResult(stage=StageName.ENRICHMENT, outcome=StageOutcome.ADVANCE)
+
+    async def response(inc):
+        return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.ESCALATE)
 
     cfg = SupervisorSettings(max_steps=2)
     incident = _make_incident("medium")
@@ -248,6 +267,7 @@ async def test_fixture_cap_breach_escalates():
 @pytest.mark.asyncio
 async def test_fixture_auto_remediated():
     """auto_remediated: response returns RESOLVED with auto_remediated disposition."""
+
     async def response(inc):
         return StageResult(
             stage=StageName.RESPONSE,
@@ -268,6 +288,7 @@ async def test_fixture_auto_remediated():
 @pytest.mark.asyncio
 async def test_fixture_needs_approval_parks():
     """needs_approval_parks: response NEEDS_APPROVAL → AWAITING_APPROVAL (same as destructive_parks)."""
+
     async def response(inc):
         return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.NEEDS_APPROVAL)
 

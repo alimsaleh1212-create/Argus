@@ -26,21 +26,15 @@ def presidio_redactor():
 
 class TestPresidioDetection:
     def test_email_detected(self, presidio_redactor) -> None:
-        result = presidio_redactor.redact_text(
-            f"contact us at {FAKE_EMAIL}", Boundary.LOG
-        )
+        result = presidio_redactor.redact_text(f"contact us at {FAKE_EMAIL}", Boundary.LOG)
         assert FAKE_EMAIL not in result
 
     def test_phone_detected(self, presidio_redactor) -> None:
-        result = presidio_redactor.redact_text(
-            f"call {FAKE_PHONE} for support", Boundary.LOG
-        )
+        result = presidio_redactor.redact_text(f"call {FAKE_PHONE} for support", Boundary.LOG)
         assert FAKE_PHONE not in result
 
     def test_credit_card_detected(self, presidio_redactor) -> None:
-        result = presidio_redactor.redact_text(
-            f"card number {FAKE_CC}", Boundary.LOG
-        )
+        result = presidio_redactor.redact_text(f"card number {FAKE_CC}", Boundary.LOG)
         assert FAKE_CC not in result
 
     def test_deterministic_toggle_leaves_pattern_only(self) -> None:

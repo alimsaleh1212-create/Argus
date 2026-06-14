@@ -23,8 +23,18 @@ async def test_seed_reputation_maps_to_temporal_facts() -> None:
     store.write_fact = AsyncMock()
 
     records = [
-        {"indicator": "1.2.3.4", "kind": "address", "reputation": "malicious", "as_of": "2026-01-01T00:00:00Z"},
-        {"indicator": "5.6.7.8", "kind": "address", "reputation": "benign", "as_of": "2026-02-01T00:00:00Z"},
+        {
+            "indicator": "1.2.3.4",
+            "kind": "address",
+            "reputation": "malicious",
+            "as_of": "2026-01-01T00:00:00Z",
+        },
+        {
+            "indicator": "5.6.7.8",
+            "kind": "address",
+            "reputation": "benign",
+            "as_of": "2026-02-01T00:00:00Z",
+        },
     ]
     await seed_reputation(records, redactor, store)
     assert store.write_fact.call_count == 2
@@ -44,7 +54,12 @@ async def test_seed_reputation_redacts_indicator() -> None:
     store.write_fact = AsyncMock()
 
     records = [
-        {"indicator": "secret-host", "kind": "host", "reputation": "malicious", "as_of": "2026-01-01T00:00:00Z"}
+        {
+            "indicator": "secret-host",
+            "kind": "host",
+            "reputation": "malicious",
+            "as_of": "2026-01-01T00:00:00Z",
+        }
     ]
     await seed_reputation(records, redactor, store)
     fact = store.write_fact.call_args[0][0]
@@ -58,7 +73,12 @@ async def test_seed_reputation_null_memory_no_raise() -> None:
     store = NullMemory()
 
     records = [
-        {"indicator": "1.2.3.4", "kind": "address", "reputation": "malicious", "as_of": "2026-01-01T00:00:00Z"}
+        {
+            "indicator": "1.2.3.4",
+            "kind": "address",
+            "reputation": "malicious",
+            "as_of": "2026-01-01T00:00:00Z",
+        }
     ]
     await seed_reputation(records, redactor, store)  # must not raise
 
@@ -70,7 +90,12 @@ async def test_seed_reputation_malformed_record_skipped() -> None:
     store.write_fact = AsyncMock()
 
     records = [
-        {"indicator": "1.2.3.4", "kind": "address", "reputation": "malicious", "as_of": "2026-01-01T00:00:00Z"},
+        {
+            "indicator": "1.2.3.4",
+            "kind": "address",
+            "reputation": "malicious",
+            "as_of": "2026-01-01T00:00:00Z",
+        },
         {"BROKEN": True},  # missing required fields
     ]
     await seed_reputation(records, redactor, store)

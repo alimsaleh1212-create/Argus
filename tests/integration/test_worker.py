@@ -45,7 +45,7 @@ def redis_container():
 
 @pytest_asyncio.fixture
 async def db_session(pg_container):
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     engine = create_async_engine(pg_container.get_dsn(), echo=False)
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -112,7 +112,6 @@ class TestWorkerLoop:
     async def test_claim_ground_ack_flow(self, db_session, queue) -> None:
         """claim→ground→set_grounded→ack: Incident reaches grounded status."""
         from backend.domain.incident import IncidentStatus
-        from backend.repositories.incidents import IncidentRepository
         from backend.services.grounding import ground
         from backend.services.pipeline import dispatch_to_pipeline
 
@@ -131,7 +130,9 @@ class TestWorkerLoop:
             uuid.UUID(incident_id),
             fetched.normalized_event
             if not isinstance(fetched.normalized_event, dict)
-            else __import__("backend.domain.incident", fromlist=["NormalizedEvent"]).NormalizedEvent.model_validate(fetched.normalized_event),
+            else __import__(
+                "backend.domain.incident", fromlist=["NormalizedEvent"]
+            ).NormalizedEvent.model_validate(fetched.normalized_event),
             evidence,
             evidence.severity,
         )
@@ -144,8 +145,6 @@ class TestWorkerLoop:
 
     async def test_redelivery_skipped_idempotent(self, db_session, queue) -> None:
         """Re-delivery of an already-grounded Incident is a no-op (idempotent)."""
-        from backend.domain.incident import IncidentStatus
-        from backend.repositories.incidents import IncidentRepository
 
         inc, repo = await _create_received_incident(db_session)
         # Manually set to grounded
@@ -165,17 +164,14 @@ class TestWorkerLoop:
         second_claim = await repo.claim_for_grounding(inc.id)
         assert second_claim is False
 
-    async def test_exception_bumps_attempts_and_marks_failed_at_budget(
-        self, db_session
-    ) -> None:
+    async def test_exception_bumps_attempts_and_marks_failed_at_budget(self, db_session) -> None:
         """Forced exception bumps attempts; at max_attempts → failed."""
         from backend.domain.incident import IncidentStatus
-        from backend.repositories.incidents import IncidentRepository
 
         inc, repo = await _create_received_incident(db_session)
         max_attempts = 3
         for _ in range(max_attempts):
-            count = await repo.bump_attempt(inc.id)
+            await repo.bump_attempt(inc.id)
         await repo.mark_failed(inc.id, reason="MaxAttemptsExceeded")
 
         final = await repo.get(inc.id)

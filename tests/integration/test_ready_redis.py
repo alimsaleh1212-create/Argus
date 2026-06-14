@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
 
 
 @pytest.mark.integration
@@ -12,14 +11,15 @@ class TestReadyRedis:
         """When Redis is unreachable, /ready must return 503."""
         monkeypatch.setenv("ARGUS__REDIS__URL", "redis://127.0.0.1:19999/0")
 
-        from backend.infra.container import clear_registry
         from backend.infra.config import load_settings
+        from backend.infra.container import clear_registry
 
         clear_registry()
         settings = load_settings()
 
-        from backend.infra.health import check_redis
         import asyncio
+
+        from backend.infra.health import check_redis
 
         status = asyncio.run(check_redis(settings))
         assert status.healthy is False

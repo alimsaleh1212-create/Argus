@@ -11,7 +11,10 @@ import json
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 
+from backend.infra.logging import get_logger
 from backend.repositories.incidents import IncidentRepository
+
+logger = get_logger(__name__)
 
 
 def _sse(event: str, data: dict) -> str:
@@ -40,7 +43,10 @@ async def incident_stream(
         snapshot = await _build_snapshot(repo)
         prev_updated_at = {str(item["id"]): item["updated_at"] for item in snapshot["queue"]}
         yield _sse("snapshot", snapshot)
-    except Exception:
+    except Exception as exc:
+        # Fail-open: keep the stream alive, but surface the failure to logs so a
+        # dead backend isn't masked by healthy-looking heartbeats.
+        logger.warning("stream_snapshot_failed", error=str(exc))
         yield _heartbeat()
 
     while True:
@@ -62,7 +68,8 @@ async def incident_stream(
                 yield _sse("delta", {"queue": changed, "kpi_counters": snapshot["kpi_counters"]})
             else:
                 yield _heartbeat()
-        except Exception:
+        except Exception as exc:
+            logger.warning("stream_poll_failed", error=str(exc))
             yield _heartbeat()
 
 

@@ -9,7 +9,14 @@ import pytest
 
 from backend.agents.triage import make_triage_handler
 from backend.domain.incident import Incident, IncidentStatus, Severity
-from backend.domain.llm import LlmError, LlmErrorKind, LlmResponse, ProviderId, StopReason, TokenUsage
+from backend.domain.llm import (
+    LlmError,
+    LlmErrorKind,
+    LlmResponse,
+    ProviderId,
+    StopReason,
+    TokenUsage,
+)
 from backend.domain.pipeline import StageOutcome, ToolError
 from backend.infra.config import TriageSettings
 
@@ -34,12 +41,14 @@ def _incident() -> Incident:
 
 def _good_response() -> LlmResponse:
     return LlmResponse(
-        content=json.dumps({
-            "verdict": "real",
-            "confidence": 0.9,
-            "rationale": "Looks real.",
-            "cited_evidence": ["rule_description"],
-        }),
+        content=json.dumps(
+            {
+                "verdict": "real",
+                "confidence": 0.9,
+                "rationale": "Looks real.",
+                "cited_evidence": ["rule_description"],
+            }
+        ),
         usage=TokenUsage(prompt_tokens=10, completion_tokens=10),
         model="m",
         provider=ProviderId.GEMINI,
@@ -79,12 +88,15 @@ async def test_transient_errors_raise_retryable_tool_error(kind: LlmErrorKind):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("kind", [
-    LlmErrorKind.AUTH,
-    LlmErrorKind.INVALID_REQUEST,
-    LlmErrorKind.CONTENT_REFUSAL,
-    LlmErrorKind.CONTRACT_UNSATISFIED,
-])
+@pytest.mark.parametrize(
+    "kind",
+    [
+        LlmErrorKind.AUTH,
+        LlmErrorKind.INVALID_REQUEST,
+        LlmErrorKind.CONTENT_REFUSAL,
+        LlmErrorKind.CONTRACT_UNSATISFIED,
+    ],
+)
 async def test_permanent_errors_raise_non_retryable_tool_error(kind: LlmErrorKind):
     handler = make_triage_handler(ErrorLlm(kind), TriageSettings())
     with pytest.raises(ToolError) as exc_info:
@@ -104,12 +116,14 @@ async def test_malformed_json_raises_non_retryable_malformed_output():
 @pytest.mark.asyncio
 async def test_oov_verdict_raises_malformed_output():
     """An out-of-vocabulary verdict fails the second validation layer → malformed_output."""
-    content = json.dumps({
-        "verdict": "banana",
-        "confidence": 0.9,
-        "rationale": "test",
-        "cited_evidence": ["ev"],
-    })
+    content = json.dumps(
+        {
+            "verdict": "banana",
+            "confidence": 0.9,
+            "rationale": "test",
+            "cited_evidence": ["ev"],
+        }
+    )
     handler = make_triage_handler(MalformedLlm(content), TriageSettings())
     with pytest.raises(ToolError) as exc_info:
         await handler(_incident())

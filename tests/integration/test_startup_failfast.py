@@ -18,10 +18,8 @@ from backend.infra.config import Settings, StartupSettings, VaultSettings
 class TestVaultFailFast:
     """Fault-injection tests against a real Vault container."""
 
-    def test_vault_unreachable_raises(self) -> None:
+    async def test_vault_unreachable_raises(self) -> None:
         """VaultClient raises when Vault address is wrong (refuse to boot)."""
-        import asyncio
-
         from backend.infra.vault import VaultClient
 
         settings = Settings(
@@ -35,16 +33,14 @@ class TestVaultFailFast:
         client = VaultClient(settings.vault, settings.startup)
 
         with pytest.raises((RuntimeError, OSError, Exception)) as exc_info:
-            asyncio.get_event_loop().run_until_complete(client.resolve_required_secrets())
+            await client.resolve_required_secrets()
 
         error_msg = str(exc_info.value)
         # Path must be named; secret value must not appear
         assert "secret/minio" in error_msg or "vault" in error_msg.lower()
 
-    def test_missing_required_secret_raises(self, vault_container) -> None:
+    async def test_missing_required_secret_raises(self, vault_container) -> None:
         """VaultClient raises when a required secret path does not exist."""
-        import asyncio
-
         from backend.infra.vault import VaultClient
 
         settings = Settings(
@@ -59,7 +55,7 @@ class TestVaultFailFast:
         client = VaultClient(settings.vault, settings.startup)
 
         with pytest.raises((RuntimeError, Exception)) as exc_info:
-            asyncio.get_event_loop().run_until_complete(client.resolve_required_secrets())
+            await client.resolve_required_secrets()
 
         error_msg = str(exc_info.value)
         assert "secret/nonexistent_path" in error_msg
@@ -75,9 +71,12 @@ def vault_container():
     container = DockerContainer("hashicorp/vault:latest")
     container.with_env("VAULT_DEV_ROOT_TOKEN_ID", "dev-root-token")
     container.with_env("VAULT_DEV_LISTEN_ADDRESS", "0.0.0.0:8200")
+    # Disable mlock so Vault starts without the IPC_LOCK capability (sandbox-safe)
+    container.with_env("VAULT_DISABLE_MLOCK", "true")
     container.with_exposed_ports(8200)
+    container.with_kwargs(cap_add=["IPC_LOCK"])
     container.start()
-    wait_for_logs(container, "Development mode", timeout=30)
+    wait_for_logs(container, "Development mode", timeout=120)
 
     container.root_token = "dev-root-token"
     container.get_url = lambda: (

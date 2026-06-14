@@ -10,10 +10,10 @@ import uuid
 
 import pytest
 
-from backend.agents.triage import TRIAGE_JUDGMENT_SCHEMA, make_triage_handler
+from backend.agents.triage import make_triage_handler
 from backend.domain.incident import Incident, IncidentStatus, Severity
 from backend.domain.pipeline import StageOutcome
-from backend.infra.config import LlmSettings, TriageSettings
+from backend.infra.config import TriageSettings
 
 
 def _incident() -> Incident:

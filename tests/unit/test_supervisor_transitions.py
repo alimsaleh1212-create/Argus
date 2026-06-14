@@ -11,18 +11,25 @@ import uuid
 import pytest
 
 from backend.domain.incident import Incident, IncidentStatus, Severity
-from backend.domain.pipeline import StageName, StageOutcome, StageResult, ToolError
+from backend.domain.pipeline import StageName, StageOutcome, StageResult
 from backend.infra.config import SupervisorSettings
 from backend.infra.tracing import build_tracer
-from backend.services.supervisor import TRANSITIONS, Supervisor, _ROUTE_AMBIGUOUS, _ROUTE_CRITICAL, _ROUTE_NOISE
-
+from backend.services.supervisor import (
+    _ROUTE_AMBIGUOUS,
+    _ROUTE_CRITICAL,
+    _ROUTE_NOISE,
+    TRANSITIONS,
+    Supervisor,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _incident(status: IncidentStatus = IncidentStatus.GROUNDED, severity: Severity = Severity.MEDIUM) -> Incident:
+def _incident(
+    status: IncidentStatus = IncidentStatus.GROUNDED, severity: Severity = Severity.MEDIUM
+) -> Incident:
     return Incident(
         id=uuid.uuid4(),
         status=status,
@@ -56,7 +63,9 @@ class FakeRepo:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
         self.advances.append({"from": expected, "to": target, "disposition": disposition})
-        self._incident = self._incident.model_copy(update={"status": target, "disposition": disposition})
+        self._incident = self._incident.model_copy(
+            update={"status": target, "disposition": disposition}
+        )
         return True
 
 
@@ -147,8 +156,11 @@ async def test_illegal_outcome_from_enrichment_escalates():
 
 @pytest.mark.asyncio
 async def test_triage_advance_goes_to_enriching():
-    async def triage(inc): return StageResult(stage=StageName.TRIAGE, outcome=StageOutcome.ADVANCE)
-    async def enrichment(inc): return StageResult(stage=StageName.ENRICHMENT, outcome=StageOutcome.RESOLVED)
+    async def triage(inc):
+        return StageResult(stage=StageName.TRIAGE, outcome=StageOutcome.ADVANCE)
+
+    async def enrichment(inc):
+        return StageResult(stage=StageName.ENRICHMENT, outcome=StageOutcome.RESOLVED)
 
     incident = _incident()
     repo = FakeRepo(incident)

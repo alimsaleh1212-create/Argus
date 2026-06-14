@@ -14,7 +14,6 @@ from backend.domain.llm import (
     LlmResponse,
     ProviderId,
     StopReason,
-    TokenUsage,
 )
 
 
@@ -37,8 +36,8 @@ def _ollama_available() -> bool:
 class TestOllamaIntegration:
     async def test_real_generate_returns_uniform_response(self) -> None:
         """A real Ollama generate returns the uniform LlmResponse shape."""
-        from backend.infra.llm_drivers import OllamaDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import OllamaDriver
 
         settings = LlmSettings(ollama_base_url="http://localhost:11434", ollama_model="qwen2:0.5b")
         driver = OllamaDriver(settings)
@@ -54,8 +53,8 @@ class TestOllamaIntegration:
 
     async def test_usage_normalized_to_expected_fields(self) -> None:
         """Ollama usage normalizes to prompt_tokens / completion_tokens (may be None)."""
-        from backend.infra.llm_drivers import OllamaDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import OllamaDriver
 
         settings = LlmSettings(ollama_base_url="http://localhost:11434", ollama_model="qwen2:0.5b")
         driver = OllamaDriver(settings)
@@ -72,8 +71,8 @@ class TestOllamaIntegration:
         import json
 
         from backend.domain.llm import LlmError, LlmErrorKind
-        from backend.infra.llm_drivers import OllamaDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import OllamaDriver
 
         settings = LlmSettings(ollama_base_url="http://localhost:11434", ollama_model="qwen2:0.5b")
         driver = OllamaDriver(settings)

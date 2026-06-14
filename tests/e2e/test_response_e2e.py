@@ -9,16 +9,15 @@ T028: destructive incident → awaiting_approval;
 
 from __future__ import annotations
 
-import json
 import uuid
-from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC, datetime
 
 import pytest
 
 
 def _make_auto_incident():
     from backend.domain.incident import Incident, IncidentStatus, Severity
+
     return Incident(
         id=uuid.uuid4(),
         status=IncidentStatus.RESPONDING,
@@ -36,6 +35,7 @@ def _make_auto_incident():
 
 def _make_destructive_incident():
     from backend.domain.incident import Incident, IncidentStatus, Severity
+
     return Incident(
         id=uuid.uuid4(),
         status=IncidentStatus.RESPONDING,
@@ -53,6 +53,7 @@ def _make_destructive_incident():
 
 def _catalog_auto_only():
     from backend.agents.response import PlaybookEntry
+
     return [
         PlaybookEntry(
             id="watchlist_and_ticket",
@@ -65,6 +66,7 @@ def _catalog_auto_only():
 
 def _catalog_destructive():
     from backend.agents.response import PlaybookEntry
+
     return [
         PlaybookEntry(
             id="isolate_and_ticket",
@@ -85,10 +87,14 @@ class _FakeRepo:
             return self._incident
         return None
 
-    async def advance_status(self, incident_id, *, expected, target, disposition=None, evidence_patch=None):
+    async def advance_status(
+        self, incident_id, *, expected, target, disposition=None, evidence_patch=None
+    ):
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
-        self.advances.append({"from": expected.value, "to": target.value, "disposition": disposition})
+        self.advances.append(
+            {"from": expected.value, "to": target.value, "disposition": disposition}
+        )
         self._incident = self._incident.model_copy(
             update={"status": target, "disposition": disposition}
         )
@@ -103,14 +109,18 @@ class _FakeAuditRepo:
     async def is_applied(self, key: str) -> bool:
         return key in self._applied
 
-    async def append(self, *, incident_id, actor, action, target=None, outcome, idempotency_key=None):
-        self.rows.append({
-            "incident_id": str(incident_id),
-            "actor": actor,
-            "action": action,
-            "outcome": outcome,
-            "idempotency_key": idempotency_key,
-        })
+    async def append(
+        self, *, incident_id, actor, action, target=None, outcome, idempotency_key=None
+    ):
+        self.rows.append(
+            {
+                "incident_id": str(incident_id),
+                "actor": actor,
+                "action": action,
+                "outcome": outcome,
+                "idempotency_key": idempotency_key,
+            }
+        )
         if outcome == "applied" and idempotency_key:
             if idempotency_key in self._applied:
                 return False
@@ -132,10 +142,13 @@ class _FakeApprovalRepo:
                 return r
         return None
 
-    async def create_pending(self, *, incident_id, plan_id, pending_actions, rationale, deadline_at):
+    async def create_pending(
+        self, *, incident_id, plan_id, pending_actions, rationale, deadline_at
+    ):
         rid = self._next_id
         self._next_id += 1
         from backend.repositories.approvals import ApprovalRecord
+
         rec = ApprovalRecord(
             id=rid,
             incident_id=incident_id,
@@ -159,9 +172,12 @@ class _FakeApprovalRepo:
         if rec.status != "pending":
             return False
         from dataclasses import replace
+
         self._records[approval_id] = replace(
-            rec, status=to.value, decided_by=decided_by,
-            decided_at=datetime.now(UTC).replace(tzinfo=None)
+            rec,
+            status=to.value,
+            decided_by=decided_by,
+            decided_at=datetime.now(UTC).replace(tzinfo=None),
         )
         return True
 
@@ -169,16 +185,14 @@ class _FakeApprovalRepo:
         return self._records.get(approval_id)
 
     async def list_pending_expired(self, now):
-        return [
-            r for r in self._records.values()
-            if r.status == "pending" and r.deadline_at < now
-        ]
+        return [r for r in self._records.values() if r.status == "pending" and r.deadline_at < now]
 
 
 def _make_session_factory(audit_repo, approval_repo):
     class _FakeSession:
         async def __aenter__(self):
             return self
+
         async def __aexit__(self, *a):
             pass
 
@@ -199,7 +213,7 @@ def _make_session_factory(audit_repo, approval_repo):
 @pytest.mark.asyncio
 async def test_auto_path_resolves_auto_remediated():
     """Auto-only incident → resolved/auto_remediated with audit rows."""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
 
     from backend.agents.response import make_response_handler
     from backend.domain.pipeline import StageOutcome
@@ -296,10 +310,8 @@ async def test_approve_resumes_to_remediated():
 
     from backend.agents.response import make_response_handler
     from backend.domain.pipeline import StageOutcome
-    from backend.domain.response import ApprovalStatus
     from backend.infra.config import ResponseSettings
     from backend.infra.executors import build_mock_executors
-    from backend.repositories.approvals import ApprovalRecord
 
     incident = _make_destructive_incident()
     catalog = _catalog_destructive()
@@ -323,7 +335,11 @@ async def test_approve_resumes_to_remediated():
         MockAudit.return_value = audit_repo
 
         handler = make_response_handler(
-            llm=None, session_factory=_session_factory, executors=executors, cfg=cfg, catalog=catalog
+            llm=None,
+            session_factory=_session_factory,
+            executors=executors,
+            cfg=cfg,
+            catalog=catalog,
         )
         await handler(incident)
 
@@ -331,9 +347,12 @@ async def test_approve_resumes_to_remediated():
     approval_id = 1
     rec = approval_repo._records[approval_id]
     from dataclasses import replace
+
     approval_repo._records[approval_id] = replace(
-        rec, status="approved", decided_by="admin",
-        decided_at=datetime.now(UTC).replace(tzinfo=None)
+        rec,
+        status="approved",
+        decided_by="admin",
+        decided_at=datetime.now(UTC).replace(tzinfo=None),
     )
 
     # Second pass (Pass B): execute the approved plan
@@ -355,23 +374,18 @@ async def test_approve_resumes_to_remediated():
 @pytest.mark.asyncio
 async def test_reject_writes_audit_not_executed():
     """Reject → audit row with not_executed, nothing else runs."""
-    from unittest.mock import patch
 
     from backend.infra.config import SupervisorSettings
     from backend.infra.tracing import build_tracer
     from backend.services.supervisor import Supervisor
 
     incident = _make_destructive_incident()
-    catalog = _catalog_destructive()
-    from backend.infra.config import ResponseSettings
-    from backend.infra.executors import build_mock_executors
-    cfg = ResponseSettings()
-    executors = build_mock_executors()
     audit_repo = _FakeAuditRepo()
 
     repo = _FakeRepo(incident)
     # Move incident to AWAITING_APPROVAL
     from backend.domain.incident import IncidentStatus
+
     repo._incident = repo._incident.model_copy(update={"status": IncidentStatus.AWAITING_APPROVAL})
 
     sup = Supervisor(stages={}, cfg=SupervisorSettings(), tracer=build_tracer(exporter=None))

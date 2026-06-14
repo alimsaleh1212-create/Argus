@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import uuid
@@ -25,7 +24,10 @@ def pg_container():
         env = {**os.environ, "ARGUS__POSTGRES__DSN": pg.get_dsn()}
         subprocess.run(
             ["uv", "run", "alembic", "-c", "config/alembic.ini", "upgrade", "head"],
-            env=env, capture_output=True, text=True, check=True,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         yield pg
 
@@ -33,6 +35,7 @@ def pg_container():
 @pytest_asyncio.fixture
 async def db_setup(pg_container):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
     engine = create_async_engine(pg_container.get_dsn(), echo=False)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     yield factory
@@ -42,7 +45,6 @@ async def db_setup(pg_container):
 async def _create_parked_incident(factory):
     """Create an incident in AWAITING_APPROVAL state with a pending approval."""
     import uuid
-    from datetime import UTC, datetime, timedelta
 
     from backend.domain.incident import Incident, IncidentStatus, Severity
     from backend.domain.response import ActionType, RemediationAction, RiskClass
@@ -94,7 +96,9 @@ class TestApprovalsRepositoryApproveReject:
 
         async with db_setup() as session:
             repo = ApprovalRepository(session)
-            resolved = await repo.resolve(approval_id, to=ApprovalStatus.APPROVED, decided_by="admin")
+            resolved = await repo.resolve(
+                approval_id, to=ApprovalStatus.APPROVED, decided_by="admin"
+            )
             assert resolved is True
 
         async with db_setup() as session:
@@ -113,7 +117,9 @@ class TestApprovalsRepositoryApproveReject:
 
         async with db_setup() as session:
             repo = ApprovalRepository(session)
-            resolved = await repo.resolve(approval_id, to=ApprovalStatus.REJECTED, decided_by="admin")
+            resolved = await repo.resolve(
+                approval_id, to=ApprovalStatus.REJECTED, decided_by="admin"
+            )
             assert resolved is True
 
         async with db_setup() as session:
@@ -170,11 +176,17 @@ class TestApprovalsRepositoryApproveReject:
         incident_id = uuid.uuid4()
         async with db_setup() as session:
             inc_repo = IncidentRepository(session)
-            await inc_repo.create(Incident(
-                id=incident_id, status=IncidentStatus.RESPONDING, severity=Severity.MEDIUM,
-                correlation_id=str(incident_id), dedup_fingerprint=f"fp-audit-{incident_id.hex}",
-                source="wazuh", raw_alert={},
-            ))
+            await inc_repo.create(
+                Incident(
+                    id=incident_id,
+                    status=IncidentStatus.RESPONDING,
+                    severity=Severity.MEDIUM,
+                    correlation_id=str(incident_id),
+                    dedup_fingerprint=f"fp-audit-{incident_id.hex}",
+                    source="wazuh",
+                    raw_alert={},
+                )
+            )
 
         async with db_setup() as session:
             audit = AuditRepository(session)
@@ -206,25 +218,39 @@ class TestApprovalsRepositoryApproveReject:
 
         async with db_setup() as session:
             inc_repo = IncidentRepository(session)
-            await inc_repo.create(Incident(
-                id=incident_id, status=IncidentStatus.RESPONDING, severity=Severity.MEDIUM,
-                correlation_id=str(incident_id), dedup_fingerprint=f"fp-idem-{incident_id.hex}",
-                source="wazuh", raw_alert={},
-            ))
+            await inc_repo.create(
+                Incident(
+                    id=incident_id,
+                    status=IncidentStatus.RESPONDING,
+                    severity=Severity.MEDIUM,
+                    correlation_id=str(incident_id),
+                    dedup_fingerprint=f"fp-idem-{incident_id.hex}",
+                    source="wazuh",
+                    raw_alert={},
+                )
+            )
 
         async with db_setup() as session:
             audit = AuditRepository(session)
             first = await audit.append(
-                incident_id=incident_id, actor="agent", action="add_to_watchlist",
-                target="host", outcome="applied", idempotency_key=key,
+                incident_id=incident_id,
+                actor="agent",
+                action="add_to_watchlist",
+                target="host",
+                outcome="applied",
+                idempotency_key=key,
             )
             assert first is True
 
         async with db_setup() as session:
             audit = AuditRepository(session)
             second = await audit.append(
-                incident_id=incident_id, actor="agent", action="add_to_watchlist",
-                target="host", outcome="applied", idempotency_key=key,
+                incident_id=incident_id,
+                actor="agent",
+                action="add_to_watchlist",
+                target="host",
+                outcome="applied",
+                idempotency_key=key,
             )
             assert second is False  # conflict blocked
 
@@ -239,11 +265,17 @@ class TestApprovalsRepositoryApproveReject:
 
         async with db_setup() as session:
             inc_repo = IncidentRepository(session)
-            await inc_repo.create(Incident(
-                id=incident_id, status=IncidentStatus.RESPONDING, severity=Severity.MEDIUM,
-                correlation_id=str(incident_id), dedup_fingerprint=f"fp-applied-{incident_id.hex}",
-                source="wazuh", raw_alert={},
-            ))
+            await inc_repo.create(
+                Incident(
+                    id=incident_id,
+                    status=IncidentStatus.RESPONDING,
+                    severity=Severity.MEDIUM,
+                    correlation_id=str(incident_id),
+                    dedup_fingerprint=f"fp-applied-{incident_id.hex}",
+                    source="wazuh",
+                    raw_alert={},
+                )
+            )
 
         async with db_setup() as session:
             audit = AuditRepository(session)
@@ -252,8 +284,12 @@ class TestApprovalsRepositoryApproveReject:
         async with db_setup() as session:
             audit = AuditRepository(session)
             await audit.append(
-                incident_id=incident_id, actor="agent", action="open_ticket",
-                target="incident", outcome="applied", idempotency_key=key,
+                incident_id=incident_id,
+                actor="agent",
+                action="open_ticket",
+                target="incident",
+                outcome="applied",
+                idempotency_key=key,
             )
 
         async with db_setup() as session:

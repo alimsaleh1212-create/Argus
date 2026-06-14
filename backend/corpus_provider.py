@@ -1,7 +1,9 @@
-"""CorpusProvider — lifespan singleton exposing CorpusRetriever for #9 consumption.
+"""CorpusProvider — composition-root lifespan singleton exposing CorpusRetriever (#9).
 
-The provider wraps CorpusRepository behind a session-per-request adapter so
-callers interact with the CorpusRetriever Protocol without managing sessions.
+Lives at the backend top level (like supervisor_provider.py), not inside the
+``infra`` layer, because it wires a ``repositories`` adapter — which the
+layered import contract forbids ``infra`` from importing. The provider is part
+of the composition root that assembles the object graph at startup.
 """
 
 from __future__ import annotations

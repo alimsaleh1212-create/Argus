@@ -29,8 +29,7 @@ def _get_webhook_token(request: Request) -> str:
     Returns the 'token' field from the KV data.
     """
     vault = request.app.state.container.vault_client
-    raw = vault.get_secret("secret/ingest")
-    data = json.loads(raw)
+    data = vault.get_secret("secret/ingest")
     return data.get("token", "")
 
 
@@ -38,7 +37,7 @@ def _check_auth(request: Request, expected_token: str) -> None:
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
-    provided = auth[len("Bearer "):]
+    provided = auth[len("Bearer ") :]
     if not hmac.compare_digest(provided.encode(), expected_token.encode()):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 

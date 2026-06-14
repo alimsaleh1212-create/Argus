@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
-
 from backend.agents.response import classify
 from backend.domain.response import ActionType, RemediationAction, RemediationPlan, RiskClass
 from backend.infra.config import ResponseSettings
@@ -33,14 +31,18 @@ def _plan(action_types: list[ActionType]) -> RemediationPlan:
 
 def test_allowlist_actions_get_auto():
     cfg = ResponseSettings()
-    plan = classify(_plan([ActionType.ADD_TO_WATCHLIST, ActionType.OPEN_TICKET, ActionType.ENRICH_AND_TAG]), cfg)
+    plan = classify(
+        _plan([ActionType.ADD_TO_WATCHLIST, ActionType.OPEN_TICKET, ActionType.ENRICH_AND_TAG]), cfg
+    )
     for action in plan.actions:
         assert action.risk == RiskClass.AUTO
 
 
 def test_destructive_actions_get_approval_required():
     cfg = ResponseSettings()
-    plan = classify(_plan([ActionType.ISOLATE_HOST, ActionType.DISABLE_USER, ActionType.BLOCK_IP]), cfg)
+    plan = classify(
+        _plan([ActionType.ISOLATE_HOST, ActionType.DISABLE_USER, ActionType.BLOCK_IP]), cfg
+    )
     for action in plan.actions:
         assert action.risk == RiskClass.APPROVAL_REQUIRED
 

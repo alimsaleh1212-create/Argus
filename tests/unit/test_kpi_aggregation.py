@@ -49,9 +49,7 @@ class TestBuildKpiSnapshot:
         from unittest.mock import AsyncMock
 
         mock_repo = AsyncMock()
-        mock_repo.kpi_volume_buckets = AsyncMock(
-            return_value=[VolumeBucket(bucket=_NOW, count=5)]
-        )
+        mock_repo.kpi_volume_buckets = AsyncMock(return_value=[VolumeBucket(bucket=_NOW, count=5)])
         mock_repo.kpi_disposition_counts = AsyncMock(
             return_value={"auto_remediated": 3, "escalated": 1}
         )

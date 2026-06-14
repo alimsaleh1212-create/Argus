@@ -18,15 +18,15 @@ _ALGORITHM = "HS256"
 
 
 def _make_service(**kwargs: object) -> AuthService:
-    defaults = dict(
-        admin_username="admin",
-        password_hash=_HASH,
-        salt=_SALT,
-        iterations=_ITERATIONS,
-        jwt_secret=_JWT_SECRET,
-        algorithm=_ALGORITHM,
-        token_ttl_minutes=60,
-    )
+    defaults = {
+        "admin_username": "admin",
+        "password_hash": _HASH,
+        "salt": _SALT,
+        "iterations": _ITERATIONS,
+        "jwt_secret": _JWT_SECRET,
+        "algorithm": _ALGORITHM,
+        "token_ttl_minutes": 60,
+    }
     defaults.update(kwargs)
     return AuthService(**defaults)  # type: ignore[arg-type]
 
@@ -52,12 +52,17 @@ class TestVerifyCredentials:
         """Both correct and wrong paths take roughly the same time (PBKDF2 dominates)."""
         svc = _make_service()
         rounds = 5
-        t_correct = sum(
-            _time(lambda: svc.verify_credentials("admin", _PASSWORD)) for _ in range(rounds)
-        ) / rounds
-        t_wrong = sum(
-            _time(lambda: svc.verify_credentials("admin", "wrongpassword")) for _ in range(rounds)
-        ) / rounds
+        t_correct = (
+            sum(_time(lambda: svc.verify_credentials("admin", _PASSWORD)) for _ in range(rounds))
+            / rounds
+        )
+        t_wrong = (
+            sum(
+                _time(lambda: svc.verify_credentials("admin", "wrongpassword"))
+                for _ in range(rounds)
+            )
+            / rounds
+        )
         # Constant-time: both must spend at least 0.5× of the other's time (allow 10× skew max)
         ratio = max(t_correct, t_wrong) / max(min(t_correct, t_wrong), 1e-9)
         assert ratio < 10, f"Timing ratio too high ({ratio:.1f}×), potential early return"
@@ -75,9 +80,9 @@ class TestIssueVerifyToken:
 
     def test_expired_token_raises(self) -> None:
         svc = _make_service(token_ttl_minutes=0)
-        import jwt as pyjwt
-
         from datetime import UTC, datetime, timedelta
+
+        import jwt as pyjwt
 
         payload = {
             "sub": "admin",

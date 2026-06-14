@@ -6,7 +6,6 @@ Uses mocked providers to avoid loading heavy ML models in memory-constrained CI.
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -16,10 +15,8 @@ class TestPipelineE2E:
     async def test_alert_flows_to_grounded(self) -> None:
         """Full spine: intake → queue → worker loop → grounded Incident."""
         from backend.domain.incident import (
-            Evidence,
             Incident,
             IncidentStatus,
-            IngestResult,
             NormalizedEvent,
             Severity,
         )

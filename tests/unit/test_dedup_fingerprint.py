@@ -5,8 +5,6 @@ TDD: must FAIL before infra/cache.py dedup helpers are implemented.
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestFingerprintDeterminism:
     def test_identical_alerts_same_fingerprint(self) -> None:

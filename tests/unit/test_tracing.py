@@ -11,8 +11,7 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -38,8 +37,11 @@ class TestSpanHelper:
     def test_child_span_has_parent_id(self, tracer) -> None:
         with span(tracer, "root", SpanKind.ROOT, correlation_id="inc_2") as root:
             with span(
-                tracer, "child", SpanKind.TOOL_CALL, correlation_id="inc_2",
-                parent_span_id=root.span_id
+                tracer,
+                "child",
+                SpanKind.TOOL_CALL,
+                correlation_id="inc_2",
+                parent_span_id=root.span_id,
             ) as child:
                 assert child.parent_span_id == root.span_id
 
@@ -51,8 +53,11 @@ class TestSpanHelper:
 
     def test_attributes_set_on_span(self, tracer) -> None:
         with span(
-            tracer, "step", SpanKind.AGENT_STEP, correlation_id="inc_4",
-            attrs={"input": "some data", "safe_key": "safe_value"}
+            tracer,
+            "step",
+            SpanKind.AGENT_STEP,
+            correlation_id="inc_4",
+            attrs={"input": "some data", "safe_key": "safe_value"},
         ) as s:
             pass
         assert "safe_key" in s.attributes or "input" in s.attributes
@@ -92,8 +97,7 @@ class TestAttributeTruncation:
         """Attribute exceeding max_attr_bytes is truncated (FR-017)."""
         big_value = "x" * 200  # way over 64-byte limit
         with span(
-            tracer, "step", SpanKind.AGENT_STEP, correlation_id="inc_8",
-            attrs={"big": big_value}
+            tracer, "step", SpanKind.AGENT_STEP, correlation_id="inc_8", attrs={"big": big_value}
         ) as s:
             pass
         stored = s.attributes.get("big", "")
@@ -110,8 +114,7 @@ class TestAttributeTruncation:
         # Space after key gives the \b word boundary the regex needs
         padded = aws_key + " " + ("z" * 200)
         with span(
-            tracer, "step", SpanKind.AGENT_STEP, correlation_id="inc_9",
-            attrs={"payload": padded}
+            tracer, "step", SpanKind.AGENT_STEP, correlation_id="inc_9", attrs={"payload": padded}
         ) as s:
             pass
         stored = str(s.attributes.get("payload", ""))
@@ -120,21 +123,31 @@ class TestAttributeTruncation:
 
 class TestTraceTree:
     def test_telemetry_record_from_tree(self, tracer) -> None:
-        from datetime import timedelta
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         root_span = Span(
-            span_id="r1", trace_id="t1", correlation_id="inc_10",
-            name="root", kind=SpanKind.ROOT,
-            started_at=now, ended_at=now + __import__("datetime").timedelta(seconds=1),
+            span_id="r1",
+            trace_id="t1",
+            correlation_id="inc_10",
+            name="root",
+            kind=SpanKind.ROOT,
+            started_at=now,
+            ended_at=now + __import__("datetime").timedelta(seconds=1),
             status=SpanStatus.OK,
         )
         llm_span = Span(
-            span_id="l1", trace_id="t1", correlation_id="inc_10",
-            name="llm.call", kind=SpanKind.LLM_CALL,
-            started_at=now, ended_at=now + __import__("datetime").timedelta(milliseconds=200),
-            parent_span_id="r1", status=SpanStatus.OK,
-            tokens_in=50, tokens_out=25, llm_model="test-model",
+            span_id="l1",
+            trace_id="t1",
+            correlation_id="inc_10",
+            name="llm.call",
+            kind=SpanKind.LLM_CALL,
+            started_at=now,
+            ended_at=now + __import__("datetime").timedelta(milliseconds=200),
+            parent_span_id="r1",
+            status=SpanStatus.OK,
+            tokens_in=50,
+            tokens_out=25,
+            llm_model="test-model",
         )
         tree = TraceTree(root=root_span, children={"r1": [llm_span]})
         rec = TelemetryRecord.from_trace_tree(tree)

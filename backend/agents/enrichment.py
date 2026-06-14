@@ -22,9 +22,11 @@ from backend.domain.pipeline import StageHandler, StageName, StageOutcome, Stage
 
 try:
     from backend.infra.logging import get_logger
+
     _logger = get_logger(__name__)
 except Exception:
     import logging
+
     _logger = logging.getLogger(__name__)
 
 
@@ -336,7 +338,8 @@ def make_enrichment_handler(
             if intel is None or not consult_intel:
                 return []
             indicator_entities = [
-                e for e in entities[:max_indicators]
+                e
+                for e in entities[:max_indicators]
                 if e.kind in (EntityKind.INDICATOR, EntityKind.ADDRESS)
             ]
             tasks = [
@@ -359,42 +362,50 @@ def make_enrichment_handler(
         external_raw: list[dict] = []
         for hit in corpus_hits:
             entry = getattr(hit, "entry", hit)
-            external_raw.append({
-                "type": "corpus",
-                "key": getattr(entry, "key", ""),
-                "title": getattr(entry, "title", ""),
-                "content": getattr(entry, "content", ""),
-                "relevance": getattr(hit, "relevance", 0.0),
-            })
+            external_raw.append(
+                {
+                    "type": "corpus",
+                    "key": getattr(entry, "key", ""),
+                    "title": getattr(entry, "title", ""),
+                    "content": getattr(entry, "content", ""),
+                    "relevance": getattr(hit, "relevance", 0.0),
+                }
+            )
         for verdict in intel_verdicts:
-            external_raw.append({
-                "type": "intel",
-                "indicator": getattr(verdict, "indicator", ""),
-                "verdict": getattr(verdict, "verdict", "unknown"),
-                "source": getattr(verdict, "source", ""),
-            })
+            external_raw.append(
+                {
+                    "type": "intel",
+                    "indicator": getattr(verdict, "indicator", ""),
+                    "verdict": getattr(verdict, "verdict", "unknown"),
+                    "source": getattr(verdict, "source", ""),
+                }
+            )
 
         internal_raw: list[dict] = []
         for hit in similar_priors:
-            internal_raw.append({
-                "type": "prior_incident",
-                "incident_id": str(getattr(hit, "incident_id", "")),
-                "summary": getattr(hit, "summary", ""),
-                "disposition": getattr(hit, "disposition", ""),
-                "relevance": getattr(hit, "relevance", 0.0),
-            })
+            internal_raw.append(
+                {
+                    "type": "prior_incident",
+                    "incident_id": str(getattr(hit, "incident_id", "")),
+                    "summary": getattr(hit, "summary", ""),
+                    "disposition": getattr(hit, "disposition", ""),
+                    "relevance": getattr(hit, "relevance", 0.0),
+                }
+            )
         for fact_state in rep_facts:
             fact = getattr(fact_state, "fact", None)
             if fact is None:
                 continue
             entity = getattr(fact, "entity", None)
-            internal_raw.append({
-                "type": "reputation_fact",
-                "entity": f"{getattr(entity, 'kind', '')}:{getattr(entity, 'value', '')}",
-                "value": getattr(fact, "value", ""),
-                "is_current": getattr(fact_state, "is_current", False),
-                "has_superseded": getattr(fact_state, "has_superseded", False),
-            })
+            internal_raw.append(
+                {
+                    "type": "reputation_fact",
+                    "entity": f"{getattr(entity, 'kind', '')}:{getattr(entity, 'value', '')}",
+                    "value": getattr(fact, "value", ""),
+                    "is_current": getattr(fact_state, "is_current", False),
+                    "has_superseded": getattr(fact_state, "has_superseded", False),
+                }
+            )
 
         # 4. One structured-output LLM call
         request = _build_request(incident, external_raw, internal_raw, cfg)

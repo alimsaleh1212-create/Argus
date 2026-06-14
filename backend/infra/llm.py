@@ -25,24 +25,18 @@ from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait
 from backend.domain.llm import (
     LlmError,
     LlmErrorKind,
-    LlmMessage,
     LlmRequest,
     LlmResponse,
     ProviderId,
-    TokenUsage,
-    ToolCall,
 )
 from backend.domain.redaction import Boundary
 from backend.domain.telemetry import SpanKind
 from backend.infra.logging import get_logger
 
 if TYPE_CHECKING:
-    from fastapi import Request
-
-    from backend.infra.config import LlmSettings, Settings
+    from backend.infra.config import LlmSettings
     from backend.infra.llm_drivers import Driver
     from backend.infra.observability import Observability
-    from backend.infra.tracing import _Tracer
 
 logger = get_logger(__name__)
 
@@ -235,15 +229,17 @@ async def _call_with_timeout_and_retry(
         with attempt:
             try:
                 return await asyncio.wait_for(driver.generate(request), timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError as exc:
                 raise LlmError(
                     kind=LlmErrorKind.TRANSIENT,
                     provider=driver.provider_id,
                     message="Request timed out",
-                )
+                ) from exc
 
     # Should not reach here — tenacity reraises; satisfy type checker
-    raise last_error or LlmError(kind=LlmErrorKind.TRANSIENT, message="Retry loop ended unexpectedly")
+    raise last_error or LlmError(
+        kind=LlmErrorKind.TRANSIENT, message="Retry loop ended unexpectedly"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -254,16 +250,10 @@ async def _call_with_timeout_and_retry(
 def _scrub_credentials(request: LlmRequest, redactor: Any) -> LlmRequest:
     """Return a copy of the request with CREDENTIAL-class content scrubbed (LD7)."""
     clean_messages = [
-        msg.model_copy(
-            update={"content": redactor.redact_text(msg.content, Boundary.OPERATIONAL)}
-        )
+        msg.model_copy(update={"content": redactor.redact_text(msg.content, Boundary.OPERATIONAL)})
         for msg in request.messages
     ]
-    system = (
-        redactor.redact_text(request.system, Boundary.OPERATIONAL)
-        if request.system
-        else None
-    )
+    system = redactor.redact_text(request.system, Boundary.OPERATIONAL) if request.system else None
     return request.model_copy(update={"messages": clean_messages, "system": system})
 
 
@@ -295,7 +285,7 @@ class LlmProvider:
         llm_settings = settings.llm
 
         # Resolve Gemini API key from Vault (required — fails boot if absent FR-015)
-        gemini_key = await _fetch_gemini_key(settings)
+        gemini_key = _resolve_gemini_key(settings)
 
         # Obtain the observability bundle (registered before this provider — LD10)
         container = getattr(settings, "_container", None)
@@ -307,7 +297,9 @@ class LlmProvider:
             from backend.infra.redaction import build_redactor
             from backend.infra.tracing import build_tracer
 
-            obs = Observability(redactor=build_redactor(presidio_enabled=False), tracer=build_tracer())
+            obs = Observability(
+                redactor=build_redactor(presidio_enabled=False), tracer=build_tracer()
+            )
 
         logger.info("llm_provider_building", primary=str(llm_settings.primary))
 
@@ -323,45 +315,30 @@ class LlmProvider:
             logger.info("llm_provider_disposed")
 
 
-async def _fetch_gemini_key(settings: Any) -> str:
-    """Resolve the Gemini API key from Vault (fails boot if missing)."""
-    import httpx
+def _resolve_gemini_key(settings: Any) -> str:
+    """Read the Gemini API key from the resolved Vault singleton (fails boot if missing).
 
-    vault_addr = settings.vault.addr
-    vault_token = settings.vault.token.get_secret_value()
-    kv_mount = settings.vault.kv_mount
+    secret/llm is in required_paths, so it is already in the cache.
+    """
     path = settings.llm.gemini_vault_path
-    # Strip mount prefix if path was stored as "secret/llm" with kv_mount="secret"
-    clean = path.lstrip("/")
-    mount_prefix = f"{kv_mount}/"
-    if clean.startswith(mount_prefix):
-        clean = clean[len(mount_prefix):]
-    url = f"{vault_addr}/v1/{kv_mount}/data/{clean}"
-
-    try:
-        async with httpx.AsyncClient(timeout=settings.startup.dependency_timeout_s) as client:
-            resp = await client.get(url, headers={"X-Vault-Token": vault_token})
-    except Exception as exc:
+    container = getattr(settings, "_container", None)
+    vault = getattr(container, "vault_client", None) if container else None
+    if vault is None:
         raise RuntimeError(
-            f"Cannot reach Vault to load Gemini API key from '{path}': {type(exc).__name__}"
+            "LLM provider requires vault_client to be registered before it (composition order)."
+        )
+    try:
+        data = vault.get_secret(path)
+    except KeyError as exc:
+        raise RuntimeError(
+            f"Required Gemini API key path '{path}' was not resolved at startup. "
+            "Add it to vault.required_paths and ensure vault-seed wrote it."
         ) from exc
 
-    if resp.status_code == 404:
-        raise RuntimeError(
-            f"Required Gemini API key not found in Vault at '{path}' (404). "
-            "Ensure GEMINI_API_KEY is set in .env so vault-seed writes it."
-        )
-    if resp.status_code != 200:
-        raise RuntimeError(
-            f"Vault returned HTTP {resp.status_code} for '{path}'"
-        )
-
-    data = resp.json().get("data", {}).get("data", {})
     api_key = data.get("api_key") or data.get("GEMINI_API_KEY") or ""
     if not api_key:
         raise RuntimeError(
-            f"Vault path '{path}' has no 'api_key' field. "
-            "Check vault-seed configuration."
+            f"Vault path '{path}' has no 'api_key' field. Check vault-seed configuration."
         )
     return api_key
 

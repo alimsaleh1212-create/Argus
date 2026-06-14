@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -20,11 +20,12 @@ from backend.domain.memory import (
     TemporalFact,
 )
 
-_NOW = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
 _UUID = uuid.uuid4()
 
 
 # ── EntityRef ────────────────────────────────────────────────────────────────
+
 
 def test_entity_ref_valid() -> None:
     ref = EntityRef(kind=EntityKind.ADDRESS, value="10.0.0.1")
@@ -43,6 +44,7 @@ def test_entity_ref_extra_forbid() -> None:
 
 
 # ── IncidentEpisode ──────────────────────────────────────────────────────────
+
 
 def _episode(**overrides: object) -> IncidentEpisode:
     base: dict = {
@@ -97,6 +99,7 @@ def test_episode_with_entities() -> None:
 
 # ── MemoryHit ────────────────────────────────────────────────────────────────
 
+
 def test_memory_hit_relevance_bounds() -> None:
     with pytest.raises(ValidationError):
         MemoryHit(
@@ -109,7 +112,9 @@ def test_memory_hit_relevance_bounds() -> None:
 
 
 def test_memory_hit_relevance_zero() -> None:
-    hit = MemoryHit(incident_id=_UUID, summary="s", disposition="d", observed_at=_NOW, relevance=0.0)
+    hit = MemoryHit(
+        incident_id=_UUID, summary="s", disposition="d", observed_at=_NOW, relevance=0.0
+    )
     assert hit.relevance == 0.0
 
 
@@ -127,6 +132,7 @@ def test_memory_hit_extra_forbid() -> None:
 
 # ── FactState ────────────────────────────────────────────────────────────────
 
+
 def test_factstate_defaults() -> None:
     fs = FactState()
     assert fs.fact is None
@@ -141,6 +147,7 @@ def test_factstate_extra_forbid() -> None:
 
 # ── TemporalFact ─────────────────────────────────────────────────────────────
 
+
 def test_temporal_fact_valid_until_none() -> None:
     tf = TemporalFact(
         entity=EntityRef(kind=EntityKind.ADDRESS, value="1.2.3.4"),
@@ -154,6 +161,7 @@ def test_temporal_fact_valid_until_none() -> None:
 
 # ── MemoryStore Protocol ──────────────────────────────────────────────────────
 
+
 def test_memory_store_is_protocol() -> None:
     # The Protocol is runtime-checkable; a class with the right methods satisfies it.
     class FakeStore:
@@ -163,9 +171,7 @@ def test_memory_store_is_protocol() -> None:
         async def search_similar(self, query: EpisodeQuery, *, k: int) -> list[MemoryHit]:
             return []
 
-        async def query_fact(
-            self, entity: EntityRef, fact_type: str, *, as_of=None
-        ) -> FactState:
+        async def query_fact(self, entity: EntityRef, fact_type: str, *, as_of=None) -> FactState:
             return FactState()
 
         async def write_fact(self, fact) -> None:

@@ -37,7 +37,7 @@ def pg_container():
 
 @pytest_asyncio.fixture
 async def db_session(pg_container):
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     engine = create_async_engine(pg_container.get_dsn(), echo=False)
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -68,7 +68,6 @@ class TestSupervisorPostgres:
     async def test_advance_status_guarded_transition(self, db_session) -> None:
         """advance_status returns True only when status matches the expected value."""
         from backend.domain.incident import IncidentStatus
-        from backend.repositories.incidents import IncidentRepository
 
         created, repo = await _create_incident(db_session)
         # Claim for grounding first

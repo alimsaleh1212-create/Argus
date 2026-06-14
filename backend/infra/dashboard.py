@@ -9,8 +9,6 @@ import contextlib
 from collections.abc import AsyncGenerator
 from typing import Any
 
-import httpx
-
 from backend.infra.logging import get_logger
 
 logger = get_logger(__name__)
@@ -26,38 +24,24 @@ class AuthServiceProvider:
         from backend.infra.auth import AuthService
 
         cfg = settings.dashboard
-        vault_addr = settings.vault.addr
-        vault_token = settings.vault.token.get_secret_value()
-        kv_mount = settings.vault.kv_mount
         path = cfg.vault_path_admin
-        # Strip mount prefix if path stored as "secret/dashboard" with kv_mount="secret"
-        clean = path.lstrip("/")
-        mount_prefix = f"{kv_mount}/"
-        if clean.startswith(mount_prefix):
-            clean = clean[len(mount_prefix):]
-        url = f"{vault_addr}/v1/{kv_mount}/data/{clean}"
 
         logger.info("auth_service_building")
-        try:
-            async with httpx.AsyncClient(timeout=settings.startup.dependency_timeout_s) as client:
-                resp = await client.get(url, headers={"X-Vault-Token": vault_token})
-        except Exception as exc:
+        # secret/dashboard is in required_paths → read from the resolved singleton.
+        container = getattr(settings, "_container", None)
+        vault = getattr(container, "vault_client", None) if container else None
+        if vault is None:
             raise RuntimeError(
-                f"Cannot reach Vault to load admin dashboard credentials from '{path}': "
-                f"{type(exc).__name__}"
+                "AuthServiceProvider requires vault_client to be registered before it."
+            )
+        try:
+            data = vault.get_secret(path)
+        except KeyError as exc:
+            raise RuntimeError(
+                f"Dashboard admin credentials path '{path}' was not resolved at startup. "
+                "Ensure it is in vault.required_paths and vault-seed wrote it."
             ) from exc
 
-        if resp.status_code == 404:
-            raise RuntimeError(
-                f"Dashboard admin credentials not found in Vault at '{path}' (404). "
-                "Ensure vault-seed has run and set password_hash, salt, iterations, jwt_secret."
-            )
-        if resp.status_code != 200:
-            raise RuntimeError(
-                f"Vault returned HTTP {resp.status_code} for '{path}'"
-            )
-
-        data = resp.json().get("data", {}).get("data", {})
         password_hash = data.get("password_hash", "")
         salt = data.get("salt", "")
         iterations_raw = data.get("iterations", "260000")
@@ -69,10 +53,14 @@ class AuthServiceProvider:
                 "(password_hash, salt, jwt_secret). Check vault-seed."
             )
 
+        # Fail loudly on a malformed iterations value rather than silently
+        # substituting a default that would make every login fail confusingly.
         try:
             iterations = int(iterations_raw)
-        except (ValueError, TypeError):
-            iterations = 260000
+        except (ValueError, TypeError) as exc:
+            raise RuntimeError(
+                f"Vault path '{path}' has a non-integer 'iterations' value."
+            ) from exc
 
         auth_service = AuthService(
             admin_username=cfg.admin_username,
@@ -104,9 +92,7 @@ class TraceRepoProvider:
             settings._container, "db_engine", None
         )
         if db is None:
-            raise RuntimeError(
-                "TraceRepoProvider requires db_engine to be registered first."
-            )
+            raise RuntimeError("TraceRepoProvider requires db_engine to be registered first.")
         repo = TraceRepository(db.engine)
         logger.info("trace_repo_ready")
         try:

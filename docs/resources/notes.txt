@@ -4,7 +4,8 @@ If detection is rule based then frequently response is with predefined playbooks
 
 anomal ml dtection increases false postive intrusion alarms so here AI agents became valuable
 
-
+admin
+argus-admin-2026
 
 /speckit-specify depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_Plan.md make things simple and don't overengineer while working
 
@@ -80,3 +81,9 @@ The entire FSM is ~30 lines: a transition table + a while loop. LangGraph would 
 
 then where is the AI and agents in the workflow, where supervisor is deterministic, triage I am not sure if it's determenestic or not, enrichment uses graph temporal memory. Response suggests remediation but it seems couldn't perform them? whereas agents are smart llms that could take actions.
  Also you talked about #7 but we are now in #5 I need clarification about what is happening in this stage
+
+
+
+I am not satisfied with the @.env.example and @compose.yaml  where I think it's messy and complicated. I want it clean, lean and with best engineering standards. there is many lines commented in @.env.example including api keys, don't I need them in the app functionality? Remove what we don't need and let maintain lines that we need only. all secrets must be in vault but we can use @.env file for seeding vault (isn't better having vault init script for vault init container on compose up for seeding secrets from .env file to vault to make compose file cleaner?)
+
+

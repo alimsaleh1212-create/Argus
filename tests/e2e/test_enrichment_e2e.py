@@ -10,18 +10,28 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 import pytest
 
 from backend.agents.enrichment import make_enrichment_handler
-from backend.domain.corpus import EntityRef, ReferenceHit, ReferenceCorpusEntry, ReferenceKind, IntelVerdict
+from backend.domain.corpus import (
+    ReferenceCorpusEntry,
+    ReferenceHit,
+    ReferenceKind,
+)
 from backend.domain.incident import Incident, IncidentStatus, Severity
-from backend.domain.llm import LlmError, LlmErrorKind, LlmResponse, ProviderId, StopReason, TokenUsage
+from backend.domain.llm import (
+    LlmError,
+    LlmErrorKind,
+    LlmResponse,
+    ProviderId,
+    StopReason,
+    TokenUsage,
+)
 from backend.domain.memory import EpisodeQuery, FactState, MemoryHit
 from backend.domain.pipeline import StageName, StageOutcome, StageResult
 from backend.infra.config import EnrichmentSettings, TriageSettings
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -56,12 +66,14 @@ def _incident(severity: Severity = Severity.HIGH) -> Incident:
 
 def _triage_response(verdict: str = "real", confidence: float = 0.9) -> LlmResponse:
     return LlmResponse(
-        content=json.dumps({
-            "verdict": verdict,
-            "confidence": confidence,
-            "rationale": f"Looks {verdict}.",
-            "cited_evidence": ["rule_description"],
-        }),
+        content=json.dumps(
+            {
+                "verdict": verdict,
+                "confidence": confidence,
+                "rationale": f"Looks {verdict}.",
+                "cited_evidence": ["rule_description"],
+            }
+        ),
         usage=TokenUsage(prompt_tokens=20, completion_tokens=10),
         model="fake",
         provider=ProviderId.GEMINI,
@@ -76,14 +88,16 @@ def _enrich_response(
     internal: list | None = None,
 ) -> LlmResponse:
     return LlmResponse(
-        content=json.dumps({
-            "assessment": assessment,
-            "confidence": confidence,
-            "correlation_summary": f"Cross-correlation shows {assessment} verdict.",
-            "external_findings": external or ["T1059 in corpus"],
-            "internal_findings": internal or ["Prior incident on web-01"],
-            "cited_evidence": ["corpus:T1059", "prior:abc"],
-        }),
+        content=json.dumps(
+            {
+                "assessment": assessment,
+                "confidence": confidence,
+                "correlation_summary": f"Cross-correlation shows {assessment} verdict.",
+                "external_findings": external or ["T1059 in corpus"],
+                "internal_findings": internal or ["Prior incident on web-01"],
+                "cited_evidence": ["corpus:T1059", "prior:abc"],
+            }
+        ),
         usage=TokenUsage(prompt_tokens=50, completion_tokens=30),
         model="fake",
         provider=ProviderId.GEMINI,
@@ -176,20 +190,24 @@ class FakeRepo:
     ) -> bool:
         if self._incident.id != incident_id or self._incident.status != expected:
             return False
-        self.advances.append({
-            "from": expected,
-            "to": target,
-            "disposition": disposition,
-            "evidence_patch": evidence_patch,
-        })
+        self.advances.append(
+            {
+                "from": expected,
+                "to": target,
+                "disposition": disposition,
+                "evidence_patch": evidence_patch,
+            }
+        )
         updated_evidence = dict(self._incident.evidence or {})
         if evidence_patch:
             updated_evidence.update(evidence_patch)
-        self._incident = self._incident.model_copy(update={
-            "status": target,
-            "disposition": disposition,
-            "evidence": updated_evidence,
-        })
+        self._incident = self._incident.model_copy(
+            update={
+                "status": target,
+                "disposition": disposition,
+                "evidence": updated_evidence,
+            }
+        )
         return True
 
 
@@ -202,8 +220,8 @@ def _make_supervisor(
     enrich_cfg: EnrichmentSettings | None = None,
     max_stage_retries: int = 1,
 ):
-    from backend.agents.triage import make_triage_handler
     from backend.agents.response import run_response
+    from backend.agents.triage import make_triage_handler
     from backend.infra.config import SupervisorSettings
     from backend.infra.tracing import build_tracer
     from backend.services.supervisor import Supervisor
@@ -232,10 +250,12 @@ def _make_supervisor(
 @pytest.mark.asyncio
 async def test_confirmed_enrichment_advances_to_responding():
     """Real+confirmed → triage→enriching→responding; evidence.enrichment persisted (US1)."""
-    llm = SequencedLlm([
-        _triage_response("real", 0.9),
-        _enrich_response("confirmed", 0.85),
-    ])
+    llm = SequencedLlm(
+        [
+            _triage_response("real", 0.9),
+            _enrich_response("confirmed", 0.85),
+        ]
+    )
     incident = _incident()
     repo = FakeRepo(incident)
 
@@ -249,10 +269,12 @@ async def test_confirmed_enrichment_advances_to_responding():
 
 @pytest.mark.asyncio
 async def test_enrichment_evidence_has_correlation_summary():
-    llm = SequencedLlm([
-        _triage_response("real", 0.9),
-        _enrich_response("confirmed", 0.85),
-    ])
+    llm = SequencedLlm(
+        [
+            _triage_response("real", 0.9),
+            _enrich_response("confirmed", 0.85),
+        ]
+    )
     incident = _incident()
     repo = FakeRepo(incident)
     sup = _make_supervisor(llm, llm, corpus=FakeCorpus(), memory=FakeMemory())
@@ -267,10 +289,12 @@ async def test_enrichment_evidence_has_correlation_summary():
 @pytest.mark.asyncio
 async def test_response_stage_reached_after_enrichment():
     """Confirmed enrichment → RESPONDING status confirms response stage entry."""
-    llm = SequencedLlm([
-        _triage_response("real", 0.9),
-        _enrich_response("confirmed", 0.85),
-    ])
+    llm = SequencedLlm(
+        [
+            _triage_response("real", 0.9),
+            _enrich_response("confirmed", 0.85),
+        ]
+    )
     incident = _incident()
     repo = FakeRepo(incident)
     sup = _make_supervisor(llm, llm, corpus=FakeCorpus(), memory=FakeMemory())
@@ -293,10 +317,12 @@ async def test_benign_high_confidence_resolves_no_response_stage():
     """Benign enrichment (conf≥resolve_min) → resolved; response stage does NOT run (US2a)."""
     response_calls: list = []
 
-    llm = SequencedLlm([
-        _triage_response("real", 0.9),
-        _enrich_response("benign", 0.85),
-    ])
+    llm = SequencedLlm(
+        [
+            _triage_response("real", 0.9),
+            _enrich_response("benign", 0.85),
+        ]
+    )
     incident = _incident()
     repo = FakeRepo(incident)
 
@@ -310,10 +336,16 @@ async def test_benign_high_confidence_resolves_no_response_stage():
 
     async def _tracking_response(inc: Incident) -> StageResult:
         response_calls.append(inc.id)
-        return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.RESOLVED, tokens_consumed=0)
+        return StageResult(
+            stage=StageName.RESPONSE, outcome=StageOutcome.RESOLVED, tokens_consumed=0
+        )
 
     sup = Supervisor(
-        stages={StageName.TRIAGE: triage_h, StageName.ENRICHMENT: enrich_h, StageName.RESPONSE: _tracking_response},
+        stages={
+            StageName.TRIAGE: triage_h,
+            StageName.ENRICHMENT: enrich_h,
+            StageName.RESPONSE: _tracking_response,
+        },
         cfg=SupervisorSettings(),
         tracer=build_tracer(exporter=None),
     )
@@ -327,10 +359,12 @@ async def test_benign_high_confidence_resolves_no_response_stage():
 @pytest.mark.asyncio
 async def test_inconclusive_enrichment_escalates():
     """Inconclusive (conflicting evidence) → escalated/escalated_enrichment (US2b)."""
-    llm = SequencedLlm([
-        _triage_response("real", 0.9),
-        _enrich_response("inconclusive", 0.5),
-    ])
+    llm = SequencedLlm(
+        [
+            _triage_response("real", 0.9),
+            _enrich_response("inconclusive", 0.5),
+        ]
+    )
     incident = _incident()
     repo = FakeRepo(incident)
     sup = _make_supervisor(llm, llm, corpus=FakeCorpus(), memory=FakeMemory())
@@ -344,18 +378,18 @@ async def test_inconclusive_enrichment_escalates():
 @pytest.mark.asyncio
 async def test_escalated_enrichment_records_evidence():
     """Escalated enrichment still persists evidence.enrichment rationale (US2b)."""
-    llm = SequencedLlm([
-        _triage_response("real", 0.9),
-        _enrich_response("inconclusive", 0.45),
-    ])
+    llm = SequencedLlm(
+        [
+            _triage_response("real", 0.9),
+            _enrich_response("inconclusive", 0.45),
+        ]
+    )
     incident = _incident()
     repo = FakeRepo(incident)
     sup = _make_supervisor(llm, llm, corpus=FakeCorpus(), memory=FakeMemory())
     await sup.run_incident(incident.id, repo)
 
-    enrich_advance = next(
-        (c for c in repo.advances if c["from"] == IncidentStatus.ENRICHING), None
-    )
+    enrich_advance = next((c for c in repo.advances if c["from"] == IncidentStatus.ENRICHING), None)
     assert enrich_advance is not None
     assert enrich_advance["evidence_patch"]["enrichment"]["correlation_summary"]
 
@@ -369,13 +403,17 @@ async def test_escalated_enrichment_records_evidence():
 async def test_transient_enrichment_error_escalates_after_retries():
     """Transient LLM error on enrichment → supervisor retries → escalated (US3)."""
     triage_llm = SequencedLlm([_triage_response("real", 0.9)])
-    enrich_llm = SequencedLlm([
-        LlmError(kind=LlmErrorKind.TRANSIENT, message="timeout"),
-        LlmError(kind=LlmErrorKind.TRANSIENT, message="timeout"),
-    ])
+    enrich_llm = SequencedLlm(
+        [
+            LlmError(kind=LlmErrorKind.TRANSIENT, message="timeout"),
+            LlmError(kind=LlmErrorKind.TRANSIENT, message="timeout"),
+        ]
+    )
     incident = _incident()
     repo = FakeRepo(incident)
-    sup = _make_supervisor(triage_llm, enrich_llm, corpus=FakeCorpus(), memory=FakeMemory(), max_stage_retries=1)
+    sup = _make_supervisor(
+        triage_llm, enrich_llm, corpus=FakeCorpus(), memory=FakeMemory(), max_stage_retries=1
+    )
     await sup.run_incident(incident.id, repo)
 
     assert repo._incident.status == IncidentStatus.ESCALATED
@@ -398,10 +436,12 @@ async def test_malformed_enrichment_response_escalates():
 
     incident = _incident()
     repo = FakeRepo(incident)
-    enrich_h = make_enrichment_handler(MalformedLlm(), FakeCorpus(), FakeMemory(), None, EnrichmentSettings())
+    enrich_h = make_enrichment_handler(
+        MalformedLlm(), FakeCorpus(), FakeMemory(), None, EnrichmentSettings()
+    )
 
-    from backend.agents.triage import make_triage_handler
     from backend.agents.response import run_response
+    from backend.agents.triage import make_triage_handler
     from backend.infra.config import SupervisorSettings
     from backend.infra.tracing import build_tracer
     from backend.services.supervisor import Supervisor
@@ -424,14 +464,17 @@ async def test_malformed_enrichment_response_escalates():
 @pytest.mark.asyncio
 async def test_memory_outage_enrichment_still_completes():
     """Memory unavailable mid-run → enrichment degrades to corpus-only; still advances (US3)."""
-    llm = SequencedLlm([
-        _triage_response("real", 0.9),
-        _enrich_response("confirmed", 0.85, internal=[]),
-    ])
+    llm = SequencedLlm(
+        [
+            _triage_response("real", 0.9),
+            _enrich_response("confirmed", 0.85, internal=[]),
+        ]
+    )
     incident = _incident()
     repo = FakeRepo(incident)
     sup = _make_supervisor(
-        llm, llm,
+        llm,
+        llm,
         corpus=FakeCorpus(),
         memory=FakeMemory(raise_on_search=True),  # memory raises on search
     )
@@ -449,17 +492,21 @@ async def test_memory_outage_enrichment_still_completes():
 async def test_second_incident_processed_after_first_fails():
     """Worker keeps consuming: a failed enrichment on inc1 doesn't prevent inc2 (US3)."""
     triage_llm1 = SequencedLlm([_triage_response("real", 0.9)])
-    enrich_llm1 = SequencedLlm([
-        LlmError(kind=LlmErrorKind.TRANSIENT, message="oops"),
-        LlmError(kind=LlmErrorKind.TRANSIENT, message="oops"),
-    ])
+    enrich_llm1 = SequencedLlm(
+        [
+            LlmError(kind=LlmErrorKind.TRANSIENT, message="oops"),
+            LlmError(kind=LlmErrorKind.TRANSIENT, message="oops"),
+        ]
+    )
     triage_llm2 = SequencedLlm([_triage_response("real", 0.9)])
     enrich_llm2 = SequencedLlm([_enrich_response("confirmed", 0.85)])
 
     inc1, inc2 = _incident(), _incident()
     repo1, repo2 = FakeRepo(inc1), FakeRepo(inc2)
 
-    sup1 = _make_supervisor(triage_llm1, enrich_llm1, corpus=FakeCorpus(), memory=FakeMemory(), max_stage_retries=1)
+    sup1 = _make_supervisor(
+        triage_llm1, enrich_llm1, corpus=FakeCorpus(), memory=FakeMemory(), max_stage_retries=1
+    )
     sup2 = _make_supervisor(triage_llm2, enrich_llm2, corpus=FakeCorpus(), memory=FakeMemory())
 
     await sup1.run_incident(inc1.id, repo1)

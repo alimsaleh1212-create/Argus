@@ -52,7 +52,9 @@ def build_mock_executors() -> dict[ActionType, ActionExecutor]:
 
 def build_failing_executors(*types: ActionType) -> dict[ActionType, ActionExecutor]:
     """Build a registry where the specified types always fail (for tests)."""
-    registry: dict[ActionType, ActionExecutor] = {atype: _MockExecutor(atype) for atype in ActionType}
+    registry: dict[ActionType, ActionExecutor] = {
+        atype: _MockExecutor(atype) for atype in ActionType
+    }
     for atype in types:
         registry[atype] = _FailingExecutor(atype)
     return registry

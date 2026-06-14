@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from backend.domain.incident import Incident, IncidentStatus, Severity
-from backend.domain.pipeline import StageOutcome, ToolError
-from backend.domain.response import ActionType, ApprovalStatus, RiskClass
+from backend.domain.pipeline import StageOutcome
+from backend.domain.response import ActionType, RiskClass
 
 
 def _responding_incident(severity: str = "critical") -> Incident:
@@ -29,6 +29,7 @@ def _responding_incident(severity: str = "critical") -> Incident:
 
 def _catalog_destructive():
     from backend.agents.response import PlaybookEntry
+
     return [
         PlaybookEntry(
             id="isolate_and_ticket",
@@ -41,6 +42,7 @@ def _catalog_destructive():
 
 def _catalog_auto_only():
     from backend.agents.response import PlaybookEntry
+
     return [
         PlaybookEntry(
             id="watchlist",
@@ -59,11 +61,17 @@ class _FakeAuditRepo:
     async def is_applied(self, key: str) -> bool:
         return key in self._applied
 
-    async def append(self, *, incident_id, actor, action, target=None, outcome, idempotency_key=None):
-        self.rows.append({
-            "actor": actor, "action": action, "outcome": outcome,
-            "idempotency_key": idempotency_key,
-        })
+    async def append(
+        self, *, incident_id, actor, action, target=None, outcome, idempotency_key=None
+    ):
+        self.rows.append(
+            {
+                "actor": actor,
+                "action": action,
+                "outcome": outcome,
+                "idempotency_key": idempotency_key,
+            }
+        )
         if outcome == "applied" and idempotency_key:
             if idempotency_key in self._applied:
                 return False
@@ -83,12 +91,17 @@ class _FakeApprovalRepo:
     async def get_approved_pending_for(self, incident_id):
         return self._approved
 
-    async def create_pending(self, *, incident_id, plan_id, pending_actions, rationale, deadline_at):
+    async def create_pending(
+        self, *, incident_id, plan_id, pending_actions, rationale, deadline_at
+    ):
         rid = self._next_id
         self._next_id += 1
         self._records[rid] = {
-            "id": rid, "status": "pending", "pending_actions": pending_actions,
-            "plan_id": plan_id, "rationale": rationale,
+            "id": rid,
+            "status": "pending",
+            "pending_actions": pending_actions,
+            "plan_id": plan_id,
+            "rationale": rationale,
         }
         return rid
 
@@ -103,10 +116,12 @@ class _FakeApprovalRepo:
 # Pass A: park branch
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_park_branch_returns_needs_approval():
     """Destructive-action plan → NEEDS_APPROVAL, approval record created, no destructive execution."""
     import contextlib
+
     from backend.agents.response import make_response_handler
     from backend.infra.config import ResponseSettings
     from backend.infra.executors import build_mock_executors
@@ -127,7 +142,11 @@ async def test_park_branch_returns_needs_approval():
         patch("backend.agents.response.AuditRepository", return_value=audit_repo),
     ):
         handler = make_response_handler(
-            llm=None, session_factory=_session_factory, executors=executors, cfg=cfg, catalog=catalog
+            llm=None,
+            session_factory=_session_factory,
+            executors=executors,
+            cfg=cfg,
+            catalog=catalog,
         )
         result = await handler(incident)
 
@@ -142,6 +161,7 @@ async def test_park_branch_returns_needs_approval():
 async def test_park_branch_auto_actions_still_execute():
     """Co-proposed auto actions execute before parking (T019 spec)."""
     import contextlib
+
     from backend.agents.response import make_response_handler
     from backend.infra.config import ResponseSettings
     from backend.infra.executors import build_mock_executors
@@ -162,7 +182,11 @@ async def test_park_branch_auto_actions_still_execute():
         patch("backend.agents.response.AuditRepository", return_value=audit_repo),
     ):
         handler = make_response_handler(
-            llm=None, session_factory=_session_factory, executors=executors, cfg=cfg, catalog=catalog
+            llm=None,
+            session_factory=_session_factory,
+            executors=executors,
+            cfg=cfg,
+            catalog=catalog,
         )
         await handler(incident)
 
@@ -176,18 +200,21 @@ async def test_park_branch_auto_actions_still_execute():
 # Pass B: resume execution (no LLM)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_pass_b_executes_approved_plan():
     """Approved pending record → Pass B executes it, returns RESOLVED/remediated, no LLM call."""
     import contextlib
-    from backend.repositories.approvals import ApprovalRecord
+
     from backend.agents.response import make_response_handler
     from backend.infra.config import ResponseSettings
     from backend.infra.executors import build_mock_executors
+    from backend.repositories.approvals import ApprovalRecord
 
     incident = _responding_incident()
     # Build an approved record with the destructive action
     from backend.domain.response import RemediationAction, RiskClass
+
     approved_action = RemediationAction(
         type=ActionType.ISOLATE_HOST,
         target="web-srv-01",
@@ -224,7 +251,11 @@ async def test_pass_b_executes_approved_plan():
         patch("backend.agents.response.AuditRepository", return_value=audit_repo),
     ):
         handler = make_response_handler(
-            llm=None, session_factory=_session_factory, executors=executors, cfg=cfg, catalog=catalog
+            llm=None,
+            session_factory=_session_factory,
+            executors=executors,
+            cfg=cfg,
+            catalog=catalog,
         )
         result = await handler(incident)
 
@@ -241,11 +272,12 @@ async def test_pass_b_executes_approved_plan():
 async def test_pass_b_no_llm_call():
     """Pass B never calls the LLM."""
     import contextlib
-    from backend.repositories.approvals import ApprovalRecord
+
     from backend.agents.response import make_response_handler
     from backend.domain.response import RemediationAction
     from backend.infra.config import ResponseSettings
     from backend.infra.executors import build_mock_executors
+    from backend.repositories.approvals import ApprovalRecord
 
     incident = _responding_incident()
     approved_action = RemediationAction(
@@ -255,16 +287,22 @@ async def test_pass_b_no_llm_call():
         idempotency_key=f"{incident.id}:plan1:isolate_host:host",
     )
     approved_record = ApprovalRecord(
-        id=1, incident_id=incident.id, plan_id="plan1",
+        id=1,
+        incident_id=incident.id,
+        plan_id="plan1",
         pending_actions=[approved_action.model_dump(mode="json")],
-        rationale="ok", status="approved",
+        rationale="ok",
+        status="approved",
         deadline_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(seconds=60),
-        decided_by="admin", decided_at=datetime.now(UTC).replace(tzinfo=None),
-        created_at=datetime.now(UTC), updated_at=datetime.now(UTC),
+        decided_by="admin",
+        decided_at=datetime.now(UTC).replace(tzinfo=None),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
     class _TrackingLlm:
         call_count = 0
+
         async def generate(self, req, *, correlation_id=None):
             self.__class__.call_count += 1
             raise AssertionError("LLM should not be called on Pass B")

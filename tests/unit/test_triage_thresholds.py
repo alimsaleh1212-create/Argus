@@ -22,7 +22,10 @@ def test_raising_advance_min_converts_advance_to_escalate():
     # With default advance_min=0.6 → ADVANCE
     assert decide_outcome(judgment, TriageSettings())[0] == StageOutcome.ADVANCE
     # Raise advance_min to 0.7 → ESCALATE
-    assert decide_outcome(judgment, TriageSettings(advance_min_confidence=0.7))[0] == StageOutcome.ESCALATE
+    assert (
+        decide_outcome(judgment, TriageSettings(advance_min_confidence=0.7))[0]
+        == StageOutcome.ESCALATE
+    )
 
 
 def test_lowering_resolve_min_converts_noise_escalate_to_resolved():
@@ -30,9 +33,12 @@ def test_lowering_resolve_min_converts_noise_escalate_to_resolved():
     # Default resolve_min=0.7 → ESCALATE (0.65 < 0.7)
     assert decide_outcome(judgment, TriageSettings())[0] == StageOutcome.ESCALATE
     # Lower resolve_min to 0.6 → RESOLVED (0.65 >= 0.6)
-    assert decide_outcome(
-        judgment, TriageSettings(advance_min_confidence=0.5, resolve_min_confidence=0.6)
-    )[0] == StageOutcome.RESOLVED
+    assert (
+        decide_outcome(
+            judgment, TriageSettings(advance_min_confidence=0.5, resolve_min_confidence=0.6)
+        )[0]
+        == StageOutcome.RESOLVED
+    )
 
 
 def test_raising_resolve_min_converts_resolved_to_escalate():
@@ -40,9 +46,10 @@ def test_raising_resolve_min_converts_resolved_to_escalate():
     # Default resolve_min=0.7 → RESOLVED
     assert decide_outcome(judgment, TriageSettings())[0] == StageOutcome.RESOLVED
     # Raise resolve_min to 0.8 → ESCALATE
-    assert decide_outcome(
-        judgment, TriageSettings(resolve_min_confidence=0.8)
-    )[0] == StageOutcome.ESCALATE
+    assert (
+        decide_outcome(judgment, TriageSettings(resolve_min_confidence=0.8))[0]
+        == StageOutcome.ESCALATE
+    )
 
 
 def test_equal_thresholds_still_work():

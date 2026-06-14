@@ -34,7 +34,6 @@ async def real_llm_client():
 
         # Quick reachability check — skip if Ollama is down
         try:
-            from backend.infra.llm_drivers import OllamaDriver as _OD
             driver = drivers[ProviderId.OLLAMA]
             reachable = await driver.ping()
             if not reachable:

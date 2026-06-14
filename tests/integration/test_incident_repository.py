@@ -8,7 +8,6 @@ from __future__ import annotations
 import os
 import subprocess
 import uuid
-from typing import AsyncIterator
 
 import pytest
 import pytest_asyncio
@@ -38,7 +37,7 @@ def pg_container():
 
 @pytest_asyncio.fixture
 async def db_session(pg_container):
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     engine = create_async_engine(pg_container.get_dsn(), echo=False)
     factory = async_sessionmaker(engine, expire_on_commit=False)

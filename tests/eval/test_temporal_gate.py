@@ -11,11 +11,10 @@ independent of the store backend. 100% pass rate required.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import pytest
 import yaml
 
 from backend.domain.memory import EntityKind, EntityRef, FactState, TemporalFact
@@ -121,9 +120,9 @@ def test_temporal_gate() -> None:
                 continue
 
             # Both t1 and now queries must report has_superseded=True
-            t1 = datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
+            t1 = datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC)
             state_t1 = _window_select(facts, as_of=t1)
-            state_now = _window_select(facts, as_of=datetime.now(timezone.utc))
+            state_now = _window_select(facts, as_of=datetime.now(UTC))
 
             if state_t1.has_superseded and state_now.has_superseded:
                 passed += 1
@@ -151,7 +150,7 @@ def test_temporal_gate() -> None:
 
         for check in scenario["checks"]:
             if check["as_of"] is None:
-                as_of = datetime.now(timezone.utc)
+                as_of = datetime.now(UTC)
             else:
                 as_of = datetime.fromisoformat(check["as_of"].replace("Z", "+00:00"))
 

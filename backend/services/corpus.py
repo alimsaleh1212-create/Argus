@@ -109,6 +109,7 @@ async def seed_reputation(
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+
 def _build_tags(raw_tags: list[str]) -> list[str]:
     seen: dict[str, None] = {}
     for t in raw_tags:

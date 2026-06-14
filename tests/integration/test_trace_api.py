@@ -123,7 +123,9 @@ class TestTraceEndpoint:
         app, pw = _make_app(incident=_seed_incident(), trace_tree=_seed_trace_tree())
         with TestClient(app, raise_server_exceptions=False) as client:
             token = self._login(client, pw)
-            resp = client.get(f"/incidents/{_INC_ID}/trace", headers={"Authorization": f"Bearer {token}"})
+            resp = client.get(
+                f"/incidents/{_INC_ID}/trace", headers={"Authorization": f"Bearer {token}"}
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["correlation_id"] == _CORR_ID
@@ -135,7 +137,9 @@ class TestTraceEndpoint:
         app, pw = _make_app(incident=_seed_incident(), trace_tree=_seed_trace_tree())
         with TestClient(app, raise_server_exceptions=False) as client:
             token = self._login(client, pw)
-            resp = client.get(f"/incidents/{_INC_ID}/trace", headers={"Authorization": f"Bearer {token}"})
+            resp = client.get(
+                f"/incidents/{_INC_ID}/trace", headers={"Authorization": f"Bearer {token}"}
+            )
         body = resp.json()
         children = body["children"]
         assert "root-span" in children
@@ -150,7 +154,9 @@ class TestTraceEndpoint:
         app, pw = _make_app(incident=_seed_incident(), trace_tree=_seed_trace_tree())
         with TestClient(app, raise_server_exceptions=False) as client:
             token = self._login(client, pw)
-            resp = client.get(f"/incidents/{_INC_ID}/trace", headers={"Authorization": f"Bearer {token}"})
+            resp = client.get(
+                f"/incidents/{_INC_ID}/trace", headers={"Authorization": f"Bearer {token}"}
+            )
         telemetry = resp.json()["telemetry"]
         assert telemetry["step_count"] == 1
         assert telemetry["error_steps"] == 0
@@ -162,7 +168,9 @@ class TestTraceEndpoint:
         app, pw = _make_app(incident=_seed_incident(), trace_tree=None)
         with TestClient(app, raise_server_exceptions=False) as client:
             token = self._login(client, pw)
-            resp = client.get(f"/incidents/{_INC_ID}/trace", headers={"Authorization": f"Bearer {token}"})
+            resp = client.get(
+                f"/incidents/{_INC_ID}/trace", headers={"Authorization": f"Bearer {token}"}
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["correlation_id"] == _CORR_ID
@@ -179,7 +187,9 @@ class TestTraceEndpoint:
         unknown = uuid.UUID("dddddddd-0000-0000-0000-000000000002")
         with TestClient(app, raise_server_exceptions=False) as client:
             token = self._login(client, pw)
-            resp = client.get(f"/incidents/{unknown}/trace", headers={"Authorization": f"Bearer {token}"})
+            resp = client.get(
+                f"/incidents/{unknown}/trace", headers={"Authorization": f"Bearer {token}"}
+            )
         assert resp.status_code == 404
 
     def test_unauthenticated_returns_401(self) -> None:
@@ -205,7 +215,9 @@ class TestTraceEndpoint:
         app, pw = _make_app(incident=_seed_incident(), trace_tree=tree)
         with TestClient(app, raise_server_exceptions=False) as client:
             token = self._login(client, pw)
-            resp = client.get(f"/incidents/{_INC_ID}/trace", headers={"Authorization": f"Bearer {token}"})
+            resp = client.get(
+                f"/incidents/{_INC_ID}/trace", headers={"Authorization": f"Bearer {token}"}
+            )
         body = resp.json()
         assert body["root"]["tokens_in"] is None
         assert body["root"]["tokens_out"] is None

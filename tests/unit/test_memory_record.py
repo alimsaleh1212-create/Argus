@@ -3,18 +3,18 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from backend.domain.incident import Incident, IncidentStatus, NormalizedEvent, Severity
-from backend.domain.memory import EntityKind, EntityRef, IncidentEpisode
+from backend.domain.memory import EntityKind, IncidentEpisode
 from backend.domain.redaction import Boundary
 from backend.services.memory import _extract_entities, record_episode
 
-_NOW = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
 _INCIDENT_ID = uuid.uuid4()
 
 
@@ -65,6 +65,7 @@ def _make_redactor(planted_secret: str = "AKIAIOSFODNN7EXAMPLE") -> MagicMock:
 
 # ── _extract_entities ────────────────────────────────────────────────────────
 
+
 def test_extract_entities_basic() -> None:
     ne = NormalizedEvent(
         agent_ip="10.0.0.1",
@@ -102,6 +103,7 @@ def test_extract_entities_dedup() -> None:
 
 
 # ── record_episode ────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_record_episode_calls_store() -> None:

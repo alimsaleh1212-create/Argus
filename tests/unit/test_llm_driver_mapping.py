@@ -6,7 +6,6 @@ parsers, and driver exception paths via mocked SDKs (zero real network calls).
 
 from __future__ import annotations
 
-import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -15,14 +14,10 @@ import pytest
 from backend.domain.llm import (
     LlmMessage,
     LlmRequest,
-    LlmResponse,
     ProviderId,
     StopReason,
-    ToolCall,
     ToolSpec,
-    TokenUsage,
 )
-
 
 # ---------------------------------------------------------------------------
 # Error classifiers
@@ -31,49 +26,53 @@ from backend.domain.llm import (
 
 class TestClassifyGeminiError:
     def test_auth_by_status_code(self):
-        from backend.infra.llm_drivers import _classify_gemini_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_gemini_error
 
         exc = Exception("401 Unauthorized")
         assert _classify_gemini_error(exc) == LlmErrorKind.AUTH
 
     def test_auth_by_api_key_message(self):
-        from backend.infra.llm_drivers import _classify_gemini_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_gemini_error
 
         exc = Exception("invalid api_key provided")
         assert _classify_gemini_error(exc) == LlmErrorKind.AUTH
 
     def test_auth_by_exception_type(self):
-        from backend.infra.llm_drivers import _classify_gemini_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_gemini_error
 
-        class PermissionDeniedError(Exception): pass
+        class PermissionDeniedError(Exception):
+            pass
+
         assert _classify_gemini_error(PermissionDeniedError("denied")) == LlmErrorKind.AUTH
 
     def test_invalid_request_by_400(self):
-        from backend.infra.llm_drivers import _classify_gemini_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_gemini_error
 
         exc = Exception("400 bad request: context window exceeded")
         assert _classify_gemini_error(exc) == LlmErrorKind.INVALID_REQUEST
 
     def test_invalid_request_by_type(self):
-        from backend.infra.llm_drivers import _classify_gemini_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_gemini_error
 
-        class InvalidArgumentError(Exception): pass
+        class InvalidArgumentError(Exception):
+            pass
+
         assert _classify_gemini_error(InvalidArgumentError("bad")) == LlmErrorKind.INVALID_REQUEST
 
     def test_content_refusal(self):
-        from backend.infra.llm_drivers import _classify_gemini_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_gemini_error
 
         exc = Exception("safety filter triggered — harm detected")
         assert _classify_gemini_error(exc) == LlmErrorKind.CONTENT_REFUSAL
 
     def test_transient_by_429(self):
-        from backend.infra.llm_drivers import _classify_gemini_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_gemini_error
 
         exc = Exception("429 rate limit exceeded")
         assert _classify_gemini_error(exc) == LlmErrorKind.TRANSIENT
 
     def test_transient_default_unknown(self):
-        from backend.infra.llm_drivers import _classify_gemini_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_gemini_error
 
         exc = Exception("some unknown weirdness")
         assert _classify_gemini_error(exc) == LlmErrorKind.TRANSIENT
@@ -81,25 +80,27 @@ class TestClassifyGeminiError:
 
 class TestClassifyOllamaError:
     def test_connection_refused_is_transient(self):
-        from backend.infra.llm_drivers import _classify_ollama_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_ollama_error
 
         exc = Exception("connection refused")
         assert _classify_ollama_error(exc) == LlmErrorKind.TRANSIENT
 
     def test_connect_error_type_is_transient(self):
-        from backend.infra.llm_drivers import _classify_ollama_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_ollama_error
 
-        class ConnectError(Exception): pass
+        class ConnectError(Exception):
+            pass
+
         assert _classify_ollama_error(ConnectError("no route")) == LlmErrorKind.TRANSIENT
 
     def test_model_not_found_is_invalid_request(self):
-        from backend.infra.llm_drivers import _classify_ollama_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_ollama_error
 
         exc = Exception("model 'qwen2:xyz' not found")
         assert _classify_ollama_error(exc) == LlmErrorKind.INVALID_REQUEST
 
     def test_unknown_is_transient(self):
-        from backend.infra.llm_drivers import _classify_ollama_error, LlmErrorKind
+        from backend.infra.llm_drivers import LlmErrorKind, _classify_ollama_error
 
         exc = Exception("some random error")
         assert _classify_ollama_error(exc) == LlmErrorKind.TRANSIENT
@@ -195,10 +196,12 @@ class TestBuildGeminiContents:
     def test_system_message_extracted(self):
         from backend.infra.llm_drivers import _build_gemini_contents
 
-        req = LlmRequest(messages=[
-            LlmMessage(role="system", content="You are a helpful assistant."),
-            LlmMessage(role="user", content="hello"),
-        ])
+        req = LlmRequest(
+            messages=[
+                LlmMessage(role="system", content="You are a helpful assistant."),
+                LlmMessage(role="user", content="hello"),
+            ]
+        )
         contents, system = _build_gemini_contents(req)
         assert "helpful" in system
         assert len(contents) == 1  # system is extracted, not a content item
@@ -206,9 +209,11 @@ class TestBuildGeminiContents:
     def test_tool_message_becomes_function_response(self):
         from backend.infra.llm_drivers import _build_gemini_contents
 
-        req = LlmRequest(messages=[
-            LlmMessage(role="tool", content='{"result": "ok"}', name="search"),
-        ])
+        req = LlmRequest(
+            messages=[
+                LlmMessage(role="tool", content='{"result": "ok"}', name="search"),
+            ]
+        )
         contents, _ = _build_gemini_contents(req)
         assert len(contents) == 1
         part = contents[0].parts[0]
@@ -281,7 +286,9 @@ class TestBuildGeminiConfig:
 
 
 class TestParseGeminiResponse:
-    def _raw(self, text="ok", function_calls=None, prompt_tokens=10, completion_tokens=5, reason="STOP"):
+    def _raw(
+        self, text="ok", function_calls=None, prompt_tokens=10, completion_tokens=5, reason="STOP"
+    ):
         r = MagicMock()
         r.text = text
         r.function_calls = function_calls or []
@@ -333,7 +340,9 @@ class TestParseGeminiResponse:
 
 
 class TestParseOllamaResponse:
-    def _raw(self, content="ok", tool_calls=None, prompt_eval_count=4, eval_count=2, done_reason="stop"):
+    def _raw(
+        self, content="ok", tool_calls=None, prompt_eval_count=4, eval_count=2, done_reason="stop"
+    ):
         r = SimpleNamespace(
             message=SimpleNamespace(content=content, tool_calls=tool_calls or []),
             prompt_eval_count=prompt_eval_count,
@@ -421,9 +430,9 @@ class TestBuildOllamaMessages:
 
 class TestGeminiDriverExceptionPaths:
     async def test_exception_from_generate_content_raises_llm_error(self):
-        from backend.infra.llm_drivers import GeminiDriver
-        from backend.infra.config import LlmSettings
         from backend.domain.llm import LlmError
+        from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import GeminiDriver
 
         settings = LlmSettings()
 
@@ -442,8 +451,8 @@ class TestGeminiDriverExceptionPaths:
                 await driver.generate(req)
 
     async def test_ping_returns_true_when_list_succeeds(self):
-        from backend.infra.llm_drivers import GeminiDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import GeminiDriver
 
         settings = LlmSettings()
 
@@ -460,8 +469,8 @@ class TestGeminiDriverExceptionPaths:
         assert result is True
 
     async def test_ping_returns_false_when_list_raises(self):
-        from backend.infra.llm_drivers import GeminiDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import GeminiDriver
 
         settings = LlmSettings()
 
@@ -480,8 +489,8 @@ class TestGeminiDriverExceptionPaths:
 
 class TestOllamaDriverMocked:
     async def test_generate_calls_client_chat(self):
-        from backend.infra.llm_drivers import OllamaDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import OllamaDriver
 
         settings = LlmSettings(ollama_model="qwen2:0.5b")
 
@@ -506,8 +515,8 @@ class TestOllamaDriverMocked:
         mock_client.chat.assert_called_once()
 
     async def test_generate_with_tools(self):
-        from backend.infra.llm_drivers import OllamaDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import OllamaDriver
 
         settings = LlmSettings(ollama_model="qwen2:0.5b")
         raw = SimpleNamespace(
@@ -525,14 +534,14 @@ class TestOllamaDriverMocked:
             driver = OllamaDriver(settings)
             tool = ToolSpec(name="search", description="Search", parameters={"type": "object"})
             req = LlmRequest(messages=[LlmMessage(role="user", content="search it")], tools=[tool])
-            resp = await driver.generate(req)
+            await driver.generate(req)
 
         call_kwargs = mock_client.chat.call_args[1]
         assert "tools" in call_kwargs
 
     async def test_generate_with_response_schema(self):
-        from backend.infra.llm_drivers import OllamaDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import OllamaDriver
 
         settings = LlmSettings(ollama_model="qwen2:0.5b")
         raw = SimpleNamespace(
@@ -553,15 +562,15 @@ class TestOllamaDriverMocked:
                 messages=[LlmMessage(role="user", content="classify")],
                 response_schema=schema,
             )
-            resp = await driver.generate(req)
+            await driver.generate(req)
 
         call_kwargs = mock_client.chat.call_args[1]
         assert call_kwargs["format"] == schema
 
     async def test_generate_exception_raises_llm_error(self):
-        from backend.infra.llm_drivers import OllamaDriver
-        from backend.infra.config import LlmSettings
         from backend.domain.llm import LlmError
+        from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import OllamaDriver
 
         settings = LlmSettings(ollama_model="qwen2:0.5b")
 
@@ -576,8 +585,8 @@ class TestOllamaDriverMocked:
                 await driver.generate(req)
 
     async def test_ping_returns_true_when_list_succeeds(self):
-        from backend.infra.llm_drivers import OllamaDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import OllamaDriver
 
         settings = LlmSettings(ollama_model="qwen2:0.5b")
 
@@ -592,8 +601,8 @@ class TestOllamaDriverMocked:
         assert result is True
 
     async def test_ping_returns_false_when_list_raises(self):
-        from backend.infra.llm_drivers import OllamaDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import OllamaDriver
 
         settings = LlmSettings(ollama_model="qwen2:0.5b")
 
@@ -608,8 +617,8 @@ class TestOllamaDriverMocked:
         assert result is False
 
     async def test_generate_with_temperature_option(self):
-        from backend.infra.llm_drivers import OllamaDriver
         from backend.infra.config import LlmSettings
+        from backend.infra.llm_drivers import OllamaDriver
 
         settings = LlmSettings(ollama_model="qwen2:0.5b")
         raw = SimpleNamespace(

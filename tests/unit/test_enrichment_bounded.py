@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
 
@@ -54,12 +53,14 @@ def _incident(extra_indicators: int = 0) -> Incident:
 
 def _ok_response() -> LlmResponse:
     return LlmResponse(
-        content=json.dumps({
-            "assessment": "confirmed",
-            "confidence": 0.8,
-            "correlation_summary": "Signals aligned.",
-            "cited_evidence": ["rule_id=100"],
-        }),
+        content=json.dumps(
+            {
+                "assessment": "confirmed",
+                "confidence": 0.8,
+                "correlation_summary": "Signals aligned.",
+                "cited_evidence": ["rule_id=100"],
+            }
+        ),
         usage=TokenUsage(prompt_tokens=40, completion_tokens=20),
         model="fake",
         provider=ProviderId.GEMINI,
@@ -87,8 +88,11 @@ class CountingMemory:
         self.query_fact_calls.append(entity)
         return FactState()
 
-    async def write_episode(self, ep): pass
-    async def write_fact(self, fact): pass
+    async def write_episode(self, ep):
+        pass
+
+    async def write_fact(self, fact):
+        pass
 
 
 @pytest.mark.asyncio
@@ -110,15 +114,18 @@ async def test_tokens_consumed_equals_prompt_plus_completion():
 @pytest.mark.asyncio
 async def test_tokens_consumed_none_safe_when_zero_counts():
     """If provider returns zero token counts, tokens_consumed is 0 (None-safe)."""
+
     class ZeroUsageLlm:
         async def generate(self, request, *, correlation_id=None):
             return LlmResponse(
-                content=json.dumps({
-                    "assessment": "confirmed",
-                    "confidence": 0.8,
-                    "correlation_summary": "ok",
-                    "cited_evidence": ["ev"],
-                }),
+                content=json.dumps(
+                    {
+                        "assessment": "confirmed",
+                        "confidence": 0.8,
+                        "correlation_summary": "ok",
+                        "cited_evidence": ["ev"],
+                    }
+                ),
                 usage=TokenUsage(prompt_tokens=0, completion_tokens=0),
                 model="fake",
                 provider=ProviderId.GEMINI,

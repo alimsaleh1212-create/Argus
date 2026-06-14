@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.domain.dashboard import AuditView, IncidentSummary
+from backend.domain.dashboard import IncidentSummary
 
 _SALT = "intsalt"
 _ITERATIONS = 1000
@@ -27,17 +27,17 @@ _NOW = datetime(2026, 6, 12, 9, 0, 0, tzinfo=UTC)
 
 
 def _make_summary(**overrides) -> IncidentSummary:
-    defaults = dict(
-        id=_INC_ID,
-        status="triaging",
-        severity="high",
-        disposition=None,
-        source="wazuh",
-        summary="Suspicious login",
-        is_awaiting_approval=False,
-        created_at=_NOW,
-        updated_at=_NOW,
-    )
+    defaults = {
+        "id": _INC_ID,
+        "status": "triaging",
+        "severity": "high",
+        "disposition": None,
+        "source": "wazuh",
+        "summary": "Suspicious login",
+        "is_awaiting_approval": False,
+        "created_at": _NOW,
+        "updated_at": _NOW,
+    }
     return IncidentSummary(**{**defaults, **overrides})
 
 

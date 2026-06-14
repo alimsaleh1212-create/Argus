@@ -24,7 +24,10 @@ def pg_container():
         env = {**os.environ, "ARGUS__POSTGRES__DSN": pg.get_dsn()}
         subprocess.run(
             ["uv", "run", "alembic", "-c", "config/alembic.ini", "upgrade", "head"],
-            env=env, capture_output=True, text=True, check=True,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         yield pg
 
@@ -32,6 +35,7 @@ def pg_container():
 @pytest_asyncio.fixture
 async def db_setup(pg_container):
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
     engine = create_async_engine(pg_container.get_dsn(), echo=False)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     yield factory
@@ -64,16 +68,19 @@ class TestTimeoutSweeper:
         async with db_setup() as session:
             app_repo = ApprovalRepository(session)
             action = RemediationAction(
-                type=ActionType.BLOCK_IP, target="1.2.3.4",
+                type=ActionType.BLOCK_IP,
+                target="1.2.3.4",
                 risk=RiskClass.APPROVAL_REQUIRED,
                 idempotency_key=f"{incident_id}:p1:block_ip:1.2.3.4",
             )
             # Set deadline in the past
             past_deadline = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=60)
             await app_repo.create_pending(
-                incident_id=incident_id, plan_id="p1",
+                incident_id=incident_id,
+                plan_id="p1",
                 pending_actions=[action.model_dump(mode="json")],
-                rationale="block IP", deadline_at=past_deadline,
+                rationale="block IP",
+                deadline_at=past_deadline,
             )
 
         # Sweeper queries for now
@@ -109,7 +116,9 @@ class TestTimeoutSweeper:
         async with db_setup() as session:
             inc_repo = IncidentRepository(session)
             audit_repo = AuditRepository(session)
-            sup = Supervisor(stages={}, cfg=SupervisorSettings(), tracer=build_tracer(exporter=None))
+            sup = Supervisor(
+                stages={}, cfg=SupervisorSettings(), tracer=build_tracer(exporter=None)
+            )
 
             expired = await sup.expire_incident(incident_id, inc_repo, audit_repo=audit_repo)
             assert expired is True
@@ -146,7 +155,9 @@ class TestTimeoutSweeper:
         async with db_setup() as session:
             inc_repo = IncidentRepository(session)
             audit_repo = AuditRepository(session)
-            sup = Supervisor(stages={}, cfg=SupervisorSettings(), tracer=build_tracer(exporter=None))
+            sup = Supervisor(
+                stages={}, cfg=SupervisorSettings(), tracer=build_tracer(exporter=None)
+            )
             await sup.expire_incident(incident_id, inc_repo, audit_repo=audit_repo)
 
         async with db_setup() as session:

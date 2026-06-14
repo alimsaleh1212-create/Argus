@@ -137,6 +137,7 @@ class ThreatIntelClient:
         """Route through the guardrail seam; no-op gracefully until #11 lands (CD5)."""
         try:
             from backend.infra.guardrails import get_guardrail
+
             guardrail = get_guardrail()
             await guardrail.check_input(text)
         except NotImplementedError:
@@ -161,6 +162,7 @@ class ThreatIntelClient:
 
 # ── Provider ─────────────────────────────────────────────────────────────────
 
+
 class IntelProvider:
     """Lifespan singleton — yields ThreatIntelClient or a disabled stub."""
 
@@ -174,12 +176,11 @@ class IntelProvider:
             yield None
             return
 
-        # Resolve optional API key from Vault
+        # Resolve optional API key from Vault on demand (not a required boot path).
         api_key: str | None = None
         try:
-            from backend.infra.vault import VaultClient
-            vault = VaultClient(settings.vault)
-            secret = await vault.get_secret(cfg.api_key_vault_path)
+            vault = settings._container.vault_client
+            secret = await vault.fetch_secret(cfg.api_key_vault_path)
             api_key = secret.get("api_key") or None
         except Exception as exc:
             logger.warning("intel_api_key_unavailable", error=str(exc))

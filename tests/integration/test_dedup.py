@@ -33,9 +33,7 @@ async def redis_client(redis_container):
 
 @pytest.mark.integration
 class TestDedupHelpers:
-    async def test_claim_returns_true_first_then_false_within_ttl(
-        self, redis_client
-    ) -> None:
+    async def test_claim_returns_true_first_then_false_within_ttl(self, redis_client) -> None:
         from backend.infra.cache import claim_fingerprint
 
         fp = f"test-fp-{uuid.uuid4().hex}"

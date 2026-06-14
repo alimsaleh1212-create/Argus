@@ -8,12 +8,9 @@ Points the exporter at an unreachable DB mid-run; verifies:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 from backend.domain.telemetry import SpanKind
-from backend.infra.redaction import build_redactor
 from backend.infra.tracing import build_tracer, span
 
 pytestmark = pytest.mark.integration
@@ -41,8 +38,11 @@ class TestExportResilience:
         completed = False
         with span(tracer, "root", SpanKind.ROOT, correlation_id="resilience_001") as root_s:
             with span(
-                tracer, "triage.step", SpanKind.AGENT_STEP,
-                correlation_id="resilience_001", parent_span_id=root_s.span_id,
+                tracer,
+                "triage.step",
+                SpanKind.AGENT_STEP,
+                correlation_id="resilience_001",
+                parent_span_id=root_s.span_id,
             ):
                 pass
             completed = True
@@ -64,7 +64,9 @@ class TestExportResilience:
         tracer = build_tracer(exporter=failing_repo, max_attr_bytes=8192)
 
         with span(
-            tracer, "step", SpanKind.AGENT_STEP,
+            tracer,
+            "step",
+            SpanKind.AGENT_STEP,
             correlation_id="resilience_002",
             attrs={"payload": f"key={FAKE_KEY}"},
         ) as s:
@@ -72,6 +74,7 @@ class TestExportResilience:
 
         # Even if export fails, the span attributes stored in the Span object are redacted
         import json
+
         attr_str = json.dumps(s.attributes)
         assert FAKE_KEY not in attr_str, "Raw key found in span attributes"
 

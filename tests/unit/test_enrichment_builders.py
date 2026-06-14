@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from backend.agents.enrichment import build_reference_query, extract_entities
 from backend.domain.corpus import EntityKind
 
@@ -92,14 +90,16 @@ class TestExtractEntities:
 
     def test_caps_at_max_indicators(self):
         ev = _evidence()
-        ev["normalized_event"]["fields"].update({
-            "md5": "aaa",
-            "sha1": "bbb",
-            "sha256": "ccc",
-            "hash": "ddd",
-            "domain": "evil.com",
-            "url": "http://evil.com/payload",
-        })
+        ev["normalized_event"]["fields"].update(
+            {
+                "md5": "aaa",
+                "sha1": "bbb",
+                "sha256": "ccc",
+                "hash": "ddd",
+                "domain": "evil.com",
+                "url": "http://evil.com/payload",
+            }
+        )
         entities = extract_entities(ev, max_indicators=3)
         assert len(entities) <= 3
 

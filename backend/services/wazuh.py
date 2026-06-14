@@ -26,9 +26,7 @@ def normalize(alert: WazuhAlert) -> NormalizedEvent:
     event_time = None
     if alert.timestamp:
         try:
-            event_time = datetime.fromisoformat(
-                alert.timestamp.replace("Z", "+00:00")
-            )
+            event_time = datetime.fromisoformat(alert.timestamp.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
             pass
 

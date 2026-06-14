@@ -10,11 +10,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 from backend.domain.llm import (
-    LlmError,
-    LlmErrorKind,
     LlmMessage,
     LlmRequest,
     LlmResponse,
@@ -26,8 +22,8 @@ from backend.domain.llm import (
 
 def _build_client_with_recording_tracer(fake_response=None, raise_error=None):
     """Build a client whose tracer records spans in memory for inspection."""
-    from backend.infra.llm import LlmClient
     from backend.infra.config import LlmSettings
+    from backend.infra.llm import LlmClient
     from backend.infra.redaction import build_redactor
     from backend.infra.tracing import build_tracer
 
@@ -57,7 +53,9 @@ def _build_client_with_recording_tracer(fake_response=None, raise_error=None):
         )
         driver.generate = AsyncMock(return_value=resp)
 
-    client = LlmClient(settings=settings, drivers={ProviderId.GEMINI: driver, ProviderId.OLLAMA: driver}, obs=obs)
+    client = LlmClient(
+        settings=settings, drivers={ProviderId.GEMINI: driver, ProviderId.OLLAMA: driver}, obs=obs
+    )
     return client, driver, obs
 
 
@@ -69,6 +67,7 @@ class TestTelemetrySpan:
         recorded_spans = []
 
         from backend.infra import tracing as tracing_mod
+
         original_queue = tracing_mod._Tracer._queue_span
 
         def capturing_queue(self_tracer, span):
@@ -79,7 +78,7 @@ class TestTelemetrySpan:
         try:
             client, driver, _ = _build_client_with_recording_tracer()
             req = LlmRequest(messages=[LlmMessage(role="user", content="ping")])
-            resp = await client.generate(req, correlation_id="span-test-1")
+            await client.generate(req, correlation_id="span-test-1")
         finally:
             tracing_mod._Tracer._queue_span = original_queue
 

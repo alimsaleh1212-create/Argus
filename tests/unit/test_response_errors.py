@@ -12,7 +12,7 @@ import uuid
 import pytest
 
 from backend.domain.incident import Incident, IncidentStatus, Severity
-from backend.domain.pipeline import StageOutcome, ToolError
+from backend.domain.pipeline import ToolError
 from backend.domain.response import ActionType, RiskClass
 
 
@@ -33,6 +33,7 @@ def _incident(severity: str = "critical") -> Incident:
 # ---------------------------------------------------------------------------
 # LLM error mapping
 # ---------------------------------------------------------------------------
+
 
 def test_map_llm_transient_error_is_retryable():
     from backend.agents.response import _map_and_raise_llm_error
@@ -82,6 +83,7 @@ def test_map_non_llm_error_wraps_as_unexpected():
 # ---------------------------------------------------------------------------
 # Catalog miss
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_no_playbook_match_raises_tool_error():
@@ -136,6 +138,7 @@ async def test_ambiguous_match_no_llm_raises_tool_error():
 # Malformed LLM output
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_malformed_llm_output_raises_tool_error():
     """Malformed JSON from LLM → ToolError(malformed_output)."""
@@ -153,6 +156,7 @@ async def test_malformed_llm_output_raises_tool_error():
             class _R:
                 content = "not json {{ broken"
                 usage = None
+
             return _R()
 
     cfg = ResponseSettings()
@@ -179,10 +183,11 @@ async def test_low_confidence_llm_raises_tool_error():
     class _FakeLlm:
         async def generate(self, req, **kw):
             class _R:
-                content = json.dumps({
-                    "playbook_id": "p1", "confidence": 0.3, "rationale": "not sure"
-                })
+                content = json.dumps(
+                    {"playbook_id": "p1", "confidence": 0.3, "rationale": "not sure"}
+                )
                 usage = None
+
             return _R()
 
     cfg = ResponseSettings(select_min_confidence=0.6)
@@ -195,6 +200,7 @@ async def test_low_confidence_llm_raises_tool_error():
 # ---------------------------------------------------------------------------
 # No executor for action type
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_no_executor_raises_tool_error():
@@ -211,8 +217,11 @@ async def test_no_executor_raises_tool_error():
     )
 
     class _AuditRepo:
-        async def is_applied(self, key): return False
-        async def append(self, **kw): return True
+        async def is_applied(self, key):
+            return False
+
+        async def append(self, **kw):
+            return True
 
     with pytest.raises(ToolError) as exc_info:
         await _execute_with_audit(
@@ -245,8 +254,11 @@ async def test_executor_exception_wraps_as_retryable():
             raise ConnectionError("downstream unreachable")
 
     class _AuditRepo:
-        async def is_applied(self, key): return False
-        async def append(self, **kw): return True
+        async def is_applied(self, key):
+            return False
+
+        async def append(self, **kw):
+            return True
 
     with pytest.raises(ToolError) as exc_info:
         await _execute_with_audit(
@@ -265,6 +277,7 @@ async def test_executor_exception_wraps_as_retryable():
 # Handler fail-closed: select_playbook raises → handler surfaces ToolError
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_handler_propagates_select_tool_error():
     """When select_playbook fails, make_response_handler propagates the ToolError."""
@@ -273,12 +286,18 @@ async def test_handler_propagates_select_tool_error():
     from backend.infra.executors import build_mock_executors
 
     class _FakeAuditRepo:
-        async def is_applied(self, key): return False
-        async def append(self, **kw): return True
+        async def is_applied(self, key):
+            return False
+
+        async def append(self, **kw):
+            return True
 
     class _FakeApprovalRepo:
-        async def get_approved_pending_for(self, iid): return None
-        async def create_pending(self, **kw): return 1
+        async def get_approved_pending_for(self, iid):
+            return None
+
+        async def create_pending(self, **kw):
+            return 1
 
     @contextlib.asynccontextmanager
     async def _sf():

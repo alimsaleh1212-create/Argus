@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from backend.agents.enrichment import decide_outcome
 from backend.domain.enrichment import EnrichmentReport
 from backend.domain.pipeline import StageOutcome

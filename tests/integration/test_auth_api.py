@@ -30,10 +30,10 @@ def _make_auth_service():
 
 def _make_app():
     """Build a minimal app with dependency_overrides for auth + no-lifespan providers."""
-    from backend.infra.container import clear_registry
+    from backend.dependencies import get_auth_service, get_incident_repo
     from backend.infra.config import load_settings
+    from backend.infra.container import clear_registry
     from backend.main import create_app
-    from backend.dependencies import get_auth_service, get_current_operator, get_incident_repo
 
     # Clear all providers so lifespan doesn't try to connect to Vault/Postgres
     clear_registry()
@@ -48,7 +48,7 @@ def _make_app():
     app.dependency_overrides[get_auth_service] = lambda: auth_service
 
     # Override get_incident_repo to avoid DB
-    from unittest.mock import AsyncMock, MagicMock
+    from unittest.mock import AsyncMock
 
     async def fake_incident_repo():
         repo = AsyncMock()
@@ -77,7 +77,9 @@ class TestAuthLogin:
     def test_wrong_password_returns_401(self) -> None:
         app, _ = _make_app()
         with TestClient(app, raise_server_exceptions=False) as client:
-            resp = client.post("/auth/login", json={"username": "admin", "password": "wrongpassword"})
+            resp = client.post(
+                "/auth/login", json={"username": "admin", "password": "wrongpassword"}
+            )
         assert resp.status_code == 401
         assert "access_token" not in resp.json()
 
@@ -117,8 +119,9 @@ class TestProtectedEndpoint:
         assert resp.status_code != 401
 
     def test_expired_token_returns_401(self) -> None:
-        import jwt as pyjwt
         from datetime import UTC, datetime, timedelta
+
+        import jwt as pyjwt
 
         payload = {
             "sub": "admin",
