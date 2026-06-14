@@ -158,16 +158,20 @@ class IngestSettings(BaseSettings):
 class LlmSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="forbid")
 
-    primary: ProviderId = ProviderId.GEMINI
     fallback_order: list[ProviderId] = Field(
         default_factory=lambda: [ProviderId.GEMINI, ProviderId.OLLAMA]
     )
+
+    @property
+    def primary(self) -> ProviderId:
+        return self.fallback_order[0]
+
     request_timeout_s: Annotated[float, Field(gt=0)] = 30.0
     max_retries: Annotated[int, Field(ge=0)] = 2
-    gemini_model: str = "gemini-1.5-flash"
+    gemini_model: str = "gemini-2.5-flash"
     gemini_vault_path: str = "secret/llm"
     ollama_base_url: str = "http://ollama:11434"
-    ollama_model: str = "qwen2:0.5b"
+    ollama_model: str = "gemma4:31b-cloud"
 
     @field_validator("fallback_order", mode="before")
     @classmethod
@@ -386,12 +390,3 @@ class Settings(BaseSettings):
             )
         return self
 
-    @model_validator(mode="after")
-    def _validate_fallback_primary_consistency(self) -> Settings:
-        """Ensure fallback_order[0] == primary (data-model.md validation)."""
-        if self.llm.fallback_order and self.llm.fallback_order[0] != self.llm.primary:
-            raise ValueError(
-                f"llm.fallback_order[0] must equal llm.primary "
-                f"(got {self.llm.fallback_order[0]!r} != {self.llm.primary!r})"
-            )
-        return self
