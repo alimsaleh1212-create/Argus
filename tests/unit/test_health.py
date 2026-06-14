@@ -85,3 +85,40 @@ class TestReadinessEndpoint:
         assert body["ready"] is False
         vault_status = next(d for d in body["dependencies"] if d["name"] == "vault")
         assert vault_status["healthy"] is False
+
+
+class TestPostgresProbe:
+    """Regression: the readiness probe must hand asyncpg a libpq DSN.
+
+    Settings stores a SQLAlchemy DSN ("postgresql+asyncpg://…"); raw
+    asyncpg.connect() rejects the "+asyncpg" dialect with ClientConfigurationError,
+    which silently made /ready return 503 forever (the compose smoke job's failure).
+    """
+
+    async def test_strips_sqlalchemy_dialect_before_asyncpg(self) -> None:
+        from types import SimpleNamespace
+
+        from pydantic import SecretStr
+
+        from backend.infra.health import check_postgres
+
+        captured: dict[str, str] = {}
+
+        async def fake_connect(dsn: str):
+            captured["dsn"] = dsn
+
+            class _Conn:
+                async def close(self) -> None: ...
+
+            return _Conn()
+
+        settings = SimpleNamespace(
+            startup=SimpleNamespace(dependency_timeout_s=5.0),
+            postgres=SimpleNamespace(dsn=SecretStr("postgresql+asyncpg://u:p@h:5432/db")),
+        )
+        with patch("asyncpg.connect", side_effect=fake_connect):
+            result = await check_postgres(settings)
+
+        assert result.healthy is True
+        assert captured["dsn"] == "postgresql://u:p@h:5432/db"
+        assert "+asyncpg" not in captured["dsn"]
