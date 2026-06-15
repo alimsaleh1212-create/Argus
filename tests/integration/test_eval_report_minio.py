@@ -54,7 +54,7 @@ def _make_report(commit_sha: str = "abc12345", run_id: str | None = None,
 @pytest.mark.asyncio
 async def test_report_upload_and_download():
     with MinioContainer() as minio:
-        endpoint = minio.get_config()["endpoint_url"]
+        endpoint = f"http://{minio.get_config()['endpoint']}"
         cfg = EvalSettings(
             report_bucket="eval-reports",
             report_prefix="reports",
@@ -83,7 +83,7 @@ async def test_report_upload_and_download():
 async def test_two_runs_at_different_keys_are_both_retained():
     """History is retained: uploading a second report does not overwrite the first."""
     with MinioContainer() as minio:
-        endpoint = minio.get_config()["endpoint_url"]
+        endpoint = f"http://{minio.get_config()['endpoint']}"
         cfg = EvalSettings(
             report_bucket="eval-reports",
             report_prefix="reports",
@@ -115,10 +115,10 @@ async def test_two_runs_at_different_keys_are_both_retained():
 @pytest.mark.asyncio
 async def test_report_matches_json_schema():
     """Downloaded report validates against contracts/eval-report.schema.json."""
-    import jsonschema  # type: ignore[import-untyped]
+    jsonschema = pytest.importorskip("jsonschema")
 
     with MinioContainer() as minio:
-        endpoint = minio.get_config()["endpoint_url"]
+        endpoint = f"http://{minio.get_config()['endpoint']}"
         cfg = EvalSettings(report_bucket="eval-reports")
 
         from backend.eval.report import download_report, upload_report

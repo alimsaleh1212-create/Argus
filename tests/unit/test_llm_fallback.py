@@ -50,9 +50,8 @@ def _make_client(gemini_driver, ollama_driver, primary=ProviderId.GEMINI, fallba
     from backend.infra.redaction import build_redactor
     from backend.infra.tracing import build_tracer
 
-    fallback_order = fallback_order or [ProviderId.GEMINI, ProviderId.OLLAMA]
+    fallback_order = fallback_order or [primary, ProviderId.OLLAMA]
     settings = LlmSettings(
-        primary=primary,
         fallback_order=fallback_order,
         request_timeout_s=5.0,
         max_retries=0,  # No retry in these tests; test retry separately
@@ -270,7 +269,6 @@ class TestDriverMap:
         ollama = _driver(ProviderId.OLLAMA, response=_fake_response(provider=ProviderId.OLLAMA))
 
         settings = LlmSettings(
-            primary=ProviderId.GEMINI,
             fallback_order=[ProviderId.GEMINI, ProviderId.OLLAMA],
             max_retries=0,
         )
@@ -315,7 +313,6 @@ class TestTimeout:
         from backend.infra.tracing import build_tracer
 
         settings = LlmSettings(
-            primary=ProviderId.GEMINI,
             fallback_order=[ProviderId.GEMINI, ProviderId.OLLAMA],
             request_timeout_s=0.05,  # 50ms — triggers timeout fast
             max_retries=0,
