@@ -268,6 +268,9 @@ class MemorySettings(BaseSettings):
     neo4j_vault_path: str = "secret/memory"
     retrieval_k: Annotated[int, Field(gt=0)] = 5
     retrieval_timeout_s: Annotated[float, Field(gt=0)] = 5.0
+    # Writes (add_episode) run LLM entity/edge extraction + embedding + graph writes,
+    # so they need far longer than the read timeout — especially on a cloud LLM.
+    write_timeout_s: Annotated[float, Field(gt=0)] = 60.0
 
     # Embedder — chosen once at deploy time; do NOT change after data is written
     # (vectors from different models are incompatible; switching mid-stream corrupts search).
@@ -278,6 +281,34 @@ class MemorySettings(BaseSettings):
     ollama_embedder_base_url: str = "http://ollama:11434"
     ollama_embedder_model: str = "nomic-embed-text"
     ollama_embedder_dim: Annotated[int, Field(gt=0)] = 768
+
+    # Cross-encoder / reranker — an ordered fallback chain (like llm.fallback_order),
+    # INDEPENDENT of embedder_provider (reranking only scores search relevance, so it
+    # never affects vector compatibility) and replacing Graphiti's default
+    # OpenAIRerankerClient (which would demand a real OPENAI_API_KEY). Only invoked at
+    # search time — writes (seeding / episode writes) never use it.
+    #   gemini — GeminiRerankerClient (direct 0-100 scoring; reuses the secret/llm key).
+    #   ollama — OpenAIRerankerClient at ollama's /v1, reusing llm.ollama_model (no
+    #            dedicated pull). Logprob-limited, so best-effort — a last-resort
+    #            fallback for when gemini is unavailable.
+    # Default is gemini-only; set ["gemini","ollama"] to fall back to ollama.
+    cross_encoder_order: list[Literal["gemini", "ollama"]] = Field(
+        default_factory=lambda: ["gemini"]
+    )
+
+    @field_validator("cross_encoder_order", mode="before")
+    @classmethod
+    def _parse_cross_encoder_order(cls, v: object) -> object:
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
+
+    @field_validator("cross_encoder_order")
+    @classmethod
+    def _validate_cross_encoder_order(cls, v: list) -> list:
+        if not v:
+            raise ValueError("cross_encoder_order must not be empty")
+        return v
 
 
 class DashboardSettings(BaseSettings):

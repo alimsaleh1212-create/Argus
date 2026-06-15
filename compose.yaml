@@ -127,7 +127,8 @@ services:
       start_period: 30s
 
   # One-shot: pull the embedding model used by Graphiti memory (nomic-embed-text).
-  # The LLM model (gemma4:31b-cloud) is cloud-hosted — no local pull needed.
+  # The LLM model (gemma4:31b-cloud) is cloud-hosted — no local pull needed; the
+  # ollama reranker (when used as a fallback) reuses that same cloud model.
   ollama-pull:
     image: ollama/ollama
     depends_on:
@@ -135,7 +136,7 @@ services:
         condition: service_healthy
     environment:
       OLLAMA_HOST: http://ollama:11434
-    entrypoint: ["ollama", "pull", "nomic-embed-text"]
+    entrypoint: ["ollama", "pull", "${ARGUS__MEMORY__OLLAMA_EMBEDDER_MODEL:-nomic-embed-text}"]
     restart: on-failure
 
   # One-shot: applies Alembic schema migrations before the API starts.
@@ -156,6 +157,12 @@ services:
       # Presidio's AnalyzerEngine deadlocks at import inside the container
       # (futex wait); redaction falls back to the regex/secret scrubber.
       ARGUS__OBSERVABILITY__PRESIDIO_ENABLED: "false"
+      ARGUS__LLM__FALLBACK_ORDER: '${ARGUS__LLM__FALLBACK_ORDER:-["gemini","ollama"]}'
+      ARGUS__LLM__GEMINI_MODEL: "${ARGUS__LLM__GEMINI_MODEL:-gemini-2.5-flash}"
+      ARGUS__LLM__OLLAMA_MODEL: "${ARGUS__LLM__OLLAMA_MODEL:-gemma4:31b-cloud}"
+      ARGUS__MEMORY__EMBEDDER_PROVIDER: "${ARGUS__MEMORY__EMBEDDER_PROVIDER:-gemini}"
+      ARGUS__MEMORY__OLLAMA_EMBEDDER_MODEL: "${ARGUS__MEMORY__OLLAMA_EMBEDDER_MODEL:-nomic-embed-text}"
+      ARGUS__MEMORY__OLLAMA_EMBEDDER_DIM: "${ARGUS__MEMORY__OLLAMA_EMBEDDER_DIM:-768}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -185,6 +192,13 @@ services:
       ARGUS__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm","secret/ingest","secret/memory"]'
       # Same Presidio in-container deadlock workaround as api.
       ARGUS__OBSERVABILITY__PRESIDIO_ENABLED: "false"
+      ARGUS__LLM__FALLBACK_ORDER: '${ARGUS__LLM__FALLBACK_ORDER:-["gemini","ollama"]}'
+      ARGUS__LLM__GEMINI_MODEL: "${ARGUS__LLM__GEMINI_MODEL:-gemini-2.5-flash}"
+      ARGUS__LLM__OLLAMA_MODEL: "${ARGUS__LLM__OLLAMA_MODEL:-gemma4:31b-cloud}"
+      ARGUS__MEMORY__EMBEDDER_PROVIDER: "${ARGUS__MEMORY__EMBEDDER_PROVIDER:-gemini}"
+      ARGUS__MEMORY__OLLAMA_EMBEDDER_MODEL: "${ARGUS__MEMORY__OLLAMA_EMBEDDER_MODEL:-nomic-embed-text}"
+      ARGUS__MEMORY__OLLAMA_EMBEDDER_DIM: "${ARGUS__MEMORY__OLLAMA_EMBEDDER_DIM:-768}"
+      ARGUS__MEMORY__CROSS_ENCODER_ORDER: '${ARGUS__MEMORY__CROSS_ENCODER_ORDER:-["gemini"]}'
     depends_on:
       redis:
         condition: service_healthy
@@ -203,6 +217,10 @@ services:
     command: ["python", "-m", "backend.seed_corpus"]
     environment:
       ARGUS__VAULT__REQUIRED_PATHS: '["secret/memory"]'
+      ARGUS__MEMORY__EMBEDDER_PROVIDER: "${ARGUS__MEMORY__EMBEDDER_PROVIDER:-gemini}"
+      ARGUS__MEMORY__OLLAMA_EMBEDDER_MODEL: "${ARGUS__MEMORY__OLLAMA_EMBEDDER_MODEL:-nomic-embed-text}"
+      ARGUS__MEMORY__OLLAMA_EMBEDDER_DIM: "${ARGUS__MEMORY__OLLAMA_EMBEDDER_DIM:-768}"
+      ARGUS__MEMORY__CROSS_ENCODER_ORDER: '${ARGUS__MEMORY__CROSS_ENCODER_ORDER:-["gemini"]}'
     depends_on:
       neo4j:
         condition: service_healthy
