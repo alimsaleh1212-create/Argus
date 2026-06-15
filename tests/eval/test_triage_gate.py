@@ -58,7 +58,6 @@ def _incident_from_fixture(fx: dict[str, Any]) -> Incident:
     )
 
 
-
 class ScriptedLlm:
     """Returns a response whose verdict matches the gold label deterministically.
 

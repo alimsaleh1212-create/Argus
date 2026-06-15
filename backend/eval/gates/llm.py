@@ -22,6 +22,7 @@ _CONFIG = pathlib.Path("config/eval_thresholds.yaml")
 # triage
 # ---------------------------------------------------------------------------
 
+
 async def run_triage(spec: GateSpec, provider: str | None = None) -> GateResult:
     """Triage macro-F1 gate using a scripted (deterministic) LLM client."""
 
@@ -43,7 +44,9 @@ async def run_triage(spec: GateSpec, provider: str | None = None) -> GateResult:
         def __init__(self, verdict_map: dict[str, str]) -> None:
             self._map = verdict_map
 
-        async def generate(self, request: object, *, correlation_id: str | None = None) -> LlmResponse:
+        async def generate(
+            self, request: object, *, correlation_id: str | None = None
+        ) -> LlmResponse:
             verdict = self._map.get(correlation_id or "", "uncertain")
             payload = {
                 "verdict": verdict,
@@ -62,8 +65,12 @@ async def run_triage(spec: GateSpec, provider: str | None = None) -> GateResult:
     fixtures = _load_fixtures()
     if not fixtures:
         return GateResult(
-            gate=spec.name, kind=spec.kind, provider=provider,
-            score=0.0, threshold=spec.threshold, passed=None,
+            gate=spec.name,
+            kind=spec.kind,
+            provider=provider,
+            score=0.0,
+            threshold=spec.threshold,
+            passed=None,
             blocking=spec.kind == GateKind.required,
             evidence="no triage fixtures found",
         )
@@ -83,7 +90,9 @@ async def run_triage(spec: GateSpec, provider: str | None = None) -> GateResult:
             severity=Severity.MEDIUM,
             correlation_id=fx.get("incident_id", "eval"),
             dedup_fingerprint=fx.get("incident_id", "eval"),
-            source="eval", raw_alert={}, evidence=fx["evidence"],
+            source="eval",
+            raw_alert={},
+            evidence=fx["evidence"],
         )
         result = await handler(inc)
         if result.evidence_patch and "triage" in result.evidence_patch:
@@ -114,6 +123,7 @@ async def run_triage(spec: GateSpec, provider: str | None = None) -> GateResult:
 
     with _CONFIG.open() as fh:
         import yaml as _yaml
+
         threshold = _yaml.safe_load(fh)["gates"]["triage"]["threshold"]
 
     min_f1 = threshold.get("min_macro_f1", 0.75)
@@ -121,9 +131,12 @@ async def run_triage(spec: GateSpec, provider: str | None = None) -> GateResult:
     gate_passed = f1 >= min_f1 and abstention_rate <= max_abst
 
     return GateResult(
-        gate=spec.name, kind=spec.kind, provider=provider,
+        gate=spec.name,
+        kind=spec.kind,
+        provider=provider,
         score={"macro_f1": f1, "abstention_rate": abstention_rate},
-        threshold=spec.threshold, passed=gate_passed,
+        threshold=spec.threshold,
+        passed=gate_passed,
         blocking=spec.kind == GateKind.required,
         evidence=f"macro_f1={f1:.3f} abstentions={abstentions}/{total}",
     )
@@ -132,6 +145,7 @@ async def run_triage(spec: GateSpec, provider: str | None = None) -> GateResult:
 # ---------------------------------------------------------------------------
 # llm_provider
 # ---------------------------------------------------------------------------
+
 
 async def run_llm_provider(spec: GateSpec, provider: str | None = None) -> GateResult:
     """Minimal generate-and-validate check for a single LLM provider."""
@@ -145,8 +159,10 @@ async def run_llm_provider(spec: GateSpec, provider: str | None = None) -> GateR
         # Import the real LlmClient only if available — in CI without keys this
         # will raise at client construction, which we catch and record as unknown.
         from backend.infra.llm import get_llm_client
+
         client = await get_llm_client(provider or "ollama")
         from backend.domain.llm import LlmRequest
+
         req = LlmRequest(
             system_prompt="You are a test assistant.",
             user_message="Reply with exactly: pong",
@@ -160,16 +176,24 @@ async def run_llm_provider(spec: GateSpec, provider: str | None = None) -> GateR
             evidence_parts.append(f"content_len={len(resp.content)}")
     except Exception as e:
         return GateResult(
-            gate=spec.name, kind=spec.kind, provider=provider,
-            score=0.0, threshold=spec.threshold, passed=None,
+            gate=spec.name,
+            kind=spec.kind,
+            provider=provider,
+            score=0.0,
+            threshold=spec.threshold,
+            passed=None,
             blocking=spec.kind == GateKind.required,
             evidence=f"provider unavailable: {type(e).__name__}",
         )
 
     score = 1.0 if passed else 0.0
     return GateResult(
-        gate=spec.name, kind=spec.kind, provider=provider,
-        score=score, threshold=spec.threshold, passed=passed,
+        gate=spec.name,
+        kind=spec.kind,
+        provider=provider,
+        score=score,
+        threshold=spec.threshold,
+        passed=passed,
         blocking=spec.kind == GateKind.required,
         evidence="; ".join(evidence_parts) or "ok",
     )

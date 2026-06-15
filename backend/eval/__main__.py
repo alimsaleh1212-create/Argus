@@ -29,12 +29,15 @@ from backend.domain.eval import FreezeVerdict, RunMode
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="python -m backend.eval", description="Argus eval harness")
     p.add_argument(
-        "--mode", choices=[m.value for m in RunMode], default=RunMode.per_pr.value,
+        "--mode",
+        choices=[m.value for m in RunMode],
+        default=RunMode.per_pr.value,
         type=lambda s: RunMode(s),
         help="run mode (per_pr|nightly|freeze). Selects provider set.",
     )
     p.add_argument(
-        "--providers", default=None,
+        "--providers",
+        default=None,
         type=lambda s: [x.strip() for x in s.split(",")],
         help="comma-separated provider list, overrides mode default",
     )
@@ -63,23 +66,30 @@ def _print_report(report, *, redact: bool = True) -> None:
     print("-" * 90)
     for r in report.gate_results:
         score_str = (
-            f"{r.score:.3f}" if isinstance(r.score, float)
+            f"{r.score:.3f}"
+            if isinstance(r.score, float)
             else ", ".join(f"{k}={v:.3f}" for k, v in r.score.items())
         )
         provider_str = r.provider or "-"
         status = "PASS" if r.passed else ("UNKNOWN" if r.passed is None else "FAIL")
         kind_str = r.kind.value
         threshold_str = str(r.threshold)[:12]
-        print(f"  {r.gate:<28} {provider_str:<10} {score_str:<12} {threshold_str:<12} {kind_str:<14} {status}")
+        print(
+            f"  {r.gate:<28} {provider_str:<10} {score_str:<12} {threshold_str:<12} {kind_str:<14} {status}"
+        )
     if report.rationale:
         print("\nRationale scores:")
         for rs in report.rationale:
-            print(f"  {rs.stage}/{rs.producer_provider}: "
-                  f"grounded={rs.grounded_rate:.2f} agreement={rs.judge_human_agreement:.2f} n={rs.n}")
+            print(
+                f"  {rs.stage}/{rs.producer_provider}: "
+                f"grounded={rs.grounded_rate:.2f} agreement={rs.judge_human_agreement:.2f} n={rs.n}"
+            )
     print(f"\nVerdict: {report.verdict.value.upper()}")
     summary = report.summary
-    print(f"Summary: passed={summary.get('passed',0)} failed={summary.get('failed',0)} "
-          f"reported={summary.get('reported',0)} unknown={summary.get('unknown',0)}")
+    print(
+        f"Summary: passed={summary.get('passed', 0)} failed={summary.get('failed', 0)} "
+        f"reported={summary.get('reported', 0)} unknown={summary.get('unknown', 0)}"
+    )
 
 
 async def _run(args: argparse.Namespace) -> int:
@@ -110,9 +120,11 @@ async def _run(args: argparse.Namespace) -> int:
             return 2
         # Also restrict registry to avoid orphan/stale error on subset
         from backend.eval.gates import GATE_REGISTRY
+
         registry = {s.name: GATE_REGISTRY[s.name] for s in specs if s.name in GATE_REGISTRY}
     else:
         from backend.eval.gates import GATE_REGISTRY
+
         registry = GATE_REGISTRY
 
     # Determine provider set
@@ -155,9 +167,12 @@ async def _run(args: argparse.Namespace) -> int:
     from backend.eval.harness import run_harness
 
     report = await run_harness(
-        specs, registry,
-        run_mode=args.mode, providers=providers,
-        commit_sha=commit_sha, git_tag=git_tag,
+        specs,
+        registry,
+        run_mode=args.mode,
+        providers=providers,
+        commit_sha=commit_sha,
+        git_tag=git_tag,
     )
 
     _print_report(report)
@@ -165,16 +180,19 @@ async def _run(args: argparse.Namespace) -> int:
     # Write local file if requested
     if args.out != "-":
         from pathlib import Path
+
         Path(args.out).write_text(report.model_dump_json(indent=2))
 
     # Upload to MinIO if requested
     if args.upload or args.mode == RunMode.freeze:
         try:
             from backend.eval.report import upload_report
+
             await upload_report(report, cfg)
         except Exception as e:
             print(f"WARNING: MinIO upload failed: {e}", file=sys.stderr)
             from backend.domain.eval import FreezeVerdict as V
+
             if report.verdict == V.certifiable:
                 report = report.model_copy(update={"verdict": V.incomplete})
 

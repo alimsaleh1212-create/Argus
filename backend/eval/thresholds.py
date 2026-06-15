@@ -46,17 +46,27 @@ def load_specs_from_dict(data: dict[str, Any]) -> list[GateSpec]:
         # For rationale gate: threshold is the entire remaining config
         if name == "rationale" and not threshold:
             threshold = {
-                k: v for k, v in cfg.items()
-                if k not in ("description", "required", "run_modes", "judge_provider",
-                             "stages", "fixture_dir")
+                k: v
+                for k, v in cfg.items()
+                if k
+                not in (
+                    "description",
+                    "required",
+                    "run_modes",
+                    "judge_provider",
+                    "stages",
+                    "fixture_dir",
+                )
             }
 
-        specs.append(GateSpec(
-            name=name,
-            description=cfg.get("description", ""),
-            kind=kind,
-            provider_dim=provider_dim,
-            threshold=threshold,
-            providers=cfg.get("providers", []),
-        ))
+        specs.append(
+            GateSpec(
+                name=name,
+                description=cfg.get("description", ""),
+                kind=kind,
+                provider_dim=provider_dim,
+                threshold=threshold,
+                providers=cfg.get("providers", []),
+            )
+        )
     return specs

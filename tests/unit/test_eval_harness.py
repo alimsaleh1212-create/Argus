@@ -14,9 +14,12 @@ from backend.domain.eval import (
 )
 
 
-def _spec(name: str, kind: GateKind = GateKind.required,
-          dim: GateProviderDim = GateProviderDim.provider_independent,
-          providers: list[str] | None = None) -> GateSpec:
+def _spec(
+    name: str,
+    kind: GateKind = GateKind.required,
+    dim: GateProviderDim = GateProviderDim.provider_independent,
+    providers: list[str] | None = None,
+) -> GateSpec:
     return GateSpec(
         name=name,
         description="test",
@@ -27,8 +30,9 @@ def _spec(name: str, kind: GateKind = GateKind.required,
     )
 
 
-def _result(gate: str, passed: bool | None, kind: GateKind = GateKind.required,
-            provider: str | None = None) -> GateResult:
+def _result(
+    gate: str, passed: bool | None, kind: GateKind = GateKind.required, provider: str | None = None
+) -> GateResult:
     return GateResult(
         gate=gate,
         kind=kind,
@@ -59,8 +63,9 @@ async def test_all_required_pass_yields_certifiable():
 
     specs = [_spec("gate_a"), _spec("gate_b")]
     registry = {"gate_a": _pass_runner, "gate_b": _pass_runner}
-    report = await run_harness(specs, registry, run_mode=RunMode.per_pr, providers=["ollama"],
-                               commit_sha="abc123")
+    report = await run_harness(
+        specs, registry, run_mode=RunMode.per_pr, providers=["ollama"], commit_sha="abc123"
+    )
     assert report.verdict == FreezeVerdict.certifiable
     assert report.summary["passed"] == 2
     assert report.summary["failed"] == 0
@@ -72,8 +77,9 @@ async def test_required_fail_yields_not_certifiable():
 
     specs = [_spec("gate_a"), _spec("gate_b")]
     registry = {"gate_a": _pass_runner, "gate_b": _fail_runner}
-    report = await run_harness(specs, registry, run_mode=RunMode.per_pr, providers=["ollama"],
-                               commit_sha="abc123")
+    report = await run_harness(
+        specs, registry, run_mode=RunMode.per_pr, providers=["ollama"], commit_sha="abc123"
+    )
     assert report.verdict == FreezeVerdict.not_certifiable
     assert report.summary["failed"] == 1
 
@@ -84,8 +90,9 @@ async def test_required_unknown_at_freeze_yields_incomplete():
 
     specs = [_spec("gate_a")]
     registry = {"gate_a": _unknown_runner}
-    report = await run_harness(specs, registry, run_mode=RunMode.freeze, providers=["ollama"],
-                               commit_sha="abc123")
+    report = await run_harness(
+        specs, registry, run_mode=RunMode.freeze, providers=["ollama"], commit_sha="abc123"
+    )
     assert report.verdict == FreezeVerdict.incomplete
     assert report.summary["unknown"] == 1
 
@@ -96,8 +103,9 @@ async def test_reported_only_failure_does_not_block():
 
     specs = [_spec("gate_req"), _spec("gate_reported", kind=GateKind.reported_only)]
     registry = {"gate_req": _pass_runner, "gate_reported": _fail_runner}
-    report = await run_harness(specs, registry, run_mode=RunMode.per_pr, providers=["ollama"],
-                               commit_sha="abc123")
+    report = await run_harness(
+        specs, registry, run_mode=RunMode.per_pr, providers=["ollama"], commit_sha="abc123"
+    )
     assert report.verdict == FreezeVerdict.certifiable
     assert report.summary["reported"] == 1
 
@@ -108,8 +116,9 @@ async def test_reported_only_unknown_does_not_block():
 
     specs = [_spec("gate_req"), _spec("gate_reported", kind=GateKind.reported_only)]
     registry = {"gate_req": _pass_runner, "gate_reported": _unknown_runner}
-    report = await run_harness(specs, registry, run_mode=RunMode.per_pr, providers=["ollama"],
-                               commit_sha="abc123")
+    report = await run_harness(
+        specs, registry, run_mode=RunMode.per_pr, providers=["ollama"], commit_sha="abc123"
+    )
     assert report.verdict == FreezeVerdict.certifiable
 
 
@@ -119,8 +128,14 @@ async def test_report_has_correct_run_metadata():
 
     specs = [_spec("gate_a")]
     registry = {"gate_a": _pass_runner}
-    report = await run_harness(specs, registry, run_mode=RunMode.freeze, providers=["gemini", "ollama"],
-                               commit_sha="deadbeef", git_tag="v1.0.0")
+    report = await run_harness(
+        specs,
+        registry,
+        run_mode=RunMode.freeze,
+        providers=["gemini", "ollama"],
+        commit_sha="deadbeef",
+        git_tag="v1.0.0",
+    )
     assert report.run_mode == RunMode.freeze
     assert report.commit_sha == "deadbeef"
     assert report.git_tag == "v1.0.0"
@@ -141,7 +156,12 @@ async def test_per_provider_gate_runs_once_per_provider():
 
     specs = [_spec("triage_gate", dim=GateProviderDim.per_provider, providers=["gemini", "ollama"])]
     registry = {"triage_gate": counting_runner}
-    report = await run_harness(specs, registry, run_mode=RunMode.freeze, providers=["gemini", "ollama"],
-                               commit_sha="abc123")
+    report = await run_harness(
+        specs,
+        registry,
+        run_mode=RunMode.freeze,
+        providers=["gemini", "ollama"],
+        commit_sha="abc123",
+    )
     assert sorted(calls) == ["gemini", "ollama"]
     assert len([r for r in report.gate_results if r.gate == "triage_gate"]) == 2

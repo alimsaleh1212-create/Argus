@@ -84,10 +84,7 @@ async def judge_cites_evidence(
     safe_context = redactor.redact_text(incident_context, Boundary.PROMPT)
     safe_rationale = redactor.redact_text(rationale_text, Boundary.PROMPT)
 
-    system = (
-        "You are a calibrated evaluator. "
-        "Answer only YES or NO."
-    )
+    system = "You are a calibrated evaluator. Answer only YES or NO."
     prompt = (
         f"Does the following rationale cite ONLY facts that are explicitly present "
         f"in the supplied incident context, with no external knowledge?\n\n"

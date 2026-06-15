@@ -120,7 +120,6 @@ class TestLlmE2E:
         from backend.infra.tracing import build_tracer
 
         settings_ollama_first = LlmSettings(
-            primary=ProviderId.OLLAMA,
             fallback_order=[ProviderId.OLLAMA, ProviderId.GEMINI],
             max_retries=0,
         )

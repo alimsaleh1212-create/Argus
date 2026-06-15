@@ -448,4 +448,3 @@ class Settings(BaseSettings):
                 list(self.vault.required_paths) + [llm_path],
             )
         return self
-

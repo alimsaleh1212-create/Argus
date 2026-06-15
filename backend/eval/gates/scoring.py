@@ -7,8 +7,12 @@ from __future__ import annotations
 
 
 def macro_f1(
-    tp_real: int, fp_real: int, fn_real: int,
-    tp_noise: int, fp_noise: int, fn_noise: int,
+    tp_real: int,
+    fp_real: int,
+    fn_real: int,
+    tp_noise: int,
+    fp_noise: int,
+    fn_noise: int,
 ) -> float:
     def _f1(tp: int, fp: int, fn: int) -> float:
         if tp + fp == 0 or tp + fn == 0:

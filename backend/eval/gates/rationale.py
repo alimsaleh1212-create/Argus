@@ -49,7 +49,7 @@ async def run_rationale(
             provider=None,
             score={"skipped": 1.0},
             threshold=spec.threshold,
-            passed=None,   # unknown — skipped
+            passed=None,  # unknown — skipped
             blocking=False,
             evidence="skipped: rationale gate only runs at freeze/nightly",
         )
@@ -106,7 +106,7 @@ async def run_rationale(
             provider=None,
             score={"overall_grounded_rate": 0.0, "overall_judge_agreement": 0.0},
             threshold=spec.threshold,
-            passed=None,   # unknown — no fixture data
+            passed=None,  # unknown — no fixture data
             blocking=False,
             evidence="; ".join(evidence_lines) or "no fixtures found",
         )
@@ -116,8 +116,7 @@ async def run_rationale(
 
     min_target_grounded = spec.threshold.get("min_grounded_rate", 0.70)
     min_target_agreement = spec.threshold.get("min_judge_agreement", 0.70)
-    passed = (overall_grounded >= min_target_grounded
-              and overall_agreement >= min_target_agreement)
+    passed = overall_grounded >= min_target_grounded and overall_agreement >= min_target_agreement
 
     stage_detail = "; ".join(evidence_lines) or "no fixtures found"
     return GateResult(
@@ -164,6 +163,7 @@ async def _build_judge_fn() -> Callable[[str, str], Awaitable[str]]:
         # Build drivers; Gemini key from env (freeze CI injects GEMINI_API_KEY)
         api_key = os.environ.get("GEMINI_API_KEY", "")
         from backend.infra.llm import ProviderId
+
         drivers = {}
         if api_key:
             drivers[ProviderId.GEMINI] = GeminiDriver(llm_settings, api_key=api_key)

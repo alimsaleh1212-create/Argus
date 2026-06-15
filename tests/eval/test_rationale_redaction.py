@@ -70,8 +70,7 @@ async def test_judge_prompt_has_no_planted_bearer_token():
     await judge_rationale(
         incident_context="Normal incident context without secrets.",
         rationale_text=(
-            f"Auth header used was {PLANTED_BEARER}. "
-            "This indicates token exfiltration."
+            f"Auth header used was {PLANTED_BEARER}. This indicates token exfiltration."
         ),
         llm_client=_FakeLlm(),
         redactor=redactor,
@@ -101,9 +100,7 @@ async def test_judge_prompt_has_no_planted_pem_block():
             return self._FakeResponse()
 
     await judge_rationale(
-        incident_context=(
-            f"SSH key exfiltration detected. Key contents:\n{PLANTED_PEM}"
-        ),
+        incident_context=(f"SSH key exfiltration detected. Key contents:\n{PLANTED_PEM}"),
         rationale_text="The private key was accessed without authorization.",
         llm_client=_FakeLlm(),
         redactor=redactor,

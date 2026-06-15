@@ -27,6 +27,7 @@ async def run_smoke(spec: GateSpec, provider: str | None = None) -> GateResult:
         # Try a quick HTTP probe if the stack is up
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.get("http://localhost:8000/ready")
             passed = resp.status_code == 200
@@ -34,8 +35,12 @@ async def run_smoke(spec: GateSpec, provider: str | None = None) -> GateResult:
         except Exception as e:
             # Stack not up; treat as unknown (not a blocking failure for per-PR)
             return GateResult(
-                gate=spec.name, kind=spec.kind, provider=provider,
-                score=0.0, threshold=spec.threshold, passed=None,
+                gate=spec.name,
+                kind=spec.kind,
+                provider=provider,
+                score=0.0,
+                threshold=spec.threshold,
+                passed=None,
                 blocking=spec.kind == GateKind.required,
                 evidence=f"compose stack unreachable: {type(e).__name__}",
             )
@@ -43,9 +48,12 @@ async def run_smoke(spec: GateSpec, provider: str | None = None) -> GateResult:
     max_unhealthy = spec.threshold.get("max_unhealthy_services", 0)
     gate_passed = passed and max_unhealthy == 0
     return GateResult(
-        gate=spec.name, kind=spec.kind, provider=provider,
+        gate=spec.name,
+        kind=spec.kind,
+        provider=provider,
         score=1.0 if gate_passed else 0.0,
-        threshold=spec.threshold, passed=gate_passed,
+        threshold=spec.threshold,
+        passed=gate_passed,
         blocking=spec.kind == GateKind.required,
         evidence=evidence,
     )

@@ -47,15 +47,17 @@ async def run_harness(
             results = await asyncio.gather(*tasks, return_exceptions=True)
             for r in results:
                 if isinstance(r, BaseException):
-                    gate_results.append(GateResult(
-                        gate=spec.name,
-                        kind=spec.kind,
-                        score=0.0,
-                        threshold=spec.threshold,
-                        passed=None,
-                        blocking=spec.kind == GateKind.required,
-                        evidence=f"runner raised: {r}",
-                    ))
+                    gate_results.append(
+                        GateResult(
+                            gate=spec.name,
+                            kind=spec.kind,
+                            score=0.0,
+                            threshold=spec.threshold,
+                            passed=None,
+                            blocking=spec.kind == GateKind.required,
+                            evidence=f"runner raised: {r}",
+                        )
+                    )
                 else:
                     gate_results.append(r)
         else:
@@ -63,15 +65,17 @@ async def run_harness(
                 result = await runner(spec, None)
                 gate_results.append(result)
             except Exception as e:
-                gate_results.append(GateResult(
-                    gate=spec.name,
-                    kind=spec.kind,
-                    score=0.0,
-                    threshold=spec.threshold,
-                    passed=None,
-                    blocking=spec.kind == GateKind.required,
-                    evidence=f"runner raised: {e}",
-                ))
+                gate_results.append(
+                    GateResult(
+                        gate=spec.name,
+                        kind=spec.kind,
+                        score=0.0,
+                        threshold=spec.threshold,
+                        passed=None,
+                        blocking=spec.kind == GateKind.required,
+                        evidence=f"runner raised: {e}",
+                    )
+                )
 
     verdict = _aggregate_verdict(gate_results, run_mode)
     summary = _summarize(gate_results)

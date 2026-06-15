@@ -102,7 +102,9 @@ def test_grounded_rate_empty():
 
 def test_grounded_rate_mixed():
     # 2G + 1PG + 2UG = (2 + 0.5) / 5 = 0.50
-    result = grounded_rate(["grounded", "grounded", "partially_grounded", "ungrounded", "ungrounded"])
+    result = grounded_rate(
+        ["grounded", "grounded", "partially_grounded", "ungrounded", "ungrounded"]
+    )
     assert abs(result - 0.50) < 1e-9
 
 

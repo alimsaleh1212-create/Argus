@@ -28,8 +28,9 @@ from backend.infra.config import EvalSettings
 SCHEMA_PATH = pathlib.Path("specs/013-eval-harness/contracts/eval-report.schema.json")
 
 
-def _make_report(commit_sha: str = "abc12345", run_id: str | None = None,
-                 git_tag: str | None = None) -> EvalReport:
+def _make_report(
+    commit_sha: str = "abc12345", run_id: str | None = None, git_tag: str | None = None
+) -> EvalReport:
     return EvalReport(
         run_id=run_id or str(uuid.uuid4()),
         run_mode=RunMode.freeze,
@@ -39,9 +40,14 @@ def _make_report(commit_sha: str = "abc12345", run_id: str | None = None,
         providers=["gemini", "ollama"],
         gate_results=[
             GateResult(
-                gate="smoke", kind=GateKind.required, provider=None,
-                score=1.0, threshold={"max_unhealthy_services": 0},
-                passed=True, blocking=True, evidence="ok",
+                gate="smoke",
+                kind=GateKind.required,
+                provider=None,
+                score=1.0,
+                threshold={"max_unhealthy_services": 0},
+                passed=True,
+                blocking=True,
+                evidence="ok",
             )
         ],
         rationale=None,
@@ -64,13 +70,17 @@ async def test_report_upload_and_download():
         from backend.eval.report import download_report, upload_report
 
         report = _make_report(git_tag="v1.0.0")
-        await upload_report(report, cfg, endpoint_url=endpoint,
-                            access_key="minioadmin", secret_key="minioadmin")
+        await upload_report(
+            report, cfg, endpoint_url=endpoint, access_key="minioadmin", secret_key="minioadmin"
+        )
 
         downloaded = await download_report(
-            report.commit_sha, report.run_id, cfg,
+            report.commit_sha,
+            report.run_id,
+            cfg,
             endpoint_url=endpoint,
-            access_key="minioadmin", secret_key="minioadmin",
+            access_key="minioadmin",
+            secret_key="minioadmin",
         )
 
         assert downloaded.run_id == report.run_id
@@ -96,16 +106,30 @@ async def test_two_runs_at_different_keys_are_both_retained():
         r1 = _make_report(commit_sha="commit_a", run_id=run_id_1)
         r2 = _make_report(commit_sha="commit_b", run_id=run_id_2)
 
-        await upload_report(r1, cfg, endpoint_url=endpoint,
-                            access_key="minioadmin", secret_key="minioadmin")
-        await upload_report(r2, cfg, endpoint_url=endpoint,
-                            access_key="minioadmin", secret_key="minioadmin")
+        await upload_report(
+            r1, cfg, endpoint_url=endpoint, access_key="minioadmin", secret_key="minioadmin"
+        )
+        await upload_report(
+            r2, cfg, endpoint_url=endpoint, access_key="minioadmin", secret_key="minioadmin"
+        )
 
         # Both must still be downloadable
-        d1 = await download_report("commit_a", run_id_1, cfg, endpoint_url=endpoint,
-                                   access_key="minioadmin", secret_key="minioadmin")
-        d2 = await download_report("commit_b", run_id_2, cfg, endpoint_url=endpoint,
-                                   access_key="minioadmin", secret_key="minioadmin")
+        d1 = await download_report(
+            "commit_a",
+            run_id_1,
+            cfg,
+            endpoint_url=endpoint,
+            access_key="minioadmin",
+            secret_key="minioadmin",
+        )
+        d2 = await download_report(
+            "commit_b",
+            run_id_2,
+            cfg,
+            endpoint_url=endpoint,
+            access_key="minioadmin",
+            secret_key="minioadmin",
+        )
 
         assert d1.run_id == run_id_1
         assert d2.run_id == run_id_2
@@ -124,11 +148,16 @@ async def test_report_matches_json_schema():
         from backend.eval.report import download_report, upload_report
 
         report = _make_report()
-        await upload_report(report, cfg, endpoint_url=endpoint,
-                            access_key="minioadmin", secret_key="minioadmin")
+        await upload_report(
+            report, cfg, endpoint_url=endpoint, access_key="minioadmin", secret_key="minioadmin"
+        )
         downloaded = await download_report(
-            report.commit_sha, report.run_id, cfg,
-            endpoint_url=endpoint, access_key="minioadmin", secret_key="minioadmin",
+            report.commit_sha,
+            report.run_id,
+            cfg,
+            endpoint_url=endpoint,
+            access_key="minioadmin",
+            secret_key="minioadmin",
         )
 
         if SCHEMA_PATH.exists():

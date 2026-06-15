@@ -24,6 +24,7 @@ _FIXTURES = Path("tests/fixtures")
 # supervisor_routing
 # ---------------------------------------------------------------------------
 
+
 async def run_supervisor_routing(spec: GateSpec, provider: str | None = None) -> GateResult:
     """Run all supervisor-routing fixtures; 100% pass rate required."""
     from backend.domain.incident import Incident, IncidentStatus, Severity
@@ -39,8 +40,9 @@ async def run_supervisor_routing(spec: GateSpec, provider: str | None = None) ->
         async def get(self, incident_id: uuid.UUID) -> Incident | None:
             return self._incident if self._incident.id == incident_id else None
 
-        async def advance_status(self, incident_id, *, expected, target,
-                                 disposition=None, evidence_patch=None) -> bool:
+        async def advance_status(
+            self, incident_id, *, expected, target, disposition=None, evidence_patch=None
+        ) -> bool:
             if self._incident.id != incident_id or self._incident.status != expected:
                 return False
             self._incident = self._incident.model_copy(
@@ -55,15 +57,20 @@ async def run_supervisor_routing(spec: GateSpec, provider: str | None = None) ->
             severity=Severity(severity),
             correlation_id="corr-eval",
             dedup_fingerprint=f"fp-{uuid.uuid4().hex}",
-            source="wazuh", raw_alert={},
-            evidence={"flags": flags or [], "verdict": "test", "severity": severity,
-                      "normalized_event": {}, "summary": "eval"},
+            source="wazuh",
+            raw_alert={},
+            evidence={
+                "flags": flags or [],
+                "verdict": "test",
+                "severity": severity,
+                "normalized_event": {},
+                "summary": "eval",
+            },
         )
 
     async def _resolve(inc, stages):
         repo = _FakeRepo(inc)
-        sv = Supervisor(stages=stages, cfg=SupervisorSettings(),
-                        tracer=build_tracer(exporter=None))
+        sv = Supervisor(stages=stages, cfg=SupervisorSettings(), tracer=build_tracer(exporter=None))
         await sv.run_incident(inc.id, repo)
         return await repo.get(inc.id)
 
@@ -104,12 +111,32 @@ async def run_supervisor_routing(spec: GateSpec, provider: str | None = None) ->
     fixture_stages = {
         "noise_low": ({StageName.TRIAGE: _triage_resolved}, IncidentStatus.RESOLVED),
         "critical_high": ({StageName.RESPONSE: _response_resolved}, IncidentStatus.RESOLVED),
-        "ambiguous_resolved_at_triage": ({StageName.TRIAGE: _triage_resolved, StageName.ENRICHMENT: _enrich_advance}, IncidentStatus.RESOLVED),
-        "ambiguous_full_depth": ({StageName.TRIAGE: _triage_advance, StageName.ENRICHMENT: _enrich_advance, StageName.RESPONSE: _response_resolved}, IncidentStatus.RESOLVED),
-        "destructive_parks": ({StageName.RESPONSE: _response_needs_approval}, IncidentStatus.AWAITING_APPROVAL),
+        "ambiguous_resolved_at_triage": (
+            {StageName.TRIAGE: _triage_resolved, StageName.ENRICHMENT: _enrich_advance},
+            IncidentStatus.RESOLVED,
+        ),
+        "ambiguous_full_depth": (
+            {
+                StageName.TRIAGE: _triage_advance,
+                StageName.ENRICHMENT: _enrich_advance,
+                StageName.RESPONSE: _response_resolved,
+            },
+            IncidentStatus.RESOLVED,
+        ),
+        "destructive_parks": (
+            {StageName.RESPONSE: _response_needs_approval},
+            IncidentStatus.AWAITING_APPROVAL,
+        ),
         "indeterminate_severity": ({StageName.TRIAGE: _triage_resolved}, None),
         "stage_error_escalates": ({StageName.TRIAGE: _error_triage}, IncidentStatus.ESCALATED),
-        "cap_breach_escalates": ({StageName.TRIAGE: _triage_advance, StageName.ENRICHMENT: _enrich_advance, StageName.RESPONSE: _response_escalate}, IncidentStatus.ESCALATED),
+        "cap_breach_escalates": (
+            {
+                StageName.TRIAGE: _triage_advance,
+                StageName.ENRICHMENT: _enrich_advance,
+                StageName.RESPONSE: _response_escalate,
+            },
+            IncidentStatus.ESCALATED,
+        ),
     }
 
     failed_cases: list[str] = []
@@ -120,16 +147,18 @@ async def run_supervisor_routing(spec: GateSpec, provider: str | None = None) ->
         if name == "indeterminate_severity":
             triage_called = False
             original = stages_map[StageName.TRIAGE]
+
             async def _track_triage(inc, _orig=original):
                 nonlocal triage_called
                 triage_called = True
                 return await _orig(inc)
+
             stages_map = {StageName.TRIAGE: _track_triage}
             await _resolve(inc, stages_map)
             ok = triage_called
         else:
             final = await _resolve(inc, stages_map)
-            ok = (expected_status is None or final.status == expected_status)
+            ok = expected_status is None or final.status == expected_status
         total += 1
         if ok:
             passed += 1
@@ -139,12 +168,18 @@ async def run_supervisor_routing(spec: GateSpec, provider: str | None = None) ->
     pass_rate = passed / total if total else 0.0
     threshold_rate = spec.threshold.get("pass_rate", 1.0)
     gate_passed = pass_rate >= threshold_rate
-    evidence = f"{passed}/{total} fixtures passed" + (f"; failed: {failed_cases}" if failed_cases else "")
+    evidence = f"{passed}/{total} fixtures passed" + (
+        f"; failed: {failed_cases}" if failed_cases else ""
+    )
 
     return GateResult(
-        gate=spec.name, kind=spec.kind, provider=provider,
-        score=pass_rate, threshold=spec.threshold,
-        passed=gate_passed, blocking=spec.kind == GateKind.required,
+        gate=spec.name,
+        kind=spec.kind,
+        provider=provider,
+        score=pass_rate,
+        threshold=spec.threshold,
+        passed=gate_passed,
+        blocking=spec.kind == GateKind.required,
         evidence=evidence,
     )
 
@@ -152,6 +187,7 @@ async def run_supervisor_routing(spec: GateSpec, provider: str | None = None) ->
 # ---------------------------------------------------------------------------
 # retrieval
 # ---------------------------------------------------------------------------
+
 
 async def run_retrieval(spec: GateSpec, provider: str | None = None) -> GateResult:
     """Run retrieval fixtures and compute hit@k + MRR."""
@@ -177,6 +213,7 @@ async def run_retrieval(spec: GateSpec, provider: str | None = None) -> GateResu
         if priors_file.exists():
             # Delegate to existing test helper
             from tests.eval.test_retrieval_gate import _run_memory_retrieval
+
             hits, ranks = await _run_memory_retrieval(k)
             all_hit_bools.extend(hits)
             all_mrr_ranks.extend(ranks)
@@ -188,6 +225,7 @@ async def run_retrieval(spec: GateSpec, provider: str | None = None) -> GateResu
         queries_file = corpus_fixtures / "queries.json"
         if queries_file.exists():
             from tests.eval.test_retrieval_gate import _run_corpus_retrieval
+
             c_hits = await _run_corpus_retrieval(k)
             sub_scores["corpus_hit_at_k"] = hit_at_k(c_hits)
     except Exception:
@@ -196,9 +234,12 @@ async def run_retrieval(spec: GateSpec, provider: str | None = None) -> GateResu
     if not all_hit_bools and not sub_scores:
         # Cannot evaluate (no fixtures or no memory store)
         return GateResult(
-            gate=spec.name, kind=spec.kind, provider=provider,
+            gate=spec.name,
+            kind=spec.kind,
+            provider=provider,
             score={"hit_at_k": 0.0, "mrr": 0.0},
-            threshold=spec.threshold, passed=None,
+            threshold=spec.threshold,
+            passed=None,
             blocking=spec.kind == GateKind.required,
             evidence="retrieval store unavailable",
         )
@@ -212,9 +253,13 @@ async def run_retrieval(spec: GateSpec, provider: str | None = None) -> GateResu
     gate_passed = h_at_k >= min_hit and mrr >= min_mrr
 
     return GateResult(
-        gate=spec.name, kind=spec.kind, provider=provider,
-        score=score_dict, threshold=spec.threshold,
-        passed=gate_passed, blocking=spec.kind == GateKind.required,
+        gate=spec.name,
+        kind=spec.kind,
+        provider=provider,
+        score=score_dict,
+        threshold=spec.threshold,
+        passed=gate_passed,
+        blocking=spec.kind == GateKind.required,
         evidence=f"hit@{k}={h_at_k:.2f} mrr={mrr:.2f}",
     )
 
@@ -223,15 +268,21 @@ async def run_retrieval(spec: GateSpec, provider: str | None = None) -> GateResu
 # temporal_memory
 # ---------------------------------------------------------------------------
 
+
 async def run_temporal_memory(spec: GateSpec, provider: str | None = None) -> GateResult:
     """Run temporal-validity scenarios — 100% pass required."""
     try:
         from tests.eval.test_temporal_gate import _run_temporal_scenarios
+
         passed, total = await _run_temporal_scenarios()
     except Exception as e:
         return GateResult(
-            gate=spec.name, kind=spec.kind, provider=provider,
-            score=0.0, threshold=spec.threshold, passed=None,
+            gate=spec.name,
+            kind=spec.kind,
+            provider=provider,
+            score=0.0,
+            threshold=spec.threshold,
+            passed=None,
             blocking=spec.kind == GateKind.required,
             evidence=f"temporal store unavailable: {e}",
         )
@@ -239,8 +290,11 @@ async def run_temporal_memory(spec: GateSpec, provider: str | None = None) -> Ga
     pass_rate = passed / total if total else 0.0
     threshold_rate = spec.threshold.get("pass_rate", 1.0)
     return GateResult(
-        gate=spec.name, kind=spec.kind, provider=provider,
-        score=pass_rate, threshold=spec.threshold,
+        gate=spec.name,
+        kind=spec.kind,
+        provider=provider,
+        score=pass_rate,
+        threshold=spec.threshold,
         passed=pass_rate >= threshold_rate,
         blocking=spec.kind == GateKind.required,
         evidence=f"{passed}/{total} temporal scenarios passed",
@@ -251,16 +305,22 @@ async def run_temporal_memory(spec: GateSpec, provider: str | None = None) -> Ga
 # redaction
 # ---------------------------------------------------------------------------
 
+
 async def run_redaction(spec: GateSpec, provider: str | None = None) -> GateResult:
     """Run redaction gate — zero credential/PII leaks required."""
     try:
         from tests.eval.test_redaction_gate import _run_redaction_scenarios
+
         cred_leaks, pii_leaks = await _run_redaction_scenarios()
     except (ImportError, AttributeError, Exception) as e:
         # test_redaction_gate.py may not expose _run_redaction_scenarios yet
         return GateResult(
-            gate=spec.name, kind=spec.kind, provider=provider,
-            score=0.0, threshold=spec.threshold, passed=None,
+            gate=spec.name,
+            kind=spec.kind,
+            provider=provider,
+            score=0.0,
+            threshold=spec.threshold,
+            passed=None,
             blocking=spec.kind == GateKind.required,
             evidence=f"redaction runner unavailable: {e}",
         )
@@ -270,9 +330,12 @@ async def run_redaction(spec: GateSpec, provider: str | None = None) -> GateResu
     max_pii = threshold.get("max_pii_leaks", 0)
     gate_passed = cred_leaks <= max_cred and pii_leaks <= max_pii
     return GateResult(
-        gate=spec.name, kind=spec.kind, provider=provider,
+        gate=spec.name,
+        kind=spec.kind,
+        provider=provider,
         score=float(cred_leaks + pii_leaks == 0),
-        threshold=spec.threshold, passed=gate_passed,
+        threshold=spec.threshold,
+        passed=gate_passed,
         blocking=spec.kind == GateKind.required,
         evidence=f"cred_leaks={cred_leaks} pii_leaks={pii_leaks}",
     )
