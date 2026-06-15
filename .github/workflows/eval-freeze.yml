@@ -1,0 +1,61 @@
+name: Eval Freeze (nightly + tag)
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # nightly at 02:00 UTC
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  eval-freeze:
+    name: Freeze eval (both providers + MinIO report)
+    runs-on: ubuntu-latest
+    services:
+      minio:
+        image: minio/minio:latest
+        ports:
+          - 9000:9000
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        options: >-
+          --health-cmd "curl -sf http://localhost:9000/minio/health/live"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync
+      - name: Pull Ollama model
+        run: |
+          curl -s -X POST http://localhost:11434/api/pull \
+            -d '{"name":"gemma4:2b"}' || true
+        continue-on-error: true
+      - name: Run freeze eval (both providers + MinIO upload)
+        env:
+          ARGUS__LLM__GEMINI_VAULT_PATH: ""
+          ARGUS__LLM__OLLAMA_BASE_URL: http://localhost:11434
+          ARGUS__LLM__OLLAMA_MODEL: gemma4:2b
+          ARGUS__MINIO__ENDPOINT_URL: http://localhost:9000
+          ARGUS__EVAL__REPORT_BUCKET: eval-reports
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          uv run python -m backend.eval \
+            --mode freeze \
+            --providers gemini,ollama \
+            --upload
+      - name: Upload eval report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ github.sha }}
+          path: eval_report.json
+          if-no-files-found: ignore

@@ -1,4 +1,4 @@
-"""T019 — Triage eval gate: macro-F1 on committed labeled alert set.
+"""Triage eval gate: macro-F1 on committed labeled alert set.
 
 Runs triage handler against each labeled fixture and scores macro-F1 on real/noise
 classification. Abstentions (uncertain) are counted separately and bounded.
@@ -14,17 +14,27 @@ import uuid
 from typing import Any
 
 import pytest
+import yaml
 
 from backend.agents.triage import make_triage_handler
 from backend.domain.incident import Incident, IncidentStatus, Severity
 from backend.domain.llm import LlmResponse, ProviderId, StopReason, TokenUsage
+from backend.eval.gates.scoring import macro_f1
 from backend.infra.config import TriageSettings
 
 FIXTURES_DIR = pathlib.Path(__file__).parent.parent / "fixtures" / "triage_labeled"
+_YAML = pathlib.Path(__file__).parent.parent.parent / "config" / "eval_thresholds.yaml"
 
-# Gate thresholds (mirror eval_thresholds.yaml)
-MIN_MACRO_F1 = 0.75
-MAX_ABSTENTION_RATE = 0.30
+
+def _triage_thresholds() -> dict:
+    with open(_YAML) as f:
+        return yaml.safe_load(f)["gates"]["triage"]["threshold"]
+
+
+# Gate thresholds read from the yaml (single source of truth, FR-011)
+_T = _triage_thresholds()
+MIN_MACRO_F1: float = _T["min_macro_f1"]
+MAX_ABSTENTION_RATE: float = _T["max_abstention_rate"]
 
 
 def _load_fixtures() -> list[dict[str, Any]]:
@@ -47,20 +57,6 @@ def _incident_from_fixture(fx: dict[str, Any]) -> Incident:
         evidence=fx["evidence"],
     )
 
-
-def _macro_f1(
-    tp_real: int, fp_real: int, fn_real: int, tp_noise: int, fp_noise: int, fn_noise: int
-) -> float:
-    def f1(tp: int, fp: int, fn: int) -> float:
-        if tp + fp == 0 or tp + fn == 0:
-            return 0.0
-        precision = tp / (tp + fp)
-        recall = tp / (tp + fn)
-        if precision + recall == 0:
-            return 0.0
-        return 2 * precision * recall / (precision + recall)
-
-    return (f1(tp_real, fp_real, fn_real) + f1(tp_noise, fp_noise, fn_noise)) / 2
 
 
 class ScriptedLlm:
@@ -135,13 +131,13 @@ async def test_triage_gate_macro_f1_with_perfect_scripted_llm():
 
     total = len(fixtures)
     abstention_rate = abstentions / total if total > 0 else 0.0
-    macro_f1 = _macro_f1(tp_real, fp_real, fn_real, tp_noise, fp_noise, fn_noise)
+    score = macro_f1(tp_real, fp_real, fn_real, tp_noise, fp_noise, fn_noise)
 
     assert abstention_rate <= MAX_ABSTENTION_RATE, (
         f"Abstention rate {abstention_rate:.2%} exceeds max {MAX_ABSTENTION_RATE:.2%}"
     )
-    assert macro_f1 >= MIN_MACRO_F1, (
-        f"Macro-F1 {macro_f1:.3f} below threshold {MIN_MACRO_F1} "
+    assert score >= MIN_MACRO_F1, (
+        f"Macro-F1 {score:.3f} below threshold {MIN_MACRO_F1} "
         f"(tp_real={tp_real}, fp_real={fp_real}, fn_real={fn_real}, "
         f"tp_noise={tp_noise}, fp_noise={fp_noise}, fn_noise={fn_noise}, "
         f"abstentions={abstentions})"

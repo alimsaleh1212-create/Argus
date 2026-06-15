@@ -1,0 +1,32 @@
+[
+  {
+    "incident_context": "Incident #42: SSH brute-force from 198.51.100.42 (47 failed attempts, web-prod-01). Triage: real, HIGH confidence. MITRE T1110.001 (Brute Force: Password Guessing). MemoryStore: no prior episodes for this IP. Corpus: T1110 mitigation = account lockout, rate limiting, MFA.",
+    "rationale_text": "Cross-correlation confirms: IP 198.51.100.42 has no prior incident history in memory (clean baseline), but corpus retrieval surfaces MITRE T1110.001 with mitigation M1036 (account lockout) and M1032 (MFA). Enrichment verdict: ADVANCE to response with T1110.001 tag. Evidence confidence: HIGH — pattern match is unambiguous.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Incident #57: Outbound connection to 104.21.45.6:443 from finance-db-02, process python3. Triage: uncertain. IntelVerdict: unknown reputation (no match in threat intel). MemoryStore: 3 similar incidents from finance-db-02 in last 30 days, all resolved as noise (cron-triggered python scripts). Corpus: no relevant T-code match.",
+    "rationale_text": "Memory search returns 3 prior incidents from finance-db-02 matching outbound python3 connection pattern — all resolved as noise (cron scripts). Intel verdict is unknown (no IOC match). Combined with triage uncertainty and the memory-based baseline, this likely represents the same known-good cron pattern. Verdict: RESOLVED.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Incident #91: GetSecretValue spike (12 calls/5 min) from lambda-prod. Triage: real, HIGH. IntelVerdict: 104.21.45.6 = known C2 IP (confidence 0.87). MemoryStore: no prior episodes. Corpus: T1552.001 (Credentials In Files) mitigation = secrets management, least privilege.",
+    "rationale_text": "The intel feed confirms a known C2 server IP was contacted. Combined with the GetSecretValue spike matching T1552.001 credential exfiltration patterns, and no prior baseline episodes to suggest this is normal behavior, this warrants immediate escalation. The evidence confidence is very high. Verdict: ESCALATE.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Incident #103: Failed sudo on api-worker-05 by user deploy. Triage: real, LOW confidence. IntelVerdict: no relevant IOCs. MemoryStore: 15 similar failed sudo events from deploy user in last 7 days — pattern suggests misconfigured sudoers, not attacker. Corpus: T1078 mitigation found but not directly applicable.",
+    "rationale_text": "Memory confirms 15 identical failed sudo events from the same deploy account over 7 days, suggesting a configuration issue rather than active exploitation. Intel shows no malicious indicators. Despite triage classifying as real, the memory evidence strongly suggests a benign misconfiguration. However, I cannot fully rule out a brute-force attempt on the deploy account. Verdict: ADVANCE with LOW urgency for configuration review.",
+    "human_label": "partially_grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Incident #118: Port scan detected on firewall-edge-01, source 10.0.8.44 (internal). Triage: uncertain. MemoryStore: source IP belongs to vuln-scanner-01 (documented in 3 prior episodes). Corpus: T1046 (Network Service Discovery). IntelVerdict: internal IP, no intel data.",
+    "rationale_text": "Memory clearly identifies 10.0.8.44 as the authorized vulnerability scanner (vuln-scanner-01), with 3 prior episodes documenting this exact behavior as authorized. Port scanning from an authorized scanner is expected. Despite T1046 corpus match, context negates the threat. Verdict: RESOLVED (authorized scan).",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  }
+]

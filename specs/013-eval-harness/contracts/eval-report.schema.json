@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://argus/eval/eval-report.schema.json",
+  "title": "EvalReport",
+  "description": "The structured evaluation report (#13). One per run; persisted to the eval-reports MinIO bucket at freeze/nightly under reports/{commit_sha}/{run_id}.json (history retained).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run_id", "run_mode", "commit_sha", "created_at",
+    "providers", "gate_results", "verdict", "summary"
+  ],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "run_id": { "type": "string", "description": "uuid4 per run" },
+    "run_mode": { "enum": ["per_pr", "nightly", "freeze"] },
+    "commit_sha": { "type": "string" },
+    "git_tag": { "type": ["string", "null"], "description": "set on freeze tag runs" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "providers": {
+      "type": "array", "items": { "type": "string" },
+      "description": "provider set exercised this run (e.g. ['ollama'] per-PR; ['gemini','ollama'] at freeze)"
+    },
+    "gate_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["gate", "kind", "score", "threshold", "passed", "blocking", "evidence"],
+        "properties": {
+          "gate": { "type": "string" },
+          "kind": { "enum": ["required", "reported_only"] },
+          "provider": { "type": ["string", "null"], "description": "null for provider-independent gates" },
+          "score": {
+            "description": "scalar or named sub-scores",
+            "oneOf": [
+              { "type": "number" },
+              { "type": "object", "additionalProperties": { "type": "number" } }
+            ]
+          },
+          "threshold": { "type": "object" },
+          "passed": { "type": ["boolean", "null"], "description": "null = could not evaluate (recorded 'unknown')" },
+          "blocking": { "type": "boolean" },
+          "evidence": { "type": "string", "description": "short, REDACTED human-readable basis" }
+        }
+      }
+    },
+    "rationale": {
+      "type": ["array", "null"],
+      "description": "present at freeze/nightly only (reported-only gate)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stage", "producer_provider", "grounded_rate", "judge_human_agreement", "n"],
+        "properties": {
+          "stage": { "enum": ["triage", "enrichment", "response"] },
+          "producer_provider": { "type": "string" },
+          "grounded_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+          "judge_human_agreement": { "type": "number", "minimum": 0, "maximum": 1 },
+          "n": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "verdict": { "enum": ["certifiable", "not_certifiable", "incomplete"] },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "failed", "reported", "unknown"],
+      "properties": {
+        "passed": { "type": "integer" },
+        "failed": { "type": "integer" },
+        "reported": { "type": "integer" },
+        "unknown": { "type": "integer" }
+      }
+    }
+  }
+}

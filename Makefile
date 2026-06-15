@@ -1,7 +1,7 @@
 # Sentinel — developer task shortcuts.
 # Hides the `-c config/alembic.ini` flag and standardises common commands.
 
-.PHONY: help install up down logs migrate downgrade test test-unit test-integration test-e2e test-smoke cov lint fmt
+.PHONY: help install up down logs migrate downgrade test test-unit test-integration test-e2e test-smoke cov lint fmt eval eval-freeze
 
 help:
 	@echo "install           uv sync (pinned deps)"
@@ -14,6 +14,8 @@ help:
 	@echo "test-e2e          in-process e2e tier, batched (no Docker)"
 	@echo "test-smoke        true e2e against a running compose stack (needs_compose)"
 	@echo "cov               combined coverage gate (unit+integration), batched, fail <80%"
+	@echo "eval              memory-safe per-PR eval (Ollama only, deterministic gates)"
+	@echo "eval-freeze       full freeze run: both providers + MinIO upload"
 	@echo "lint / fmt        ruff check / ruff format + import-linter"
 
 install:
@@ -57,6 +59,13 @@ cov:
 	COV=1 BATCH=6 scripts/run-tests.sh unit
 	COV=1 scripts/run-tests.sh integration
 	uv run coverage report --fail-under=80
+
+# Eval targets — memory-safe: one gate per subprocess (see scripts/run-evals.sh)
+eval:
+	scripts/run-evals.sh --mode per_pr
+
+eval-freeze:
+	uv run python -m backend.eval --mode freeze --upload
 
 lint:
 	uv run ruff check .
