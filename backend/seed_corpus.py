@@ -15,19 +15,19 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import sys
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.infra.config import load_settings
+from backend.infra.logging import configure_logging, get_logger
 from backend.infra.memory import NullMemory
 from backend.infra.redaction import build_redactor
 from backend.repositories.corpus import CorpusRepository
 from backend.services.corpus import seed_reference, seed_reputation
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _load_json(path: Path) -> list | dict:
@@ -36,7 +36,7 @@ def _load_json(path: Path) -> list | dict:
 
 
 async def _run() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
+    configure_logging()
 
     settings = load_settings()
     corpus_cfg = settings.corpus
@@ -110,10 +110,14 @@ async def _build_store(settings) -> object:  # type: ignore[type-arg]
         return NullMemory()
     try:
         from graphiti_core import Graphiti
-        from graphiti_core.embedder.gemini import GeminiEmbedder, GeminiEmbedderConfig
-        from graphiti_core.llm_client.gemini_client import GeminiClient, LLMConfig
 
-        from backend.infra.memory import GraphitiMemory
+        from backend.infra.memory import (
+            GraphitiMemory,
+            _needs_gemini,
+            build_cross_encoder,
+            build_embedder,
+            build_llm_client,
+        )
         from backend.infra.vault import VaultClient
 
         # Standalone script: no lifespan container, so build a client and fetch
@@ -124,21 +128,24 @@ async def _build_store(settings) -> object:  # type: ignore[type-arg]
         neo4j_password = creds.get("password", "")
         neo4j_uri = creds.get("uri", mem_cfg.neo4j_uri)
 
-        llm_key_creds = await vault.fetch_secret(settings.llm.gemini_vault_path)
-        gemini_key = llm_key_creds.get("api_key", "")
-        llm_client = GeminiClient(config=LLMConfig(api_key=gemini_key))
-        embedder = GeminiEmbedder(
-            config=GeminiEmbedderConfig(
-                api_key=gemini_key,
-                embedding_model=mem_cfg.gemini_embedding_model,
-            )
-        )
+        # The Gemini key is needed only if the embedder, reranker, or an LLM
+        # fallback slot uses gemini.
+        gemini_key = ""
+        if _needs_gemini(mem_cfg, settings.llm):
+            gemini_key = (await vault.fetch_secret(settings.llm.gemini_vault_path)).get("api_key", "")
+
+        # Same provider selection as the worker (shared builders) — keeps seeded
+        # vectors compatible with what the worker writes at runtime.
+        embedder = build_embedder(mem_cfg, gemini_key=gemini_key)
+        llm_client = build_llm_client(mem_cfg, settings.llm, gemini_key=gemini_key)
+        cross_encoder = build_cross_encoder(mem_cfg, settings.llm, gemini_key=gemini_key)
         graphiti = Graphiti(
             uri=neo4j_uri,
             user=neo4j_user,
             password=neo4j_password,
             llm_client=llm_client,
             embedder=embedder,
+            cross_encoder=cross_encoder,
         )
         await graphiti.build_indices_and_constraints()
         return GraphitiMemory(graphiti=graphiti, settings=mem_cfg)

@@ -851,3 +851,33 @@ is deferred to the SPEC-eval (#13) harness as specified in the brief.
 
 **Rejected**: New `response_routing` gate (over-engineering; same gate type, same fast CI context);
 skipping eval (violates Constitution II).
+
+---
+
+## v2 / v3 Roadmap
+
+### VD1 — #11 safety/guardrails deferred from v1 freeze to v3b
+
+**Decision**: SPEC-safety (#11) is removed from the v1 (T1) freeze gate. The v1 freeze requires
+only **#12 dashboard** and **#13 eval** to be green-and-tagged. #11 moves to **v3b**, sequenced
+after the v3a ML anomaly detector and **before** v3c live-feed ingestion.
+
+**Why**: The structural half of Constitution III — triage holds no action tools, enforced by
+dependency injection — is already in v1 and is library-independent. A prompt-injected alert that
+hijacks triage still cannot execute a remediation, because the capability is absent by construction.
+What #11 adds (guardrails library, injection/jailbreak rails over alert/feed text, red-team CI gate)
+is genuine safety infrastructure but does not gate the v1 SOAR functionality. Deferring it simplifies
+the v1 freeze and allows v2 (verification + feedback loop) to start sooner.
+
+**Hard ordering constraint**: #11 MUST land **before v3c live-feed ingestion**, which introduces
+untrusted feed text. Constitution III requires that all feed-sourced content passes the same
+injection guardrails as alert text — that invariant is unenforceable without #11.
+
+**Constitution amendment required**: Constitution III currently mandates the injection/jailbreak
+rails and red-team CI gate as non-negotiable in v1. This deferral supersedes that mandate for the
+*library + rails* portion only; the *structural boundary* (DI-enforced triage-has-no-action-tools)
+remains in v1 and is unchanged.
+
+**Rejected**: Keep #11 in v1 freeze (adds scope to the freeze gate with no functional benefit before
+v2 live-feed text exists); defer #11 entirely past v3c (violates Constitution III's untrusted-input
+requirement once feeds land).

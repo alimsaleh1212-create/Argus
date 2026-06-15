@@ -10,6 +10,7 @@ from collections.abc import AsyncGenerator
 from typing import Any, Protocol, runtime_checkable
 
 import redis.asyncio as aioredis
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from backend.infra.logging import get_logger
 
@@ -46,13 +47,19 @@ class RedisTaskQueue:
         return incident_id
 
     async def dequeue(self) -> str | None:
-        result = await self._redis.blmove(
-            self._queue_key,
-            self._processing_key,
-            timeout=self._block_s,
-            src="RIGHT",
-            dest="LEFT",
-        )
+        try:
+            result = await self._redis.blmove(
+                self._queue_key,
+                self._processing_key,
+                timeout=self._block_s,
+                src="RIGHT",
+                dest="LEFT",
+            )
+        except RedisTimeoutError:
+            # redis-py >= 8 raises on a blocking-pop timeout instead of
+            # returning None. An idle queue is not an error — signal "nothing
+            # available" so the worker loop polls again (preserves str | None).
+            return None
         return result  # type: ignore[return-value]
 
     async def ack(self, incident_id: str) -> None:
