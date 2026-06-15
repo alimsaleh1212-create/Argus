@@ -161,11 +161,11 @@ async def run_llm_provider(spec: GateSpec, provider: str | None = None) -> GateR
         from backend.infra.llm import get_llm_client
 
         client = await get_llm_client(provider or "ollama")
-        from backend.domain.llm import LlmRequest
+        from backend.domain.llm import LlmMessage, LlmRequest
 
         req = LlmRequest(
-            system_prompt="You are a test assistant.",
-            user_message="Reply with exactly: pong",
+            system="You are a test assistant.",
+            messages=[LlmMessage(role="user", content="Reply with exactly: pong")],
             max_tokens=16,
         )
         resp = await client.generate(req)

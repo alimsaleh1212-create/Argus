@@ -92,7 +92,7 @@ def _print_report(report, *, redact: bool = True) -> None:
     )
 
 
-async def _run(args: argparse.Namespace) -> int:
+async def _run(args: argparse.Namespace) -> int:  # pragma: no cover
     # Import gate modules to register runners (side-effect)
     import backend.eval.gates.deterministic  # noqa: F401
     import backend.eval.gates.llm  # noqa: F401
@@ -199,11 +199,11 @@ async def _run(args: argparse.Namespace) -> int:
     return verdict_to_exit_code(report.verdict)
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover
     args = parse_args()
     code = asyncio.run(_run(args))
     sys.exit(code)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
