@@ -2,38 +2,42 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
-**Active component**: `012-dashboard` (Component #12 — the **React operations dashboard**, the human
-surface; T1, **~1 day**, the final T1 component; depends on #10/#2/#3/#5/#7/#1 — all done; closes the
-brief's "polished React operations dashboard" deliverable). The graded showcase surface.
-- Plan: `specs/012-dashboard/plan.md`
-- Spec: `specs/012-dashboard/spec.md`
-- Design: `specs/012-dashboard/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
+**Active component**: `013-eval-harness` (Component #13 — `SPEC-eval`, the **consolidated evaluation
+harness**; T1, *(big)*, the **day-9 freeze** spec; depends on all of #2–#12). Wires the already-seeded
+eval gates into CI, runs both providers at the freeze, persists `eval_report.json` to MinIO, and adds the
+one net-new LLM-judge **rationale** gate. **Red-team gate stays deferred to #11/v3b (VD1).**
+- Plan: `specs/013-eval-harness/plan.md`
+- Spec: `specs/013-eval-harness/spec.md`
+- Design: `specs/013-eval-harness/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
-Stack (this component): a **separate-image React SPA** (`frontend/`, Node 20 toolchain — the #1
-second-runtime exception, never in the Python `uv` venv) backed by **read-side** backend endpoints; built
-with the **`/ui-ux-pro-max`** skill (Dark-Mode OLED slate + green accent, Fira Sans/Code, app-shell;
-Vite + React + TS + Tailwind + shadcn/ui + TanStack Query/Table + Recharts + native `EventSource`).
-**Read-only except approve/reject** — the supervisor stays single writer; approve/reject **reuses #10's
-`/approvals/{id}/decision`** (no direct state mutation, no action tools — Constitution III). Net-new
-backend is small + additive: fill the reserved `routers/incidents.py` (`GET /incidents` queue +
-`/{id}` detail + `/{id}/audit` + `/{id}/trace` + `/kpis` + `/stream`), add **admin auth** (none exists:
-username+password in **Vault** → short-lived **HS256 JWT** w/ `role`, via `services/auth.py` +
-`get_current_operator`; PyJWT + stdlib PBKDF2, **no native dep**), and **register** the `incidents` +
-`approvals` routers (currently commented in `routers/__init__.py`) behind that dependency. **No migration**
-— reads existing `incidents`/`approval_requests`/`audit_log`/`trace_spans`; auth is stateless (RD7). Pure
-read DTOs in `domain/dashboard.py`; `IncidentRepository` gains **read** methods only (`list_for_queue`/
-`count_for_queue` + KPI aggregates) — never a second writer. **Server push** = **SSE** (one-directional;
-`GET /incidents/stream`) sourced by an **API-side 2s snapshot poll** (touches neither worker nor
-supervisor; Redis pub/sub documented as the deferred scale-up — RD3/RD4), reconcile-on-reconnect + refetch
-fallback. **Memory-hit KPI** = hits/enriched (denominator = incidents that reached enrichment), read from
-the enrichment `evidence` signal. Redaction is **upstream** (#2) — dashboard asserts via tests, adds **no
-de-redaction path** (RD8). **No new eval gate** — extends the **redaction** gate with a dashboard-view
-check (deterministic UI). Ships as **milestone PRs** (Constitution I): P1 auth+shell+queue/detail → P2
-approval+trace → P3 KPIs+SSE+polish. Packaging: `deploy/frontend/Dockerfile` (node build → nginx static +
-reverse-proxy to `api`), `frontend` service uncommented in `compose.yaml`. Single `admin` role, one
-console; no multi-tenancy/embeddable widget (v1 scope).
+Stack (this component): a **backend-only consolidation** — no new service, no migration, no frontend
+change. The harness is a top-level **`backend/eval/`** entrypoint package (peer to `worker.py`/
+`seed_corpus.py`): `python -m backend.eval` reads **`config/eval_thresholds.yaml`** as the single source
+of truth, runs every declared gate via a **registry** (declared⇔registered **orphan/stale check = hard
+error**), and emits an `EvalReport` (pure DTOs in **`domain/eval.py`**). The seven already-seeded gates
+(smoke, redaction, supervisor_routing, llm_provider, triage, retrieval, temporal_memory) are **consumed
+unchanged** with thresholds read from the yaml, never hardcoded. **CI wiring is the core gap closed**
+(today `tests/eval/` is not run by CI): a new **required `eval` job** in `ci.yml` runs the deterministic
+gates + LLM gates on **Ollama only** per-PR (fork-safe, no Gemini key); a new **`eval-freeze.yml`**
+(nightly + `v*` tag + dispatch) runs **both providers**, the pinned-judge **rationale** gate, and uploads
+the report to the reserved **`eval-reports`** MinIO bucket keyed by commit/run (**history retained**).
+The net-new **rationale** gate is **reported-only** (only a catastrophic floor blocks), judge **pinned to
+Gemini**, scoring rationales from **both** producers, validated against a small hand-labeled set under
+`tests/fixtures/rationale/`. New **`EvalSettings`** (`extra="forbid"`) holds wiring; `pyyaml` promoted to
+a direct dep. Memory-safe via **`scripts/run-evals.sh`** (one gate per subprocess, mirrors
+`run-tests.sh`). Ships **3 milestone PRs** (Constitution I): M1 harness+CI deterministic → M2
+both-providers+MinIO → M3 rationale judge. The **red-team/injection gate is deferred to #11/v3b (VD1)** —
+seam reserved, no v1 injection-coverage claim; the constitution amendment is a separate `/speckit-constitution` action.
 
-Prior components (done): `010-response-remediation` — the only **acting** stage + the HITL approval
+Prior components (done): `012-dashboard` — the **React operations dashboard** (the human surface, graded
+showcase). Separate-image React SPA (`frontend/`, Node 20) over **read-side** endpoints; **read-only
+except approve/reject** (reuses #10's `/approvals/{id}/decision`; supervisor stays single writer —
+Constitution III). Filled the reserved `routers/incidents.py` (queue/detail/audit/trace/kpis/stream) +
+**admin auth** (username+password in Vault → HS256 JWT, `services/auth.py`/`get_current_operator`,
+PyJWT + stdlib PBKDF2); registered the `incidents`+`approvals` routers. **No migration** (reads existing
+tables); pure read DTOs in `domain/dashboard.py`; **SSE** push from an API-side 2s snapshot poll. Extends
+the **redaction** gate with a dashboard-view check — no new gate. Plan: `specs/012-dashboard/plan.md`.
+`010-response-remediation` — the only **acting** stage + the HITL approval
 interrupt. Determinism-first playbook select (catalog match, **no** LLM; ambiguous tail = **one**
 `LlmClient` call); **config-backed default-deny** policy → **auto** allowlist executes via mock executors
 (`infra/executors.py`, `ActionExecutor`) + **audit row**; **destructive** → `AWAITING_APPROVAL` +

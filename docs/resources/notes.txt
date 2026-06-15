@@ -14,6 +14,10 @@ argus-admin-2026
 /speckit-implement and when reaching tests make sure to run tests without OOM error 
 
 
+/speckit-specify depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_Plan.md and @docs/resources/v_2_3_plan.md  
+(if there is any contradiction btwn @docs/resources/SOAR_Plan.md  and @docs/resources/v_2_3_plan.md I priortize @@docs/resources/v_2_3_plan.md)
+
+
 
 Part 3 — The precise division: determinism for the enumerable, agents for the ambiguous.
 So the defensible position isn't "agents are better than playbooks." It's: the response space has an enumerable core and an ambiguous long tail. Determinism owns the core; agents own the tail. Mature SOAR is converging on exactly this hybrid — the 2026 buyer's-guide language describes "micro-agents scoped to narrow tasks coordinating autonomously and handing high-impact actions to humans." Pure-deterministic SOAR exists (it's the previous generation — Phantom, classic XSOAR playbooks) and its well-documented pain is precisely the long tail: rigid playbooks that can't handle novel or multi-step incidents and that over-fire, which is why the industry is moving to agentic.

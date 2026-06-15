@@ -881,3 +881,75 @@ remains in v1 and is unchanged.
 **Rejected**: Keep #11 in v1 freeze (adds scope to the freeze gate with no functional benefit before
 v2 live-feed text exists); defer #11 entirely past v3c (violates Constitution III's untrusted-input
 requirement once feeds land).
+
+---
+
+## SPEC-eval #13 (Eval Harness)
+
+### ED1 — Memory-safe test runner: one file per subprocess, never `pytest` on all tests at once
+
+**Decision**: The CI eval script (`scripts/run-evals.sh`) runs each gate in a separate subprocess
+(`python -m backend.eval --gate <name>`). The general test runner (`scripts/run-tests.sh`) already
+runs one file per subprocess. `pytest` is never invoked on all files in a single process.
+
+**Why**: spaCy (Presidio), graphiti, and Presidio NLP models each allocate large resident-memory
+buffers on import. Running all test files in one pytest process causes OOM on the CI runners
+(observed: > 6 GB RSS). One-subprocess-per-file keeps peak RSS under the 2 GB budget.
+
+**Rejected**: Single `pytest tests/` invocation (OOM); per-test subprocess isolation (too slow);
+skipping heavy imports in CI (hides real dependency loading failures).
+
+### ED2 — Single source of truth: all numeric thresholds in `config/eval_thresholds.yaml`
+
+**Decision**: All gate pass/fail thresholds are declared once in `config/eval_thresholds.yaml`.
+`EvalSettings` contains wiring-only configuration (paths, bucket names, provider lists). No
+threshold is hardcoded in test files or implementation modules.
+
+**Why**: Prevents divergence between "the threshold the gate checks" and "the threshold the test
+asserts", which caused a latent bug in the pre-#13 `test_triage_gate.py` (MIN_MACRO_F1 hardcoded
+separately from the yaml value). Single-source ensures the CI gate and the acceptance test always
+check the same number.
+
+**Rejected**: thresholds in Python constants (duplicates across test and impl); thresholds in
+pydantic settings only (harder to audit / review threshold changes in isolation).
+
+### ED3 — Rationale gate is reported-only; catastrophic floor is the sole blocking condition
+
+**Decision**: The `rationale` gate has `kind=reported_only`. Its scores are always recorded in
+`eval_report.json`. Only a per-stage `grounded_rate` or `judge_human_agreement` below the
+catastrophic floor (0.50) promotes the result to `blocking=True` (exit 1). Ordinary below-target
+scores (0.50–0.70) do not block CI.
+
+**Why**: LLM-judge agreement with a 15-sample fixture set has high variance. Blocking merges on
+ordinary below-target agreement would create excessive CI noise before the fixture set is large
+enough to be statistically reliable. The catastrophic floor guards against complete model failure
+while allowing iteration on rationale quality without blocking the pipeline.
+
+**Rejected**: blocking on any below-target score (too noisy with small fixture set); no blocking at
+any threshold (hides complete model regressions).
+
+### ED4 — Rationale judge pinned to Gemini (cloud primary), regardless of which provider produced the rationale
+
+**Decision**: `EvalSettings.judge_provider = "gemini"` is the authoritative source. The rationale
+gate uses this provider for ALL evaluations, including rationales produced by Ollama.
+
+**Why**: Cross-provider judge consistency — using each provider to evaluate its own rationales
+introduces self-evaluation bias. A single pinned judge gives a stable baseline across runs.
+Gemini is chosen because it has the highest capability ceiling for instruction-following structured
+evaluation tasks in the current provider set.
+
+**Rejected**: per-provider self-evaluation (self-evaluation bias); rotating judge (introduces
+run-to-run variance that makes trend analysis impossible).
+
+### ED5 — Gate registry orphan/stale check: exit 2 (abort before scoring)
+
+**Decision**: If `validate_registry()` detects gates declared in yaml without a registered runner
+(orphan) or runners registered in code not declared in yaml (stale), it raises
+`RegistryMismatchError` and the CLI returns exit code 2 before any gate runs.
+
+**Why**: A mismatch means either a gate was added to yaml without its runner (would silently skip
+scoring) or a runner was added to code without yaml declaration (would violate the declared-only-in-
+yaml single-source rule). Exit 2 is distinct from eval failure (1) to make CI debugging unambiguous.
+
+**Rejected**: warn-but-continue (hides contract violations); check at test time only (misses
+production freeze runs where test imports may differ).

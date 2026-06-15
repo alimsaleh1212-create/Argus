@@ -1,0 +1,32 @@
+[
+  {
+    "incident_context": "Wazuh alert: failed SSH brute-force from 198.51.100.42 — 47 failed attempts in 60s on host web-prod-01. Source IP reputation unknown. No prior incidents from this IP.",
+    "rationale_text": "The alert shows 47 failed SSH attempts in 60 seconds from a single external IP, which matches a classic brute-force pattern (rule_description: brute_force). The source IP has no prior reputation data, but the attempt frequency alone exceeds the brute-force threshold. Severity is HIGH. Verdict: real.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Wazuh alert: /tmp/logrotate.d script executed — cron job on backup-01. Known scheduled task, runs daily at 03:00.",
+    "rationale_text": "This is a scheduled cron execution matching the known daily logrotate job on backup-01. No anomalous timing or unexpected parent process. The alert matches a known-good baseline. Verdict: noise.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Wazuh alert: outbound connection to 104.21.45.6:443 from finance-db-02. No prior context on this IP. Process: python3.",
+    "rationale_text": "A database host making outbound HTTPS connections to an unknown IP via python3 is suspicious — databases should not initiate outbound connections to the internet. However, I cannot determine severity without additional context about the python3 process identity. Verdict: uncertain.",
+    "human_label": "partially_grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Wazuh alert: privilege escalation — sudo su root executed by user jenkins on ci-runner-03. Jenkins CI service account. Known build pipeline step.",
+    "rationale_text": "The jenkins account uses sudo for build tasks on ci-runner-03. This is a documented CI pattern. The alert source and user match the expected build pipeline configuration. Verdict: noise.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Wazuh alert: AWS credential access — GetSecretValue called 12 times in 5 minutes by IAM role lambda-prod. Normal invocation frequency is 1-2/minute.",
+    "rationale_text": "The spike in GetSecretValue calls (12 in 5 minutes vs baseline of 1-2/minute) from the lambda-prod role is anomalous and consistent with credential exfiltration or a compromised Lambda function looping through secrets. This warrants investigation. Verdict: real.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  }
+]

@@ -40,7 +40,7 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Derived from `.specify/memory/constitution.md` (v1.0.0). Confirm this plan satisfies each gate, or
+Derived from `.specify/memory/constitution.md` (v2.0.0). Confirm this plan satisfies each gate, or
 record a justified, time-bound exception in `DECISIONS.md` and the Complexity Tracking table below.
 
 - [ ] **I. Spec-Driven Delivery**: a `SPEC.md` precedes code; "done" = unit + integration + e2e
@@ -48,9 +48,10 @@ record a justified, time-bound exception in `DECISIONS.md` and the Complexity Tr
 - [ ] **II. Test-First, Three-Tier, Eval-Gated (NON-NEGOTIABLE)**: unit/integration/e2e planned and
       green daily; ≥80% on new code (higher on remediation + safety boundary); eval thresholds in
       `eval_thresholds.yaml` gate CI and pass on **both** LLM providers.
-- [ ] **III. Structural Security Boundaries**: triage holds no action tools (enforced via DI);
-      injection/jailbreak rails cover alert *and* feed text with a red-team CI gate; redaction runs
-      before every log/trace/memory/dashboard write.
+- [ ] **III. Structural Security Boundaries**: **v1 non-negotiables** — triage holds no action tools
+      (enforced via DI) and redaction runs before every log/trace/memory/dashboard write. The
+      injection/jailbreak rails + red-team CI gate are **deferred to v3b** (#11, VD1), mandatory before
+      v3c live feeds; no v1 artifact may claim injection coverage.
 - [ ] **IV. Determinism First**: supervisor is a deterministic state machine; obvious cases take the
       no-LLM fast-path; a hard step/token cap is enforced; agents reason only over supplied evidence
       and emit an evidence-cited rationale.

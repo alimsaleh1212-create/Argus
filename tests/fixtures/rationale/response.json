@@ -1,0 +1,32 @@
+[
+  {
+    "incident_context": "Incident #42: SSH brute-force confirmed (T1110.001), source 198.51.100.42. Enrichment: ADVANCE. Response: selected playbook block_ip_firewall (catalog match, no LLM). Action type: DESTRUCTIVE — requires approval. Approval pending.",
+    "rationale_text": "The playbook 'block_ip_firewall' was selected via deterministic catalog match against T1110.001 + severity=HIGH. This is a destructive action (firewall rule addition) and requires HITL approval per policy. No LLM was used in playbook selection. The action targets IP 198.51.100.42 which was confirmed as the brute-force source across all evidence layers. Parked at AWAITING_APPROVAL.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Incident #57: Resolved at enrichment (authorized cron script, finance-db-02). Response stage: no action required, incident closed as resolved_by_enrichment.",
+    "rationale_text": "Incident was resolved at enrichment stage. Response stage has no action to take. No playbook selected, no remediation applied. Audit trail shows RESOLVED disposition with enrichment-stage closure reason.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Incident #91: ESCALATED due to confirmed C2 contact + T1552.001 credential exfiltration. Response: escalated to human SOC team, no automated playbook executed. Audit log: escalation_reason = 'intel_confirmed_c2 + credential_exfiltration'.",
+    "rationale_text": "The incident was escalated before reaching response remediation. No automated response action was possible without human review given the severity and confirmed C2 involvement. The escalation path was correct per the policy for intel-confirmed critical incidents. Response stage log shows escalated state with reason field populated.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Incident #129: Unauthorized file access on hr-server-02 by service account svc_reporting. Enrichment: ADVANCE, medium confidence. Response: catalog matched 'disable_account' playbook (T1078.001). Action: non-destructive (account disable). Auto-executed via allowlist. Audit row inserted.",
+    "rationale_text": "The disable_account action was auto-executed because it matches the allowlist for T1078.001 account misuse at medium severity. This is a non-destructive action (account can be re-enabled) and falls within the automated response policy. Evidence: the svc_reporting account had 23 unauthorized reads of HR records with no prior pattern in memory. Audit row inserted at [timestamp].",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  },
+  {
+    "incident_context": "Incident #155: Ransomware indicators on backup-03: mass file encryption pattern (T1486). Enrichment: ESCALATE urgency=critical. Response: catalog matched 'isolate_host' playbook. Action: DESTRUCTIVE (network isolation). Awaiting approval. Timeout: 15 minutes.",
+    "rationale_text": "Ransomware pattern matching T1486 with CRITICAL urgency. Playbook 'isolate_host' selected — this is destructive (network isolation removes host from production). HITL approval required. The 15-minute approval timeout is configured for critical incidents. If approval expires, the incident enters approval_expired state per policy. This is the highest-severity action type in the playbook catalog.",
+    "human_label": "grounded",
+    "cites_supplied_evidence": true
+  }
+]

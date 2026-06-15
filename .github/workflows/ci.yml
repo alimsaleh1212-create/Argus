@@ -104,6 +104,42 @@ jobs:
           uv run coverage combine .coverage.unit .coverage.integration .coverage.e2e
           uv run coverage report --fail-under=80
 
+  # ── Eval gate (required) ────────────────────────────────────────────────────
+  # Runs every declared gate in its own subprocess (memory-safe, mirrors
+  # run-tests.sh). Uses Ollama only (fork-safe: no cloud key needed).
+  # A required-gate regression or orphan/stale mismatch fails the build.
+  # Target: ≤ ~6 min added to per-PR CI (deterministic gates are fast;
+  # Ollama LLM gates depend on model availability in the runner).
+  #
+  # Fallback knob: if Ollama gates prove flaky in CI infra, promote them to
+  # reported-only in eval_thresholds.yaml (keep deterministic set blocking).
+  eval:
+    name: Eval gates (per-PR, Ollama only)
+    runs-on: ubuntu-latest
+    needs: [lint]
+    services:
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync
+      - name: Pull Ollama model
+        run: |
+          curl -sf http://localhost:11434/api/version || true
+          curl -s -X POST http://localhost:11434/api/pull \
+            -d '{"name":"gemma4:2b"}' || true
+        continue-on-error: true
+      - name: Run eval suite (memory-safe, one gate per subprocess)
+        env:
+          ARGUS__LLM__OLLAMA_BASE_URL: http://localhost:11434
+          ARGUS__LLM__OLLAMA_MODEL: gemma4:2b
+        run: scripts/run-evals.sh --mode per_pr
+
   smoke:
     name: E2E smoke (compose up → /ready)
     runs-on: ubuntu-latest

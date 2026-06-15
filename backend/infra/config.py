@@ -28,6 +28,7 @@ _KNOWN_ARGUS_SECTIONS = frozenset(
         "observability",
         "llm",
         "redis",
+        "eval",
         "ingest",
         "supervisor",
         "triage",
@@ -338,6 +339,32 @@ class ResponseSettings(BaseSettings):
     prompt_version: str = "v1"
 
 
+class EvalSettings(BaseSettings):
+    """Wiring configuration for the eval harness (SPEC-eval #13).
+
+    Numeric capability thresholds stay in config/eval_thresholds.yaml.
+    This class owns infra wiring only (paths, bucket, provider sets).
+    """
+
+    model_config = SettingsConfigDict(extra="forbid")
+
+    thresholds_path: str = "config/eval_thresholds.yaml"
+    report_bucket: str = "eval-reports"
+    report_prefix: str = "reports"
+    freeze_prefix: str = "freezes"
+    providers_per_pr: list[str] = Field(default_factory=lambda: ["ollama"])
+    providers_freeze: list[str] = Field(default_factory=lambda: ["gemini", "ollama"])
+    judge_provider: str = "gemini"
+    rationale_fixture_dir: str = "tests/fixtures/rationale"
+
+    @field_validator("providers_per_pr", "providers_freeze", mode="before")
+    @classmethod
+    def _parse_json_list(cls, v: object) -> object:
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
+
+
 class Settings(BaseSettings):
     """Root settings object — built once at startup, frozen thereafter.
 
@@ -370,6 +397,7 @@ class Settings(BaseSettings):
     intel: IntelSettings = Field(default_factory=IntelSettings)
     response: ResponseSettings = Field(default_factory=ResponseSettings)
     dashboard: DashboardSettings = Field(default_factory=DashboardSettings)
+    eval: EvalSettings = Field(default_factory=EvalSettings)
 
     @model_validator(mode="after")
     def _ensure_dashboard_vault_path_required(self) -> Settings:
