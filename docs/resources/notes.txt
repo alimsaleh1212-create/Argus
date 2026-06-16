@@ -9,6 +9,8 @@ argus-admin-2026
 
 /speckit-specify depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_Plan.md make things simple and don't overengineer while working
 
+/speckit-specify depending on @docs/resources/SOAR_brief.md and @docs/resources/v_2_3_plan.md 
+
 /speckit-plan  depending on @docs/resources/SOAR_brief.md and @docs/resources/SOAR_Plan.md and created spec. make things simple and don't overengineer while working
 
 /speckit-implement and when reaching tests make sure to run tests without OOM error 
