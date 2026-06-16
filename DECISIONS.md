@@ -953,3 +953,51 @@ yaml single-source rule). Exit 2 is distinct from eval failure (1) to make CI de
 
 **Rejected**: warn-but-continue (hides contract violations); check at test time only (misses
 production freeze runs where test imports may differ).
+
+---
+
+## SPEC-detector #14
+
+### DD1 — Emission: in-process `intake.accept(source=...)`, parameterized backward-compatibly
+
+**Decision**: The detector emits in-process by calling the existing
+`backend.services.intake.accept(...)` with a new `source: str = "wazuh"` keyword
+parameter. The detector passes `source=settings.detector.source_tag` (`"detector"`); the
+existing webhook caller (`backend.routers.ingest.ingest_wazuh`) passes nothing and
+keeps `"wazuh"`. `Incident.source` is already free-text — **no schema change, no
+migration**. Detector-originated alerts are redacted by the existing SNAPSHOT
+boundary inside `accept()` (Constitution III).
+
+**Why**: `accept()` already implements redact→dedup→persist→enqueue (the full
+load-bearing ingestion path). Reusing it gives the detector dedup (FR-008) and
+redaction for free, and avoids a second dedup authority. The HTTP webhook
+(`POST /ingest/wazuh`) is auth → size guard → validate → `intake.accept`; routing
+the detector through HTTP would add a Vault token, a running API, and a network
+round-trip for zero benefit, and would still need a `source` mechanism to
+distinguish detector alerts (FR-006).
+
+**Rejected**: HTTP POST to `/ingest/wazuh` (needs token + running API + network hop,
+still needs a `source` mechanism). Detector replicates redact/dedup/persist/enqueue
+(duplicates load-bearing logic; FR-008 risk of a second dedup authority).
+
+### DD2 — Pure `evaluate()` + closure-factory runner; no new layer, no new image, no migration
+
+**Decision**: The rule/threshold detector splits into:
+- `backend/domain/detector.py` — pure types (`RawEvent`, `MatchRule`, `ThresholdRule`,
+  `RuleSet`, `FiredAlert`). Only outward import: `Severity` from `domain/incident.py`
+  (domain→domain is allowed under the isolation contract).
+- `backend/services/detector.py` — pure `evaluate(events, rules) -> list[FiredAlert]`,
+  pure `fired_alert_to_wazuh_alert(fired) -> WazuhAlert`, `load_rules(path)` and
+  `load_replay_events(path)` (file I/O at the boundary; pure parsing).
+- `backend/detector.py` — one-shot runner `python -m backend.detector` with
+  `make_detector_runner(...)` closure-factory DI; mirrors #8 `seed-corpus`.
+
+**Why**: Matches the established Argus pattern (#8/#9/#15): pure core, closure-factory
+DI, one-shot command. The detector is a *decoupled detection source* (Constitution IV:
+deterministic, no LLM); the pure core is unit-testable without I/O, the runner is the
+only I/O seam, and there is **no new top-level layer, no new image, no migration**.
+The `Incident` schema is unchanged (FR-013 — zero downstream change).
+
+**Rejected**: Standalone detector service with its own router (adds a new layer /
+endpoint, no benefit over in-process emission per DD1). Detector as a Celery task
+(extra infra dependency; the one-shot command is enough for a replay tool).

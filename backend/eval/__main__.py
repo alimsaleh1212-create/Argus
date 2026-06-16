@@ -95,6 +95,7 @@ def _print_report(report, *, redact: bool = True) -> None:
 async def _run(args: argparse.Namespace) -> int:  # pragma: no cover
     # Import gate modules to register runners (side-effect)
     import backend.eval.gates.deterministic  # noqa: F401
+    import backend.eval.gates.detection  # noqa: F401
     import backend.eval.gates.feedback  # noqa: F401
     import backend.eval.gates.llm  # noqa: F401
     import backend.eval.gates.rationale  # noqa: F401

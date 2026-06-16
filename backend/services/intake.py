@@ -33,11 +33,16 @@ async def accept(
     redactor: Any,
     settings: Any,
     alert: WazuhAlert,
+    source: str = "wazuh",
 ) -> IngestResult:
     """Accept a Wazuh alert: redact → dedup → persist → enqueue → IngestResult.
 
     Atomic: enqueue failure deletes the just-inserted row (no orphan Incident).
     Fails closed on redaction error (exception propagates before any persist).
+
+    `source` (FR-006 / research D1) tags the resulting `Incident.source` —
+    default `"wazuh"` keeps the existing webhook caller unchanged. The
+    deterministic detector passes `source="detector"`.
     """
     ingest_cfg = settings.ingest
     redis_cfg = settings.redis
@@ -82,7 +87,7 @@ async def accept(
         severity=severity,
         correlation_id=str(uuid.uuid4()),
         dedup_fingerprint=fingerprint,
-        source="wazuh",
+        source=source,
         raw_alert=redacted_alert,
     )
     created = await repo.create(incident)

@@ -1,0 +1,52 @@
+# Test rule set for the detector eval gate (SPEC-detector #14).
+# Mirrors the seed rule set shape; the eval gate uses the same RuleSet
+# loader to keep the eval identical to a real run.
+
+lists:
+  ioc_ips:
+    - "203.0.113.10"
+    - "198.51.100.7"
+
+rules:
+  - id: ioc-match
+    kind: match
+    description: "Indicator on known-bad IOC list"
+    field: data.src_ip
+    op: in_list
+    list_ref: ioc_ips
+    severity: high
+
+  - id: malicious-cmd
+    kind: match
+    description: "Process command-line matches known-malicious pattern"
+    field: data.command_line
+    op: regex
+    value: "(?i)(mimikatz|-enc\\s+[A-Za-z0-9+/=]{40,})"
+    severity: high
+    technique: T1059
+
+  - id: failed-login-bruteforce
+    kind: threshold
+    description: "Repeated authentication failures from one source"
+    match:
+      field: data.event_type
+      op: equals
+      value: auth_failure
+    group_by: data.src_ip
+    count: 5
+    window_seconds: 60
+    severity: high
+    technique: T1110
+
+  - id: connection-fanout
+    kind: threshold
+    description: "Connection fan-out / port scan from one source"
+    match:
+      field: data.event_type
+      op: equals
+      value: connection
+    group_by: data.src_ip
+    count: 20
+    window_seconds: 30
+    severity: medium
+    technique: T1046
