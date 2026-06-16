@@ -4,7 +4,7 @@
 
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit-plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
@@ -40,32 +40,7 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Derived from `.specify/memory/constitution.md` (v2.0.0). Confirm this plan satisfies each gate, or
-record a justified, time-bound exception in `DECISIONS.md` and the Complexity Tracking table below.
-
-- [ ] **I. Spec-Driven Delivery**: a `SPEC.md` precedes code; "done" = unit + integration + e2e
-      green in CI and pushed behind a PR ≤ ~400 lines; big specs commit at each internal milestone.
-- [ ] **II. Test-First, Three-Tier, Eval-Gated (NON-NEGOTIABLE)**: unit/integration/e2e planned and
-      green daily; ≥80% on new code (higher on remediation + safety boundary); eval thresholds in
-      `eval_thresholds.yaml` gate CI and pass on **both** LLM providers.
-- [ ] **III. Structural Security Boundaries**: **v1 non-negotiables** — triage holds no action tools
-      (enforced via DI) and redaction runs before every log/trace/memory/dashboard write. The
-      injection/jailbreak rails + red-team CI gate are **deferred to v3b** (#11, VD1), mandatory before
-      v3c live feeds; no v1 artifact may claim injection coverage.
-- [ ] **IV. Determinism First**: supervisor is a deterministic state machine; obvious cases take the
-      no-LLM fast-path; a hard step/token cap is enforced; agents reason only over supplied evidence
-      and emit an evidence-cited rationale.
-- [ ] **V. Human-in-the-Loop**: destructive actions raise an approval interrupt (`awaiting_approval`)
-      with a config-backed auto/approval policy, a defined approval timeout + terminal state, and an
-      audit row per executed action.
-- [ ] **VI. Temporal Memory & Graceful Degradation**: time-validity preserved (invalidate, not
-      delete); seeded corpus closes cold-start; Graphiti → pgvector `valid_from`/`valid_to` fallback
-      decided; feed/knowledge text passes the same guardrails as alert text.
-- [ ] **VII. Production Engineering Standards**: async I/O, DI, lifespan singletons, Pydantic at
-      every boundary, structured logging with trace IDs, observability off the synchronous path,
-      typed `pydantic-settings` (`extra="forbid"`, secrets fail at startup), `uv` for deps.
-- [ ] **Scope & Tiers**: stays within v1 scope (no ML detector / multi-tenancy / embeddable widget /
-      live capture / LLM supervisor / 4th agent); respects the layering contract (T1 before any v2).
+[Gates determined based on constitution file]
 
 ## Project Structure
 
@@ -73,12 +48,12 @@ record a justified, time-bound exception in `DECISIONS.md` and the Complexity Tr
 
 ```text
 specs/[###-feature]/
-├── plan.md              # This file (/speckit-plan command output)
-├── research.md          # Phase 0 output (/speckit-plan command)
-├── data-model.md        # Phase 1 output (/speckit-plan command)
-├── quickstart.md        # Phase 1 output (/speckit-plan command)
-├── contracts/           # Phase 1 output (/speckit-plan command)
-└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
 ### Source Code (repository root)
