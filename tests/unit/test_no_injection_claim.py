@@ -65,6 +65,5 @@ def test_no_injection_coverage_claim_in_eval_code():
             matches.append(str(py_file))
 
     assert not matches, (
-        "Files claim injection gate/coverage — VD1 defers this to v3b:\n"
-        + "\n".join(matches)
+        "Files claim injection gate/coverage — VD1 defers this to v3b:\n" + "\n".join(matches)
     )

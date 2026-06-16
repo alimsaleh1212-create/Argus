@@ -28,6 +28,7 @@ class StageOutcome(StrEnum):
     ADVANCE = "advance"
     NEEDS_APPROVAL = "needs_approval"
     ESCALATE = "escalate"
+    UNVERIFIED = "unverified"  # remediation applied but verdict unconfirmed → escalate
 
 
 class StageResult(BaseModel):

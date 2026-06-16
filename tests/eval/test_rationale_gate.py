@@ -132,11 +132,17 @@ async def test_below_target_but_above_floor_not_blocking(tmp_path, monkeypatch):
     import backend.eval.gates.rationale as rat_mod
     from backend.eval.gates.rationale import run_rationale
 
-    fixture_data = json.dumps([
-        {"incident_context": "ctx", "rationale_text": "rat",
-         "human_label": "grounded", "cites_supplied_evidence": True}
-        for _ in range(5)
-    ])
+    fixture_data = json.dumps(
+        [
+            {
+                "incident_context": "ctx",
+                "rationale_text": "rat",
+                "human_label": "grounded",
+                "cites_supplied_evidence": True,
+            }
+            for _ in range(5)
+        ]
+    )
     for stage in ["triage", "enrichment", "response"]:
         (tmp_path / f"{stage}.json").write_text(fixture_data)
 
@@ -153,7 +159,7 @@ async def test_below_target_but_above_floor_not_blocking(tmp_path, monkeypatch):
     result = await run_rationale(spec, provider=None, _judge_fn=_judge)
     assert result.kind == GateKind.reported_only
     assert result.blocking is False  # above catastrophic floor (0.60 > 0.50)
-    assert result.passed is False    # below target (0.60 < 0.70)
+    assert result.passed is False  # below target (0.60 < 0.70)
 
 
 @pytest.mark.asyncio
@@ -184,9 +190,10 @@ async def test_rationale_gate_skipped_per_pr():
     async def _fail_if_called(context: str, rationale: str) -> str:
         raise AssertionError("judge should not be called in per_pr mode")
 
-    result = await run_rationale(spec, provider=None, run_mode=RunMode.per_pr,
-                                 _judge_fn=_fail_if_called)
-    assert result.passed is None   # unknown — gate was skipped
+    result = await run_rationale(
+        spec, provider=None, run_mode=RunMode.per_pr, _judge_fn=_fail_if_called
+    )
+    assert result.passed is None  # unknown — gate was skipped
     assert result.blocking is False
 
 
@@ -207,6 +214,6 @@ async def test_missing_fixture_dir_yields_unknown(tmp_path, monkeypatch):
         raise AssertionError("should not be called with no fixtures")
 
     result = await run_rationale(spec, provider=None, _judge_fn=_never_called)
-    assert result.passed is None   # unknown — no fixture data
+    assert result.passed is None  # unknown — no fixture data
     assert result.blocking is False
     assert "missing" in result.evidence or "no fixtures" in result.evidence

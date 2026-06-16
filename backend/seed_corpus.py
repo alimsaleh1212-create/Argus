@@ -132,7 +132,9 @@ async def _build_store(settings) -> object:  # type: ignore[type-arg]
         # fallback slot uses gemini.
         gemini_key = ""
         if _needs_gemini(mem_cfg, settings.llm):
-            gemini_key = (await vault.fetch_secret(settings.llm.gemini_vault_path)).get("api_key", "")
+            gemini_key = (await vault.fetch_secret(settings.llm.gemini_vault_path)).get(
+                "api_key", ""
+            )
 
         # Same provider selection as the worker (shared builders) — keeps seeded
         # vectors compatible with what the worker writes at runtime.

@@ -16,10 +16,16 @@ from backend.eval.gates import GATE_REGISTRY, validate_registry
 from backend.eval.thresholds import load_specs
 
 
-def _spec(name: str, kind: GateKind = GateKind.required,
-          dim: GateProviderDim = GateProviderDim.provider_independent) -> GateSpec:
+def _spec(
+    name: str,
+    kind: GateKind = GateKind.required,
+    dim: GateProviderDim = GateProviderDim.provider_independent,
+) -> GateSpec:
     return GateSpec(
-        name=name, description="test", kind=kind, provider_dim=dim,
+        name=name,
+        description="test",
+        kind=kind,
+        provider_dim=dim,
         threshold={"pass_rate": 1.0},
     )
 
@@ -28,6 +34,7 @@ def _spec(name: str, kind: GateKind = GateKind.required,
 # T015 — registry integrity
 # ---------------------------------------------------------------------------
 
+
 def test_gate_registry_has_required_gates():
     """After importing gate modules, the registry must contain all eight gates."""
     import backend.eval.gates.deterministic  # noqa: F401 — side-effect: registers runners
@@ -35,8 +42,16 @@ def test_gate_registry_has_required_gates():
     import backend.eval.gates.rationale  # noqa: F401
     import backend.eval.gates.smoke  # noqa: F401
 
-    required = {"smoke", "redaction", "supervisor_routing", "llm_provider",
-                "triage", "retrieval", "temporal_memory", "rationale"}
+    required = {
+        "smoke",
+        "redaction",
+        "supervisor_routing",
+        "llm_provider",
+        "triage",
+        "retrieval",
+        "temporal_memory",
+        "rationale",
+    }
     missing = required - set(GATE_REGISTRY)
     assert not missing, f"Registry missing gates: {missing}"
 
@@ -47,6 +62,7 @@ def test_validate_registry_passes_against_yaml():
     import backend.eval.gates.llm  # noqa: F401
     import backend.eval.gates.rationale  # noqa: F401
     import backend.eval.gates.smoke  # noqa: F401
+    import backend.eval.gates.verification  # noqa: F401
 
     specs = load_specs()
     # validate_registry raises on mismatch; should not raise here
@@ -59,6 +75,7 @@ def test_gate_result_is_well_formed():
     import backend.eval.gates.llm  # noqa: F401
     import backend.eval.gates.rationale  # noqa: F401
     import backend.eval.gates.smoke  # noqa: F401
+    import backend.eval.gates.verification  # noqa: F401
 
     for name, runner in GATE_REGISTRY.items():
         assert callable(runner), f"{name} runner is not callable"
@@ -68,6 +85,7 @@ def test_gate_result_is_well_formed():
 # T16 — regression blocks merge (CLI exit non-zero contract)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_below_threshold_gate_yields_not_certifiable():
     """A seeded sub-threshold required gate makes the verdict not_certifiable."""
@@ -75,15 +93,21 @@ async def test_below_threshold_gate_yields_not_certifiable():
 
     async def _failing_runner(spec: GateSpec, provider: str | None = None) -> GateResult:
         return GateResult(
-            gate=spec.name, kind=spec.kind, provider=provider,
-            score=0.0, threshold=spec.threshold, passed=False,
-            blocking=True, evidence="planted regression",
+            gate=spec.name,
+            kind=spec.kind,
+            provider=provider,
+            score=0.0,
+            threshold=spec.threshold,
+            passed=False,
+            blocking=True,
+            evidence="planted regression",
         )
 
     specs = [_spec("gate_regressed")]
     registry = {"gate_regressed": _failing_runner}
-    report = await run_harness(specs, registry, run_mode=RunMode.per_pr,
-                               providers=["ollama"], commit_sha="test")
+    report = await run_harness(
+        specs, registry, run_mode=RunMode.per_pr, providers=["ollama"], commit_sha="test"
+    )
     assert report.verdict == FreezeVerdict.not_certifiable
 
 

@@ -138,8 +138,8 @@ async def test_park_branch_returns_needs_approval():
         yield None
 
     with (
-        patch("backend.agents.response.ApprovalRepository", return_value=approval_repo),
-        patch("backend.agents.response.AuditRepository", return_value=audit_repo),
+        patch("backend.agents.response.handler.ApprovalRepository", return_value=approval_repo),
+        patch("backend.agents.response.handler.AuditRepository", return_value=audit_repo),
     ):
         handler = make_response_handler(
             llm=None,
@@ -178,8 +178,8 @@ async def test_park_branch_auto_actions_still_execute():
         yield None
 
     with (
-        patch("backend.agents.response.ApprovalRepository", return_value=approval_repo),
-        patch("backend.agents.response.AuditRepository", return_value=audit_repo),
+        patch("backend.agents.response.handler.ApprovalRepository", return_value=approval_repo),
+        patch("backend.agents.response.handler.AuditRepository", return_value=audit_repo),
     ):
         handler = make_response_handler(
             llm=None,
@@ -247,8 +247,8 @@ async def test_pass_b_executes_approved_plan():
     executors = build_mock_executors()
 
     with (
-        patch("backend.agents.response.ApprovalRepository", return_value=approval_repo),
-        patch("backend.agents.response.AuditRepository", return_value=audit_repo),
+        patch("backend.agents.response.handler.ApprovalRepository", return_value=approval_repo),
+        patch("backend.agents.response.handler.AuditRepository", return_value=audit_repo),
     ):
         handler = make_response_handler(
             llm=None,
@@ -319,8 +319,8 @@ async def test_pass_b_no_llm_call():
     executors = build_mock_executors()
 
     with (
-        patch("backend.agents.response.ApprovalRepository", return_value=approval_repo),
-        patch("backend.agents.response.AuditRepository", return_value=audit_repo),
+        patch("backend.agents.response.handler.ApprovalRepository", return_value=approval_repo),
+        patch("backend.agents.response.handler.AuditRepository", return_value=audit_repo),
     ):
         handler = make_response_handler(
             llm=llm, session_factory=_session_factory, executors=executors, cfg=cfg, catalog=catalog

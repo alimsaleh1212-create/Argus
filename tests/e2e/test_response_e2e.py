@@ -234,8 +234,8 @@ async def test_auto_path_resolves_auto_remediated():
         yield None  # session not used directly; repos are patched
 
     with (
-        patch("backend.agents.response.ApprovalRepository") as MockApproval,
-        patch("backend.agents.response.AuditRepository") as MockAudit,
+        patch("backend.agents.response.handler.ApprovalRepository") as MockApproval,
+        patch("backend.agents.response.handler.AuditRepository") as MockAudit,
     ):
         MockApproval.return_value = approval_repo
         MockAudit.return_value = audit_repo
@@ -280,8 +280,8 @@ async def test_destructive_incident_parks():
         yield None
 
     with (
-        patch("backend.agents.response.ApprovalRepository") as MockApproval,
-        patch("backend.agents.response.AuditRepository") as MockAudit,
+        patch("backend.agents.response.handler.ApprovalRepository") as MockApproval,
+        patch("backend.agents.response.handler.AuditRepository") as MockAudit,
     ):
         MockApproval.return_value = approval_repo
         MockAudit.return_value = audit_repo
@@ -328,8 +328,8 @@ async def test_approve_resumes_to_remediated():
 
     # First pass: park
     with (
-        patch("backend.agents.response.ApprovalRepository") as MockApproval,
-        patch("backend.agents.response.AuditRepository") as MockAudit,
+        patch("backend.agents.response.handler.ApprovalRepository") as MockApproval,
+        patch("backend.agents.response.handler.AuditRepository") as MockAudit,
     ):
         MockApproval.return_value = approval_repo
         MockAudit.return_value = audit_repo
@@ -357,8 +357,8 @@ async def test_approve_resumes_to_remediated():
 
     # Second pass (Pass B): execute the approved plan
     with (
-        patch("backend.agents.response.ApprovalRepository") as MockApproval,
-        patch("backend.agents.response.AuditRepository") as MockAudit,
+        patch("backend.agents.response.handler.ApprovalRepository") as MockApproval,
+        patch("backend.agents.response.handler.AuditRepository") as MockAudit,
     ):
         MockApproval.return_value = approval_repo
         MockAudit.return_value = audit_repo

@@ -2,34 +2,46 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
-**Active component**: `013-eval-harness` (Component #13 — `SPEC-eval`, the **consolidated evaluation
-harness**; T1, *(big)*, the **day-9 freeze** spec; depends on all of #2–#12). Wires the already-seeded
-eval gates into CI, runs both providers at the freeze, persists `eval_report.json` to MinIO, and adds the
-one net-new LLM-judge **rationale** gate. **Red-team gate stays deferred to #11/v3b (VD1).**
-- Plan: `specs/013-eval-harness/plan.md`
-- Spec: `specs/013-eval-harness/spec.md`
-- Design: `specs/013-eval-harness/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
+**Active component**: `015-remediation-verification` (Component #15 — `SPEC-remediation-verification`; the
+**first v2/T2 component**, value-early per the roadmap `T1 freeze → 015-M1 → 016-M1`). Closes the
+**action-applied → threat-eliminated** gap: a **deterministic** step at the **tail of the response stage**
+computes a `VerificationVerdict` (`verified`/`unverified`/`regressed`); `verified` keeps
+`auto_remediated`/`remediated`, `unverified`/`regressed` activates the reserved **`remediation_unverified`**
+disposition and **escalates** (never false-resolves). **#14-detector dir is intentionally skipped** for now
+(built later in the sequence); `011` remains the safety gap (v3b/VD1).
+- Plan: `specs/015-remediation-verification/plan.md`
+- Spec: `specs/015-remediation-verification/spec.md`
+- Design: `specs/015-remediation-verification/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
-Stack (this component): a **backend-only consolidation** — no new service, no migration, no frontend
-change. The harness is a top-level **`backend/eval/`** entrypoint package (peer to `worker.py`/
-`seed_corpus.py`): `python -m backend.eval` reads **`config/eval_thresholds.yaml`** as the single source
-of truth, runs every declared gate via a **registry** (declared⇔registered **orphan/stale check = hard
-error**), and emits an `EvalReport` (pure DTOs in **`domain/eval.py`**). The seven already-seeded gates
-(smoke, redaction, supervisor_routing, llm_provider, triage, retrieval, temporal_memory) are **consumed
-unchanged** with thresholds read from the yaml, never hardcoded. **CI wiring is the core gap closed**
-(today `tests/eval/` is not run by CI): a new **required `eval` job** in `ci.yml` runs the deterministic
-gates + LLM gates on **Ollama only** per-PR (fork-safe, no Gemini key); a new **`eval-freeze.yml`**
-(nightly + `v*` tag + dispatch) runs **both providers**, the pinned-judge **rationale** gate, and uploads
-the report to the reserved **`eval-reports`** MinIO bucket keyed by commit/run (**history retained**).
-The net-new **rationale** gate is **reported-only** (only a catastrophic floor blocks), judge **pinned to
-Gemini**, scoring rationales from **both** producers, validated against a small hand-labeled set under
-`tests/fixtures/rationale/`. New **`EvalSettings`** (`extra="forbid"`) holds wiring; `pyyaml` promoted to
-a direct dep. Memory-safe via **`scripts/run-evals.sh`** (one gate per subprocess, mirrors
-`run-tests.sh`). Ships **3 milestone PRs** (Constitution I): M1 harness+CI deterministic → M2
-both-providers+MinIO → M3 rationale judge. The **red-team/injection gate is deferred to #11/v3b (VD1)** —
-seam reserved, no v1 injection-coverage claim; the constitution amendment is a separate `/speckit-constitution` action.
+Stack (this component): a **backend-only** extension (mirrors #9 — zero migration, closure-factory DI, pure
+domain types). **M1** (buildable now) combines an **indicator re-check** (real path — `ThreatIntelClient.lookup`
++ `MemoryStore.query_fact(as_of=None)`, reusing the enrichment retrieval pattern) with an **executor status
+probe** (new read-only `probe()` on the `ActionExecutor` protocol — mock now, real-EDR-shaped later) into a
+**pure `decide_verdict`** (worst-case aggregate; **no LLM** on the common path — an optional conflict-only
+tiebreak is config-gated, default-off, Constitution IV). New `StageOutcome.UNVERIFIED` + one supervisor edge
+`(RESPONDING, UNVERIFIED) → (ESCALATED, remediation_unverified)`. Verdict rides the existing
+`incidents.evidence` JSONB (evidence-patch) + optional `audit_log` row; **read-only re-check, no new write
+authority** (Constitution III) — memory write-back of the verdict is **#16's** job. Verification fields extend
+**`ResponseSettings`** (no new section). New deterministic **`verification`** eval gate (yaml block **+**
+registry runner added together — the declared⇔registered orphan check is a hard error in #13), fixtures under
+`tests/fixtures/verification/`; **extends** the temporal-memory (verification fact time-validity) + redaction
+(verification record/view) + supervisor_routing gates rather than duplicating. Ships **3 M1 milestone PRs**
+(Constitution I): M1-a verdict-core → M1-b handler/FSM wiring → M1-c eval gate + read-only dashboard surface.
+**M2** (the `verifying` dwell-window monitoring loop) is **designed-but-deferred, gated on the detector #14**
+— reuses the `awaiting_approval` park/resume machinery, no new mechanism. **Layering-contract watch-item**:
+v2 *design* proceeds ahead of the T1 tag (additive, roadmap §6.1); implementation code lands after the
+#12/#13 freeze or under a recorded `DECISIONS.md` entry.
 
-Prior components (done): `012-dashboard` — the **React operations dashboard** (the human surface, graded
+Prior components (done): `013-eval-harness` — the **consolidated evaluation harness** (T1, the day-9 freeze
+spec; depends on #2–#12). Backend-only `backend/eval/` entrypoint (`python -m backend.eval`) reads
+`config/eval_thresholds.yaml` via a **registry** (declared⇔registered **orphan/stale = hard error**) → pure
+`EvalReport` (`domain/eval.py`). Seven seeded gates consumed unchanged; **CI wiring** is the core gap closed
+(required per-PR `eval` job on **Ollama only**; `eval-freeze.yml` runs **both providers** + the pinned-judge
+**rationale** gate, uploads to the **`eval-reports`** MinIO bucket). `EvalSettings` (`extra="forbid"`);
+`pyyaml` a direct dep; memory-safe `scripts/run-evals.sh`. **Red-team gate stays deferred to #11/v3b (VD1).**
+Plan: `specs/013-eval-harness/plan.md`.
+
+`012-dashboard` — the **React operations dashboard** (the human surface, graded
 showcase). Separate-image React SPA (`frontend/`, Node 20) over **read-side** endpoints; **read-only
 except approve/reject** (reuses #10's `/approvals/{id}/decision`; supervisor stays single writer —
 Constitution III). Filled the reserved `routers/incidents.py` (queue/detail/audit/trace/kpis/stream) +

@@ -1,0 +1,10 @@
+{
+  "description": "Probe cannot read post-state (INCONCLUSIVE) — fail-closed to unverified.",
+  "signals": [
+    {
+      "probe": {"type": "add_to_watchlist", "target": "alice@example.com", "state": "inconclusive", "detail": "timeout"},
+      "recheck": null
+    }
+  ],
+  "expected_verdict": "unverified"
+}

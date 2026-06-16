@@ -83,6 +83,9 @@ gates:
       - approved_and_remediated
       - rejected_by_human
       - approval_expired
+      # Added by SPEC-remediation-verification (#15): new FSM edge (RESPONDING, UNVERIFIED)
+      - verified_resolves
+      - unverified_escalates
 
   llm_provider:
     description: >
@@ -159,6 +162,7 @@ gates:
         - reputation_flip
         - host_role_change
         - no_destructive_delete
+        - verification_superseded_absent
 
   rationale:
     description: >
@@ -183,3 +187,23 @@ gates:
     threshold:
       min_grounded_rate: 0.70
       min_judge_agreement: 0.70
+
+  verification:
+    description: >
+      Remediation-verification accuracy gate (SPEC-remediation-verification #15). Drives a labeled set of
+      post-remediation states (probe state + indicator re-check) through decide_verdict and scores the
+      verified/unverified/regressed classification. Deterministic / provider-independent (no LLM on the
+      default path). Extends — does not duplicate — the temporal-memory gate (verification fact
+      time-validity) and the redaction gate (verification record + dashboard view).
+    required: true
+    threshold:
+      min_accuracy: 0.95
+      max_false_verified_rate: 0.0
+    fixtures:
+      - verified_clean_indicator
+      - regressed_indicator_still_malicious
+      - regressed_probe_unexpected
+      - unverified_intel_unknown
+      - unverified_probe_inconclusive
+      - conflict_probe_ok_indicator_malicious
+      - multi_action_worst_case

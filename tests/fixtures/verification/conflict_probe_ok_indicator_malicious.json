@@ -1,0 +1,10 @@
+{
+  "description": "Genuine conflict: probe reports EXPECTED but indicator still malicious. Deterministic worst-case: regressed.",
+  "signals": [
+    {
+      "probe": {"type": "block_ip", "target": "5.5.5.5", "state": "expected", "detail": "firewall rule active"},
+      "recheck": {"target": "5.5.5.5", "intel_verdict": "malicious", "fact_value": null, "fact_is_current": false}
+    }
+  ],
+  "expected_verdict": "regressed"
+}

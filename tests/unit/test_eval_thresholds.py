@@ -20,8 +20,15 @@ def test_load_specs_returns_all_declared_gates():
     specs = load_specs(YAML_PATH)
     names = {s.name for s in specs}
     # All seven seeded gates must be present
-    assert {"smoke", "redaction", "supervisor_routing", "llm_provider", "triage", "retrieval",
-            "temporal_memory"}.issubset(names), f"Missing gates in {names}"
+    assert {
+        "smoke",
+        "redaction",
+        "supervisor_routing",
+        "llm_provider",
+        "triage",
+        "retrieval",
+        "temporal_memory",
+    }.issubset(names), f"Missing gates in {names}"
 
 
 def test_required_gates_have_kind_required():
@@ -29,7 +36,14 @@ def test_required_gates_have_kind_required():
 
     specs = load_specs(YAML_PATH)
     by_name = {s.name: s for s in specs}
-    for name in ("smoke", "redaction", "supervisor_routing", "triage", "retrieval", "temporal_memory"):
+    for name in (
+        "smoke",
+        "redaction",
+        "supervisor_routing",
+        "triage",
+        "retrieval",
+        "temporal_memory",
+    ):
         assert by_name[name].kind == GateKind.required, f"{name} should be required"
 
 
@@ -81,11 +95,13 @@ def test_unknown_shape_raises():
 
     from backend.eval.thresholds import load_specs_from_dict
 
-    bad = pyyaml.safe_load(io.StringIO("""
+    bad = pyyaml.safe_load(
+        io.StringIO("""
 version: "1"
 gates:
   bad_gate:
     description: "missing required fields"
-"""))
+""")
+    )
     with pytest.raises((ValueError, KeyError)):
         load_specs_from_dict(bad)
