@@ -130,6 +130,27 @@ async def _run_redaction_scenarios() -> tuple[int, int]:
     if PLANTED_AWS_KEY in redacted_str_4:
         cred_leaks += 1
 
+    # --- Scenario 5: AWS key in feedback prior_outcome signal indicator ---
+    feedback_payload = {
+        "incident_id": "abc123",
+        "evidence": {
+            "prior_outcome": {
+                "signals": [
+                    {
+                        "indicator": f"ip:{PLANTED_AWS_KEY}",
+                        "outcome": "failed",
+                        "is_current": True,
+                    }
+                ],
+                "biased_severity": "critical",
+            }
+        },
+    }
+    redacted_5 = redactor.redact_mapping(feedback_payload, Boundary.OPERATIONAL)
+    redacted_str_5 = json.dumps(redacted_5)
+    if PLANTED_AWS_KEY in redacted_str_5:
+        cred_leaks += 1
+
     return cred_leaks, 0  # pii_leaks handled by presidio (disabled here — always 0)
 
 
@@ -242,6 +263,33 @@ def test_aws_key_in_dashboard_evidence_path_is_redacted():
     out = redactor.redact_mapping(payload, Boundary.OPERATIONAL)
     assert PLANTED_AWS_KEY not in json.dumps(out), (
         f"AWS key found unredacted in dashboard evidence path"
+    )
+
+
+def test_aws_key_in_feedback_prior_outcome_is_redacted():
+    """AWS key in feedback prior_outcome.signal.indicator must not leak."""
+    from backend.domain.redaction import Boundary
+    from backend.infra.redaction import build_redactor
+
+    redactor = build_redactor(presidio_enabled=False)
+    payload = {
+        "incident_id": "abc123",
+        "evidence": {
+            "prior_outcome": {
+                "signals": [
+                    {
+                        "indicator": f"ip:{PLANTED_AWS_KEY}",
+                        "outcome": "failed",
+                        "is_current": True,
+                    }
+                ],
+                "biased_severity": "critical",
+            }
+        },
+    }
+    out = redactor.redact_mapping(payload, Boundary.OPERATIONAL)
+    assert PLANTED_AWS_KEY not in json.dumps(out), (
+        f"AWS key found unredacted in feedback prior_outcome: {json.dumps(out)[:200]}"
     )
 
 

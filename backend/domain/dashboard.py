@@ -135,6 +135,7 @@ class MemoryHit(BaseModel):
     enriched: int
     hits: int
     rate: float | None = None  # None when enriched == 0
+    bias_applied: int = 0
 
 
 class KpiSnapshot(BaseModel):

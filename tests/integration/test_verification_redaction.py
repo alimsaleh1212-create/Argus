@@ -41,6 +41,7 @@ def _make_app(*, incident, audit_rows=None):
         get_audit_repo,
         get_auth_service,
         get_incident_repo,
+        get_redactor_dep,
     )
     from backend.infra.config import load_settings
     from backend.infra.container import clear_registry
@@ -69,10 +70,30 @@ def _make_app(*, incident, audit_rows=None):
 
     _audit_rows = audit_rows or []
 
+    from backend.domain.dashboard import IncidentSummary
+
     async def fake_incident_repo():
         repo = AsyncMock()
         repo.get = AsyncMock(return_value=incident)
-        repo.list_for_queue = AsyncMock(return_value=[incident])
+        repo.list_for_queue = AsyncMock(
+            return_value=[
+                IncidentSummary(
+                    id=incident.id,
+                    status=incident.status.value,
+                    severity=incident.severity.value,
+                    disposition=incident.disposition,
+                    source=incident.source,
+                    summary=(
+                        incident.evidence.get("summary")
+                        if isinstance(incident.evidence, dict)
+                        else None
+                    ),
+                    is_awaiting_approval=incident.status.value == "awaiting_approval",
+                    created_at=incident.created_at,
+                    updated_at=incident.updated_at,
+                )
+            ]
+        )
         repo.count_for_queue = AsyncMock(return_value=1)
         yield repo
 
@@ -86,9 +107,17 @@ def _make_app(*, incident, audit_rows=None):
         repo.get_pending_for_incident = AsyncMock(return_value=None)
         yield repo
 
+    class _PassThroughRedactor:
+        def redact_text(self, text, boundary):
+            return text
+
+        def redact_mapping(self, data, boundary):
+            return dict(data)
+
     app.dependency_overrides[get_incident_repo] = fake_incident_repo
     app.dependency_overrides[get_audit_repo] = fake_audit_repo
     app.dependency_overrides[get_approval_repo] = fake_approval_repo
+    app.dependency_overrides[get_redactor_dep] = lambda: _PassThroughRedactor()
 
     return app, password
 

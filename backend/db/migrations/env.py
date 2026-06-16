@@ -25,9 +25,9 @@ if config.config_file_name is not None:
 dsn = os.environ.get("ARGUS__POSTGRES__DSN", "")
 if not dsn:
     # Fall back to loading from Settings (resolves .env as well)
-    from backend.infra.config import Settings
+    from backend.infra.config import load_settings
 
-    s = Settings()
+    s = load_settings()
     dsn = s.postgres.dsn.get_secret_value()
 
 config.set_main_option("sqlalchemy.url", dsn)

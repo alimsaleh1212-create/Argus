@@ -1,0 +1,8 @@
+{
+  "name": "prior_regressed_escalates",
+  "kind": "severity_route",
+  "severity": "high",
+  "seed_outcome": {"indicator": "198.51.100.50", "value": "regressed", "is_current": true},
+  "baseline": {"expected_route": "ambiguous", "expected_severity": "high"},
+  "repeat": {"expected_route": "critical_or_escalated", "expected_severity": "critical", "expect_severity_bumped": true}
+}

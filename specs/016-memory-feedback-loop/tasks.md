@@ -27,7 +27,7 @@ e2e tasks that must be green in CI before the spec is "done", plus eval-threshol
 
 **Purpose**: Fixture directory creation — the only new directory for this backend-only extension
 
-- [ ] T001 Create `tests/fixtures/feedback/` directory and add a `.gitkeep` placeholder (5 labeled baseline-vs-repeat fixture files follow in Phase 4 / US2)
+- [x] T001 Create `tests/fixtures/feedback/` directory and add a `.gitkeep` placeholder (5 labeled baseline-vs-repeat fixture files follow in Phase 4 / US2)
 
 ---
 
@@ -37,8 +37,8 @@ e2e tasks that must be green in CI before the spec is "done", plus eval-threshol
 
 **⚠️ CRITICAL**: No user story implementation can begin until this phase is complete
 
-- [ ] T002 [P] Create `backend/domain/feedback.py` with `RemediationOutcome` StrEnum (`verified`/`unverified`/`regressed`, values identical to `VerificationVerdict`), `FAILURE_CLASS = frozenset({UNVERIFIED, REGRESSED})`, and the `FeedbackSignal` Pydantic model (`indicator: str`, `outcome: RemediationOutcome`, `is_current: bool`, `observed_at: datetime | None = None`; `extra="forbid"`, `frozen=True`) — domain→domain imports only (blocks US1 write mapping and US2 read/bias)
-- [ ] T003 [P] Add a new `FeedbackSettings` section to `backend/infra/config.py` (`enabled: bool = True`, `escalate_on: list[str] = ["regressed","unverified"]`, `severity_bias: Literal["bump_one","to_critical","none"] = "bump_one"`, `prefer_stronger_playbook: bool = True`, `max_indicators: int = 5` (`gt=0`), `outcome_fact_type: str = "remediation_outcome"`; `extra="forbid"`) and register it as the `feedback` field on the `Settings` aggregate
+- [x] T002 [P] Create `backend/domain/feedback.py` with `RemediationOutcome` StrEnum (`verified`/`unverified`/`regressed`, values identical to `VerificationVerdict`), `FAILURE_CLASS = frozenset({UNVERIFIED, REGRESSED})`, and the `FeedbackSignal` Pydantic model (`indicator: str`, `outcome: RemediationOutcome`, `is_current: bool`, `observed_at: datetime | None = None`; `extra="forbid"`, `frozen=True`) — domain→domain imports only (blocks US1 write mapping and US2 read/bias)
+- [x] T003 [P] Add a new `FeedbackSettings` section to `backend/infra/config.py` (`enabled: bool = True`, `escalate_on: list[str] = ["regressed","unverified"]`, `severity_bias: Literal["bump_one","to_critical","none"] = "bump_one"`, `prefer_stronger_playbook: bool = True`, `max_indicators: int = 5` (`gt=0`), `outcome_fact_type: str = "remediation_outcome"`; `extra="forbid"`) and register it as the `feedback` field on the `Settings` aggregate
 
 **Checkpoint**: Foundation ready — user story implementation can now begin
 
@@ -59,14 +59,14 @@ assert no write and no block on disposition.
 
 > **Write these tests FIRST — ensure they FAIL before implementing the functions they call**
 
-- [ ] T004 [P] [US1] Write failing unit tests for the outcome-fact mapping in `tests/unit/test_feedback_write.py`: verdict + applied targets (from `evidence["response"]["verification"]` + `["results"]`) → one `TemporalFact` per applied target with `fact_type="remediation_outcome"`, `value=<verdict>`, `valid_from=incident.updated_at`, entity keyed like the reputation fact; absent verification → no fact; no applied targets → no fact
-- [ ] T005 [US1] Write failing integration tests for `record_outcome_facts` against real Postgres/memory in `tests/integration/test_feedback_write.py`: write→`query_fact(as_of=None)` round-trip returns the outcome; a later contradicting outcome supersedes (invalidate-not-delete, time-valid); memory outage → no write, no raise; re-finalize → no duplicate/conflicting fact (idempotent)
+- [x] T004 [P] [US1] Write failing unit tests for the outcome-fact mapping in `tests/unit/test_feedback_write.py`: verdict + applied targets (from `evidence["response"]["verification"]` + `["results"]`) → one `TemporalFact` per applied target with `fact_type="remediation_outcome"`, `value=<verdict>`, `valid_from=incident.updated_at`, entity keyed like the reputation fact; absent verification → no fact; no applied targets → no fact
+- [x] T005 [US1] Write failing integration tests for `record_outcome_facts` against real Postgres/memory in `tests/integration/test_feedback_write.py`: write→`query_fact(as_of=None)` round-trip returns the outcome; a later contradicting outcome supersedes (invalidate-not-delete, time-valid); memory outage → no write, no raise; re-finalize → no duplicate/conflicting fact (idempotent)
 
 ### Implementation (M1-a — write-back)
 
-- [ ] T006 [US1] Implement `async def record_outcome_facts(incident, store, redactor)` in `backend/services/memory.py`: read the incident-level verdict from `evidence["response"]["verification"]["verdict"]` and applied targets from `evidence["response"]["results"]` (status `applied`); build one `TemporalFact` per target keyed like `infra/intel.py::_persist_fact` (so write-key == read-key, research D2); redact via `Boundary.MEMORY_WRITE`; `await store.write_fact(fact)` (depends on T002, T003)
-- [ ] T007 [US1] Extend `backend/worker.py` `_maybe_record_episode` (or add a sibling `_maybe_record_feedback`) to call `record_outcome_facts` off-path alongside `record_episode` — same fire-and-forget task, same terminal-status guard, same redactor, same try/except (errors logged + swallowed, never block disposition) (depends on T006)
-- [ ] T008 [P] [US1] Extend `backend/eval/gates/temporal_memory.py` + `config/eval_thresholds.yaml` `temporal_memory.cases` with a `remediation_outcome_flip` case: write `verified`@t1, `regressed`@t2 for one indicator → assert `query_fact(as_of=t1)=verified` (superseded), `query_fact(now)=regressed` (current), and the `verified` fact is RETAINED (invalidated, not deleted)
+- [x] T006 [US1] Implement `async def record_outcome_facts(incident, store, redactor)` in `backend/services/memory.py`: read the incident-level verdict from `evidence["response"]["verification"]["verdict"]` and applied targets from `evidence["response"]["results"]` (status `applied`); build one `TemporalFact` per target keyed like `infra/intel.py::_persist_fact` (so write-key == read-key, research D2); redact via `Boundary.MEMORY_WRITE`; `await store.write_fact(fact)` (depends on T002, T003)
+- [x] T007 [US1] Extend `backend/worker.py` `_maybe_record_episode` (or add a sibling `_maybe_record_feedback`) to call `record_outcome_facts` off-path alongside `record_episode` — same fire-and-forget task, same terminal-status guard, same redactor, same try/except (errors logged + swallowed, never block disposition) (depends on T006)
+- [x] T008 [P] [US1] Extend `backend/eval/gates/temporal_memory.py` + `config/eval_thresholds.yaml` `temporal_memory.cases` with a `remediation_outcome_flip` case: write `verified`@t1, `regressed`@t2 for one indicator → assert `query_fact(as_of=t1)=verified` (superseded), `query_fact(now)=regressed` (current), and the `verified` fact is RETAINED (invalidated, not deleted)
 
 **Checkpoint**: US1 done — `scripts/run-tests.sh unit integration` green; outcome facts written for each verdict; time-validity preserved; outage never blocks; `temporal_memory` gate (incl. new case) passes
 
@@ -87,23 +87,23 @@ the retrieved fact. Superseded/`verified` priors apply no change.
 
 > **Write these tests FIRST — ensure they FAIL before implementing**
 
-- [ ] T009 [P] [US2] Write failing unit tests for the pure bias rules in `tests/unit/test_feedback_rules.py`: `has_prior_failure` (failure-class vs `verified` vs empty), `decide_severity_bias` (`bump_one`/`to_critical`/`none`; idempotent; `verified` → no change), `prefer_stronger_playbook` (highest-`strength` candidate on failure-class; `None`/no-change otherwise)
-- [ ] T010 [US2] Write failing integration tests for `gather_feedback` against real memory in `tests/integration/test_feedback_consume.py`: returns a current `FeedbackSignal` from a seeded `remediation_outcome` fact; a superseded fact (`is_current=False`) is dropped; memory outage → `[]` (no bias); bounded by `max_indicators`
-- [ ] T011 [US2] Write failing e2e test in `tests/e2e/test_feedback_e2e.py`: 1st occurrence (no prior) vs 2nd occurrence (seeded current `regressed`) on the same indicator — assert the 2nd escalates sooner (biased severity / route) and/or selects the stronger playbook; assert the supervisor remains the sole writer of status/disposition
+- [x] T009 [P] [US2] Write failing unit tests for the pure bias rules in `tests/unit/test_feedback_rules.py`: `has_prior_failure` (failure-class vs `verified` vs empty), `decide_severity_bias` (`bump_one`/`to_critical`/`none`; idempotent; `verified` → no change), `prefer_stronger_playbook` (highest-`strength` candidate on failure-class; `None`/no-change otherwise)
+- [x] T010 [US2] Write failing integration tests for `gather_feedback` against real memory in `tests/integration/test_feedback_consume.py`: returns a current `FeedbackSignal` from a seeded `remediation_outcome` fact; a superseded fact (`is_current=False`) is dropped; memory outage → `[]` (no bias); bounded by `max_indicators`
+- [x] T011 [US2] Write failing e2e test in `tests/e2e/test_feedback_e2e.py`: 1st occurrence (no prior) vs 2nd occurrence (seeded current `regressed`) on the same indicator — assert the 2nd escalates sooner (biased severity / route) and/or selects the stronger playbook; assert the supervisor remains the sole writer of status/disposition
 
 ### Implementation (M1-b — consumption / bias)
 
-- [ ] T012 [US2] Implement the pure bias rules in `backend/domain/feedback.py`: `has_prior_failure(signals, cfg)`, `decide_severity_bias(severity, signals, cfg) -> Severity`, `prefer_stronger_playbook(candidates, signals, cfg) -> PlaybookRef | None` — pure, no I/O, fully unit-testable, `verified` never biases (depends on T002)
-- [ ] T013 [US2] Implement `backend/services/feedback.py` `async def gather_feedback(*, memory, entities, cfg) -> list[FeedbackSignal]`: concurrent `_safe(memory.query_fact(entity, cfg.outcome_fact_type, as_of=None))` for indicators bounded by `cfg.max_indicators`; keep only `is_current`; best-effort (outage → `[]`); read-key MUST equal the write-key (depends on T002, T003)
-- [ ] T014 [US2] Wire `gather_feedback` at the grounded boundary in `backend/worker.py` — after `ground()`, before `repo.set_grounded(...)`: augment `Evidence` with a redacted `prior_outcome` slice, apply `decide_severity_bias` to `evidence.severity`, and append `prior_failure` to `evidence["flags"]` when `has_prior_failure` (depends on T012, T013)
-- [ ] T015 [US2] Add config-backed playbook `strength` (optional `int`, default `0`) to `PlaybookEntry` + loader in `backend/agents/response/catalog.py` and the playbook yaml under `backend/data/playbooks/`; extend `select_playbook` in `backend/agents/response/selection.py` to call `prefer_stronger_playbook` (gated by `cfg.feedback.prefer_stronger_playbook`) when the target has a current failure-class signal — deterministic, before any ambiguous-tail LLM call (depends on T012)
-- [ ] T016 [US2] Confirm/extend `route_grounded` in `backend/services/supervisor.py` to honour the biased severity + `prior_failure` flag through the **existing** severity→route path — **no new `StageOutcome`, no new FSM edge** (depends on T014)
+- [x] T012 [US2] Implement the pure bias rules in `backend/domain/feedback.py`: `has_prior_failure(signals, cfg)`, `decide_severity_bias(severity, signals, cfg) -> Severity`, `prefer_stronger_playbook(candidates, signals, cfg) -> PlaybookRef | None` — pure, no I/O, fully unit-testable, `verified` never biases (depends on T002)
+- [x] T013 [US2] Implement `backend/services/feedback.py` `async def gather_feedback(*, memory, entities, cfg) -> list[FeedbackSignal]`: concurrent `_safe(memory.query_fact(entity, cfg.outcome_fact_type, as_of=None))` for indicators bounded by `cfg.max_indicators`; keep only `is_current`; best-effort (outage → `[]`); read-key MUST equal the write-key (depends on T002, T003)
+- [x] T014 [US2] Wire `gather_feedback` at the grounded boundary in `backend/worker.py` — after `ground()`, before `repo.set_grounded(...)`: augment `Evidence` with a redacted `prior_outcome` slice, apply `decide_severity_bias` to `evidence.severity`, and append `prior_failure` to `evidence["flags"]` when `has_prior_failure` (depends on T012, T013)
+- [x] T015 [US2] Add config-backed playbook `strength` (optional `int`, default `0`) to `PlaybookEntry` + loader in `backend/agents/response/catalog.py` and the playbook yaml under `backend/data/playbooks/`; extend `select_playbook` in `backend/agents/response/selection.py` to call `prefer_stronger_playbook` (gated by `cfg.feedback.prefer_stronger_playbook`) when the target has a current failure-class signal — deterministic, before any ambiguous-tail LLM call (depends on T012)
+- [x] T016 [US2] Confirm/extend `route_grounded` in `backend/services/supervisor.py` to honour the biased severity + `prior_failure` flag through the **existing** severity→route path — **no new `StageOutcome`, no new FSM edge** (depends on T014)
 
 ### Implementation (M1-c — feedback-effectiveness eval gate)
 
-- [ ] T017 [P] [US2] Create 5 labeled fixtures in `tests/fixtures/feedback/` (per `contracts/feedback-eval.md`): `prior_regressed_escalates.json`, `prior_unverified_escalates.json`, `prior_failure_picks_stronger_playbook.json`, `verified_prior_no_change.json`, `superseded_prior_no_change.json` (each: seed outcome + baseline-vs-repeat expected behavior); implement `backend/eval/gates/feedback.py` `async def run_feedback(spec, provider=None) -> GateResult` driving the pure bias rules + `route_grounded`, register under `"feedback"` in `GATE_REGISTRY` (depends on T012, T015)
-- [ ] T018 [US2] Add the `feedback` gate block to `config/eval_thresholds.yaml` (`required: true`, `pass_rate: 1.0`, all 5 fixture names); **must land in the same commit as T017** — the declared⇔registered orphan/stale check is a hard error (depends on T017)
-- [ ] T019 [P] [US2] Extend `backend/eval/gates/supervisor_routing.py` + the `supervisor_routing.fixtures` list in `config/eval_thresholds.yaml` with a `prior_regressed_escalates` fixture (grounded incident + seeded prior failure → escalation route via the biased input)
+- [x] T017 [P] [US2] Create 5 labeled fixtures in `tests/fixtures/feedback/` (per `contracts/feedback-eval.md`): `prior_regressed_escalates.json`, `prior_unverified_escalates.json`, `prior_failure_picks_stronger_playbook.json`, `verified_prior_no_change.json`, `superseded_prior_no_change.json` (each: seed outcome + baseline-vs-repeat expected behavior); implement `backend/eval/gates/feedback.py` `async def run_feedback(spec, provider=None) -> GateResult` driving the pure bias rules + `route_grounded`, register under `"feedback"` in `GATE_REGISTRY` (depends on T012, T015)
+- [x] T018 [US2] Add the `feedback` gate block to `config/eval_thresholds.yaml` (`required: true`, `pass_rate: 1.0`, all 5 fixture names); **must land in the same commit as T017** — the declared⇔registered orphan/stale check is a hard error (depends on T017)
+- [x] T019 [P] [US2] Extend `backend/eval/gates/supervisor_routing.py` + the `supervisor_routing.fixtures` list in `config/eval_thresholds.yaml` with a `prior_regressed_escalates` fixture (grounded incident + seeded prior failure → escalation route via the biased input)
 
 **Checkpoint**: US2 done — the demo works (2nd occurrence handled differently); `scripts/run-tests.sh unit integration e2e` green; `feedback` + `supervisor_routing` gates green; supervisor remains single writer
 
@@ -122,13 +122,13 @@ KPI read DTO exposes a feedback/memory-hit breakdown and the incident trace surf
 
 > **Write these tests FIRST — ensure they FAIL before implementing**
 
-- [ ] T020 [US3] Write failing unit/integration tests in `tests/integration/test_feedback_dashboard.py`: the feedback/memory-hit KPI counts incidents whose handling was informed by a current `prior_outcome`; `GET /incidents/{id}` trace exposes the redacted `prior_outcome` slice; no seeded secret appears unredacted in the KPI or trace views
+- [x] T020 [US3] Write failing unit/integration tests in `tests/integration/test_feedback_dashboard.py`: the feedback/memory-hit KPI counts incidents whose handling was informed by a current `prior_outcome`; `GET /incidents/{id}` trace exposes the redacted `prior_outcome` slice; no seeded secret appears unredacted in the KPI or trace views
 
 ### Implementation (M1-c — read-only dashboard surface)
 
-- [ ] T021 [P] [US3] Extend the `MemoryHit` KPI surface (`backend/domain/dashboard.py`) + `kpi_enriched_and_hit_counts` in `backend/repositories/incidents.py` + `backend/services/kpis.py` with a feedback counter (incidents carrying a current `prior_outcome`) — read-only aggregate, supervisor stays single writer
-- [ ] T022 [US3] Surface the redacted `prior_outcome` evidence slice in the incident detail trace DTO (`IncidentDetailView`, `backend/domain/dashboard.py`) so the analyst sees that a prior disposition/verdict informed handling (read-only)
-- [ ] T023 [P] [US3] Extend `backend/eval/gates/redaction.py` coverage for the `remediation_outcome` fact and the feedback KPI/trace view — no new boundary (uses the existing `memory_write`, `dashboard`, `operational` boundary set)
+- [x] T021 [P] [US3] Extend the `MemoryHit` KPI surface (`backend/domain/dashboard.py`) + `kpi_enriched_and_hit_counts` in `backend/repositories/incidents.py` + `backend/services/kpis.py` with a feedback counter (incidents carrying a current `prior_outcome`) — read-only aggregate, supervisor stays single writer
+- [x] T022 [US3] Surface the redacted `prior_outcome` evidence slice in the incident detail trace DTO (`IncidentDetailView`, `backend/domain/dashboard.py`) so the analyst sees that a prior disposition/verdict informed handling (read-only)
+- [x] T023 [P] [US3] Extend `backend/eval/gates/redaction.py` coverage for the `remediation_outcome` fact and the feedback KPI/trace view — no new boundary (uses the existing `memory_write`, `dashboard`, `operational` boundary set)
 
 **Checkpoint**: US3 done — feedback/memory-hit KPI present, `prior_outcome` visible (redacted) in the trace, `redaction` gate green
 
@@ -152,12 +152,12 @@ KPI read DTO exposes a feedback/memory-hit breakdown and the incident trace surf
 
 **Purpose**: Full three-tier test run + eval gate confirmation + quickstart criteria verification
 
-- [ ] T024 [P] Run `scripts/run-tests.sh unit` and ensure all feedback unit suites pass (`tests/unit/test_feedback_write.py`, `test_feedback_rules.py`)
-- [ ] T025 [P] Run `scripts/run-tests.sh integration` and confirm write/consume/dashboard integration tests pass against real Postgres/memory (`tests/integration/test_feedback_write.py`, `test_feedback_consume.py`, `test_feedback_dashboard.py`)
-- [ ] T026 Run `scripts/run-tests.sh e2e` and confirm the 1st-vs-2nd-occurrence e2e test passes (`tests/e2e/test_feedback_e2e.py`)
-- [ ] T027 [P] Run `scripts/run-evals.sh feedback` and confirm the `feedback` gate is green at `pass_rate = 1.0` (operationalises SC-001/SC-004)
-- [ ] T028 [P] Run `scripts/run-evals.sh temporal_memory supervisor_routing redaction` and confirm all three extended gates still pass (regression guard on T008, T019, T023)
-- [ ] T029 Validate all quickstart.md "done" criteria: outcome fact written off-path on terminal; 2nd occurrence handled differently (escalates sooner / stronger playbook); time-validity preserved; feedback/memory-hit KPI + redacted `prior_outcome` in the trace; memory outage → no bias + no write + no block; supervisor remains single writer
+- [x] T024 [P] Run `scripts/run-tests.sh unit` and ensure all feedback unit suites pass (`tests/unit/test_feedback_write.py`, `test_feedback_rules.py`)
+- [x] T025 [P] Run `scripts/run-tests.sh integration` and confirm write/consume/dashboard integration tests pass against real Postgres/memory (`tests/integration/test_feedback_write.py`, `test_feedback_consume.py`, `test_feedback_dashboard.py`)
+- [x] T026 Run `scripts/run-tests.sh e2e` and confirm the 1st-vs-2nd-occurrence e2e test passes (`tests/e2e/test_feedback_e2e.py`)
+- [x] T027 [P] Run `scripts/run-evals.sh feedback` and confirm the `feedback` gate is green at `pass_rate = 1.0` (operationalises SC-001/SC-004)
+- [x] T028 [P] Run `scripts/run-evals.sh temporal_memory supervisor_routing redaction` and confirm all three extended gates still pass (regression guard on T008, T019, T023)
+- [x] T029 Validate all quickstart.md "done" criteria: outcome fact written off-path on terminal; 2nd occurrence handled differently (escalates sooner / stronger playbook); time-validity preserved; feedback/memory-hit KPI + redacted `prior_outcome` in the trace; memory outage → no bias + no write + no block; supervisor remains single writer
 
 ---
 

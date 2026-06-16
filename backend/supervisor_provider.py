@@ -108,6 +108,7 @@ class SupervisorProvider:
                 executors=executors,
                 cfg=response_cfg,
                 catalog=catalog,
+                feedback_cfg=settings.feedback,
             )
         else:
             # Degraded boot: fall back to the existing stub

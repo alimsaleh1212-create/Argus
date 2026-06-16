@@ -36,11 +36,14 @@ def _spec(
 
 
 def test_gate_registry_has_required_gates():
-    """After importing gate modules, the registry must contain all eight gates."""
+    """After importing gate modules, the registry must contain all required gates."""
     import backend.eval.gates.deterministic  # noqa: F401 — side-effect: registers runners
+    import backend.eval.gates.feedback  # noqa: F401
     import backend.eval.gates.llm  # noqa: F401
     import backend.eval.gates.rationale  # noqa: F401
     import backend.eval.gates.smoke  # noqa: F401
+    import backend.eval.gates.supervisor_routing  # noqa: F401
+    import backend.eval.gates.temporal_memory  # noqa: F401
 
     required = {
         "smoke",
@@ -51,6 +54,7 @@ def test_gate_registry_has_required_gates():
         "retrieval",
         "temporal_memory",
         "rationale",
+        "feedback",
     }
     missing = required - set(GATE_REGISTRY)
     assert not missing, f"Registry missing gates: {missing}"
@@ -59,9 +63,12 @@ def test_gate_registry_has_required_gates():
 def test_validate_registry_passes_against_yaml():
     """Registry + yaml are consistent (no orphan/stale) after imports."""
     import backend.eval.gates.deterministic  # noqa: F401
+    import backend.eval.gates.feedback  # noqa: F401
     import backend.eval.gates.llm  # noqa: F401
     import backend.eval.gates.rationale  # noqa: F401
     import backend.eval.gates.smoke  # noqa: F401
+    import backend.eval.gates.supervisor_routing  # noqa: F401
+    import backend.eval.gates.temporal_memory  # noqa: F401
     import backend.eval.gates.verification  # noqa: F401
 
     specs = load_specs()
@@ -72,9 +79,12 @@ def test_validate_registry_passes_against_yaml():
 def test_gate_result_is_well_formed():
     """Each registered runner is callable and returns something GateResult-shaped."""
     import backend.eval.gates.deterministic  # noqa: F401
+    import backend.eval.gates.feedback  # noqa: F401
     import backend.eval.gates.llm  # noqa: F401
     import backend.eval.gates.rationale  # noqa: F401
     import backend.eval.gates.smoke  # noqa: F401
+    import backend.eval.gates.supervisor_routing  # noqa: F401
+    import backend.eval.gates.temporal_memory  # noqa: F401
     import backend.eval.gates.verification  # noqa: F401
 
     for name, runner in GATE_REGISTRY.items():

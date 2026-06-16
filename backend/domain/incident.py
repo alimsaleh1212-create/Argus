@@ -86,6 +86,7 @@ class Evidence(BaseModel):
     summary: str
     retrieved_context: list[dict[str, Any]] = Field(default_factory=list)
     flags: list[str] = Field(default_factory=list)
+    feedback: dict[str, Any] | None = None
 
 
 class Incident(BaseModel):

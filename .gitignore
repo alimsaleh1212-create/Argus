@@ -28,6 +28,16 @@ htmlcov/
 coverage.xml
 *.cover
 
+# Logs / caches
+*.log
+.ruff_cache/
+.import_linter_cache/
+
+# Frontend / Node
+node_modules/
+dist/
+build/
+
 # IDEs
 .idea/
 .vscode/

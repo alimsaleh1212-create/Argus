@@ -10,11 +10,19 @@ _logger = get_logger(__name__)
 
 
 class PlaybookEntry:
-    def __init__(self, id: str, description: str, criteria: dict, actions: list[dict]) -> None:
+    def __init__(
+        self,
+        id: str,
+        description: str,
+        criteria: dict,
+        actions: list[dict],
+        strength: int | None = None,
+    ) -> None:
         self.id = id
         self.description = description
         self.criteria = criteria
         self.actions = actions
+        self.strength = strength if strength is not None else 0
 
 
 PlaybookCatalog = list[PlaybookEntry]
@@ -44,6 +52,7 @@ def load_playbook_catalog(catalog_dir: str) -> PlaybookCatalog:
                         description=pb.get("description", ""),
                         criteria=pb.get("criteria", {}),
                         actions=pb.get("actions", []),
+                        strength=pb.get("strength"),
                     )
                 )
         except Exception as exc:

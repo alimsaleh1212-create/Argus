@@ -11,6 +11,7 @@ import json
 import uuid
 
 from backend.agents.response.catalog import PlaybookCatalog
+from backend.domain.feedback import FeedbackSignal, prefer_stronger_playbook
 from backend.domain.incident import Incident
 from backend.domain.pipeline import ToolError
 from backend.domain.response import (
@@ -103,11 +104,38 @@ def _build_actions(
     return actions
 
 
+def _feedback_signals_from_evidence(evidence: dict) -> list[FeedbackSignal]:
+    """Reconstruct FeedbackSignal list from the redacted prior_outcome slice."""
+    from backend.domain.feedback import RemediationOutcome
+
+    signals: list[FeedbackSignal] = []
+    prior = evidence.get("prior_outcome")
+    if not isinstance(prior, dict):
+        return signals
+    for raw in prior.get("signals", []):
+        if not isinstance(raw, dict):
+            continue
+        try:
+            outcome = RemediationOutcome(raw.get("outcome", ""))
+        except ValueError:
+            continue
+        signals.append(
+            FeedbackSignal(
+                indicator=str(raw.get("indicator", "")),
+                outcome=outcome,
+                is_current=bool(raw.get("is_current", False)),
+                observed_at=None,
+            )
+        )
+    return signals
+
+
 async def select_playbook(
     incident: Incident,
     catalog: PlaybookCatalog,
     llm: object | None,
     cfg: object,
+    feedback_cfg: object | None = None,
 ) -> tuple[RemediationPlan, int]:
     """Select a playbook deterministically or via one LLM call for the ambiguous tail.
 
@@ -135,6 +163,29 @@ async def select_playbook(
             ),
             0,
         )
+
+    # Feedback-driven stronger-playbook preference (deterministic, before LLM).
+    if (
+        len(matches) > 1
+        and feedback_cfg is not None
+        and getattr(feedback_cfg, "prefer_stronger_playbook", False)
+    ):
+        signals = _feedback_signals_from_evidence(evidence)
+        stronger = prefer_stronger_playbook(matches, signals, feedback_cfg)
+        if stronger is not None:
+            pb = stronger
+            actions = _build_actions(pb.actions, str(incident.id), pb.id)
+            if actions:
+                return (
+                    RemediationPlan(
+                        plan_id=plan_id,
+                        playbook_id=pb.id,
+                        actions=actions,
+                        rationale=f"Deterministic match (feedback-biased): {pb.description}",
+                        selected_by="deterministic",
+                    ),
+                    0,
+                )
 
     if not catalog:
         raise ToolError(retryable=False, kind="empty_catalog")

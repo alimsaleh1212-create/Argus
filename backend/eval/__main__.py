@@ -95,9 +95,12 @@ def _print_report(report, *, redact: bool = True) -> None:
 async def _run(args: argparse.Namespace) -> int:  # pragma: no cover
     # Import gate modules to register runners (side-effect)
     import backend.eval.gates.deterministic  # noqa: F401
+    import backend.eval.gates.feedback  # noqa: F401
     import backend.eval.gates.llm  # noqa: F401
     import backend.eval.gates.rationale  # noqa: F401
     import backend.eval.gates.smoke  # noqa: F401
+    import backend.eval.gates.supervisor_routing  # noqa: F401
+    import backend.eval.gates.temporal_memory  # noqa: F401
     import backend.eval.gates.verification  # noqa: F401
     from backend.eval.gates import RegistryMismatchError, validate_registry
     from backend.eval.thresholds import load_specs

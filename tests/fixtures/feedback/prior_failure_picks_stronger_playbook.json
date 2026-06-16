@@ -1,0 +1,12 @@
+{
+  "name": "prior_failure_picks_stronger_playbook",
+  "kind": "playbook_strength",
+  "severity": "high",
+  "seed_outcome": {"indicator": "server-02", "value": "regressed", "is_current": true},
+  "candidates": [
+    {"id": "watch_and_ticket", "strength": 1, "criteria": {"severity": ["high"]}, "actions": [{"type": "add_to_watchlist"}, {"type": "open_ticket"}]},
+    {"id": "isolate_and_ticket", "strength": 3, "criteria": {"severity": ["critical"]}, "actions": [{"type": "isolate_host"}, {"type": "open_ticket"}]}
+  ],
+  "baseline": {"expected_playbook": "watch_and_ticket"},
+  "repeat": {"expected_playbook": "isolate_and_ticket"}
+}

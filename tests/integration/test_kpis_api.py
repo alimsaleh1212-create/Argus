@@ -65,7 +65,7 @@ def _make_mock_repo():
     )
     repo.kpi_mean_time_to_disposition_ms = AsyncMock(return_value=90_000)
     repo.kpi_enriched_and_hit_counts = AsyncMock(
-        return_value=MemoryHit(enriched=20, hits=8, rate=0.4)
+        return_value=MemoryHit(enriched=20, hits=8, rate=0.4, bias_applied=3)
     )
     return repo
 
@@ -116,6 +116,7 @@ class TestKpisEndpoint:
         assert mh["enriched"] == 20
         assert mh["hits"] == 8
         assert abs(mh["rate"] - 0.4) < 0.001
+        assert mh["bias_applied"] == 3
 
     def test_kpis_mttd_ms(self) -> None:
         app, pw = _make_app(mock_repo=_make_mock_repo())
@@ -147,7 +148,7 @@ class TestKpisEndpoint:
         mock.kpi_disposition_counts = AsyncMock(return_value={})
         mock.kpi_mean_time_to_disposition_ms = AsyncMock(return_value=None)
         mock.kpi_enriched_and_hit_counts = AsyncMock(
-            return_value=MemoryHit(enriched=0, hits=0, rate=None)
+            return_value=MemoryHit(enriched=0, hits=0, rate=None, bias_applied=0)
         )
         app, pw = _make_app(mock_repo=mock)
         with TestClient(app, raise_server_exceptions=False) as client:
@@ -155,3 +156,20 @@ class TestKpisEndpoint:
             resp = client.get("/incidents/kpis", headers={"Authorization": f"Bearer {token}"})
         mh = resp.json()["memory_hit"]
         assert mh["rate"] is None
+        assert mh["bias_applied"] == 0
+
+    def test_kpis_feedback_bias_count(self) -> None:
+        from backend.domain.dashboard import MemoryHit
+
+        mock = AsyncMock()
+        mock.kpi_volume_buckets = AsyncMock(return_value=[])
+        mock.kpi_disposition_counts = AsyncMock(return_value={})
+        mock.kpi_mean_time_to_disposition_ms = AsyncMock(return_value=None)
+        mock.kpi_enriched_and_hit_counts = AsyncMock(
+            return_value=MemoryHit(enriched=10, hits=5, rate=0.5, bias_applied=7)
+        )
+        app, pw = _make_app(mock_repo=mock)
+        with TestClient(app, raise_server_exceptions=False) as client:
+            token = self._login(client, pw)
+            resp = client.get("/incidents/kpis", headers={"Authorization": f"Bearer {token}"})
+        assert resp.json()["memory_hit"]["bias_applied"] == 7

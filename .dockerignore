@@ -2,11 +2,14 @@
 __pycache__/
 *.pyc
 .env
+.env*
 .git/
 .github/
 tests/
 specs/
 docs/
 *.md
+*.log
+node_modules/
 .pre-commit-config.yaml
 .gitignore

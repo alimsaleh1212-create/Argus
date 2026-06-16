@@ -150,13 +150,13 @@ async def _build_judge_fn() -> Callable[[str, str], Awaitable[str]]:
     try:
         import os
 
-        from backend.infra.config import Settings
+        from backend.infra.config import load_settings
         from backend.infra.llm import LlmClient
         from backend.infra.llm_drivers import GeminiDriver, OllamaDriver
         from backend.infra.observability import Observability
         from backend.infra.tracing import build_tracer
 
-        settings = Settings()
+        settings = load_settings()
         llm_settings = settings.llm
         obs = Observability(redactor=redactor, tracer=build_tracer())
 
