@@ -14,6 +14,96 @@ from backend.infra.logging import get_logger
 logger = get_logger(__name__)
 
 
+async def _apply_feedback_bias(
+    evidence,
+    incident,
+    memory,
+    settings,
+) -> object:
+    """At the grounded boundary: look up prior outcomes and bias severity/flags.
+
+    Pure bias rules are in domain/feedback.py; this function is the I/O seam.
+    Any error is swallowed and returns the original evidence (fail-open).
+    """
+    from backend.domain.incident import NormalizedEvent
+    from backend.domain.redaction import Boundary
+    from backend.infra.redaction import build_redactor
+    from backend.services.feedback import gather_feedback
+    from backend.services.memory import _extract_entities
+
+    feedback_cfg = getattr(settings, "feedback", None)
+    if feedback_cfg is None or not getattr(feedback_cfg, "enabled", True):
+        return evidence
+    if memory is None:
+        return evidence
+
+    try:
+        ne_data = incident.normalized_event or {}
+        ne = NormalizedEvent.model_validate(ne_data) if isinstance(ne_data, dict) else ne_data
+
+        obs_settings = settings.observability
+        redactor = build_redactor(presidio_enabled=obs_settings.presidio_enabled)
+        entities = _extract_entities(ne, redactor)
+
+        signals = await gather_feedback(
+            memory=memory,
+            entities=entities,
+            cfg=feedback_cfg,
+        )
+        if not signals:
+            return evidence
+
+        from backend.domain.feedback import (
+            decide_severity_bias,
+            has_prior_failure,
+        )
+
+        original_severity = evidence.severity
+        biased_severity = decide_severity_bias(evidence.severity, signals, feedback_cfg)
+        flags = list(evidence.flags)
+        prior_failure_added = has_prior_failure(signals, feedback_cfg)
+        if prior_failure_added:
+            flags.append("prior_failure")
+
+        # Memory-influenced decision = severity bumped or prior-failure flag attached.
+        bias_applied = biased_severity != original_severity or prior_failure_added
+
+        # Redact indicator values before the operational evidence slice.
+        redacted_signals = []
+        for s in signals:
+            redacted_indicator = redactor.redact_text(s.indicator, Boundary.OPERATIONAL)
+            redacted_signals.append(
+                {
+                    "indicator": redacted_indicator,
+                    "outcome": s.outcome.value,
+                    "is_current": s.is_current,
+                    "observed_at": (
+                        s.observed_at.isoformat() if s.observed_at is not None else None
+                    ),
+                }
+            )
+
+        prior_outcome = {
+            "signals": redacted_signals,
+            "biased_severity": biased_severity.value,
+        }
+
+        # Evidence is a Pydantic model; build a patched dict.
+        evidence_patch = evidence.model_copy(
+            update={
+                "severity": biased_severity,
+                "flags": flags,
+            }
+        )
+        evidence_dict = evidence_patch.model_dump(mode="json")
+        evidence_dict["prior_outcome"] = prior_outcome
+        evidence_dict["feedback"] = {"bias_applied": bias_applied}
+        return evidence.__class__.model_validate(evidence_dict)
+    except Exception as exc:
+        logger.warning("feedback_bias_error", incident_id=str(incident.id), error=str(exc))
+        return evidence
+
+
 async def _run(settings, queue, repo, tracer, supervisor=None, memory=None) -> None:
     """Inner consume loop (extracted for testability)."""
     await queue.recover()
@@ -47,6 +137,7 @@ async def _run(settings, queue, repo, tracer, supervisor=None, memory=None) -> N
             from backend.services.pipeline import dispatch_to_pipeline
 
             evidence = ground(incident)
+            evidence = await _apply_feedback_bias(evidence, incident, memory, settings)
 
             from backend.domain.incident import NormalizedEvent
 
@@ -86,7 +177,7 @@ def _maybe_record_episode(incident_id, incident_id_str, repo, memory, settings):
         try:
             from backend.domain.incident import IncidentStatus
             from backend.infra.redaction import build_redactor
-            from backend.services.memory import record_episode
+            from backend.services.memory import record_episode, record_outcome_facts
 
             incident = await repo.get(incident_id)
             if incident is None:
@@ -100,6 +191,11 @@ def _maybe_record_episode(incident_id, incident_id_str, repo, memory, settings):
             redactor = build_redactor(presidio_enabled=obs_settings.presidio_enabled)
             await record_episode(incident, memory, redactor)
             logger.info("memory_episode_recorded", incident_id=incident_id_str)
+
+            feedback_cfg = getattr(settings, "feedback", None)
+            if feedback_cfg is not None and getattr(feedback_cfg, "enabled", True):
+                await record_outcome_facts(incident, memory, redactor, cfg=feedback_cfg)
+                logger.info("memory_outcome_facts_recorded", incident_id=incident_id_str)
         except Exception as exc:
             logger.warning(
                 "memory_episode_error",

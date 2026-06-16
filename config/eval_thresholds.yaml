@@ -86,6 +86,8 @@ gates:
       # Added by SPEC-remediation-verification (#15): new FSM edge (RESPONDING, UNVERIFIED)
       - verified_resolves
       - unverified_escalates
+      # Added by SPEC-memory-feedback-loop (#16): prior failure routes through existing severity→route path
+      - prior_regressed_escalates
 
   llm_provider:
     description: >
@@ -163,6 +165,8 @@ gates:
         - host_role_change
         - no_destructive_delete
         - verification_superseded_absent
+        # Added by SPEC-memory-feedback-loop (#16)
+        - remediation_outcome_flip
 
   rationale:
     description: >
@@ -207,3 +211,19 @@ gates:
       - unverified_probe_inconclusive
       - conflict_probe_ok_indicator_malicious
       - multi_action_worst_case
+
+  feedback:
+    description: >
+      Feedback-effectiveness gate (SPEC-memory-feedback-loop #16). Deterministic / provider-independent.
+      Proves a 2nd occurrence of a known-failed indicator escalates sooner / picks a stronger playbook than
+      the baseline, and that verified/superseded priors apply no change. Extends temporal_memory (outcome-fact
+      time-validity) and supervisor_routing (prior-regressed-escalates); redaction covers the outcome fact + KPI.
+    required: true
+    threshold:
+      pass_rate: 1.0
+      fixtures:
+        - prior_regressed_escalates
+        - prior_unverified_escalates
+        - prior_failure_picks_stronger_playbook
+        - verified_prior_no_change
+        - superseded_prior_no_change

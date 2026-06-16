@@ -2,37 +2,51 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
-**Active component**: `015-remediation-verification` (Component #15 — `SPEC-remediation-verification`; the
-**first v2/T2 component**, value-early per the roadmap `T1 freeze → 015-M1 → 016-M1`). Closes the
-**action-applied → threat-eliminated** gap: a **deterministic** step at the **tail of the response stage**
-computes a `VerificationVerdict` (`verified`/`unverified`/`regressed`); `verified` keeps
-`auto_remediated`/`remediated`, `unverified`/`regressed` activates the reserved **`remediation_unverified`**
-disposition and **escalates** (never false-resolves). **#14-detector dir is intentionally skipped** for now
-(built later in the sequence); `011` remains the safety gap (v3b/VD1).
-- Plan: `specs/015-remediation-verification/plan.md`
-- Spec: `specs/015-remediation-verification/spec.md`
-- Design: `specs/015-remediation-verification/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
+**Active component**: `016-memory-feedback-loop` (Component #16 — `SPEC-memory-feedback-loop`; the **second
+v2/T2 component**, value-early per the roadmap `T1 freeze → 015-M1 → 016-M1`). Makes the system **get smarter
+over time** — **memory/retrieval, not retraining** (Constitution VI). **#14-detector dir is intentionally
+skipped** for now; `011` remains the safety gap (v3b/VD1).
+- Plan: `specs/016-memory-feedback-loop/plan.md`
+- Spec: `specs/016-memory-feedback-loop/spec.md`
+- Design: `specs/016-memory-feedback-loop/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
-Stack (this component): a **backend-only** extension (mirrors #9 — zero migration, closure-factory DI, pure
-domain types). **M1** (buildable now) combines an **indicator re-check** (real path — `ThreatIntelClient.lookup`
-+ `MemoryStore.query_fact(as_of=None)`, reusing the enrichment retrieval pattern) with an **executor status
-probe** (new read-only `probe()` on the `ActionExecutor` protocol — mock now, real-EDR-shaped later) into a
-**pure `decide_verdict`** (worst-case aggregate; **no LLM** on the common path — an optional conflict-only
-tiebreak is config-gated, default-off, Constitution IV). New `StageOutcome.UNVERIFIED` + one supervisor edge
-`(RESPONDING, UNVERIFIED) → (ESCALATED, remediation_unverified)`. Verdict rides the existing
-`incidents.evidence` JSONB (evidence-patch) + optional `audit_log` row; **read-only re-check, no new write
-authority** (Constitution III) — memory write-back of the verdict is **#16's** job. Verification fields extend
-**`ResponseSettings`** (no new section). New deterministic **`verification`** eval gate (yaml block **+**
-registry runner added together — the declared⇔registered orphan check is a hard error in #13), fixtures under
-`tests/fixtures/verification/`; **extends** the temporal-memory (verification fact time-validity) + redaction
-(verification record/view) + supervisor_routing gates rather than duplicating. Ships **3 M1 milestone PRs**
-(Constitution I): M1-a verdict-core → M1-b handler/FSM wiring → M1-c eval gate + read-only dashboard surface.
-**M2** (the `verifying` dwell-window monitoring loop) is **designed-but-deferred, gated on the detector #14**
-— reuses the `awaiting_approval` park/resume machinery, no new mechanism. **Layering-contract watch-item**:
-v2 *design* proceeds ahead of the T1 tag (additive, roadmap §6.1); implementation code lands after the
-#12/#13 freeze or under a recorded `DECISIONS.md` entry.
+Stack (this component): a **backend-only** extension (mirrors #9/#15 — zero migration, closure-factory DI, pure
+domain types in a new `domain/feedback.py`). **M1** (buildable now) **writes** each verification verdict (from
+#15, `evidence["response"]["verification"]`) back to temporal memory as a **time-valid `TemporalFact`**
+(`fact_type="remediation_outcome"`, `value=<verdict>`) keyed **identically to the reputation fact** so
+write-key == read-key (the load-bearing invariant), via the **existing off-path worker→`services/memory`
+post-terminal seam** (`MemoryStore.write_fact`, invalidate-not-delete) — **no new write authority over incident
+state** (Constitution III). It then **consumes** the fact through a deterministic read-only
+`services/feedback.gather_feedback` (`query_fact(as_of=None)`, current-only) at the **grounded boundary**, which
+tunes two config-backed **inputs**: a **severity/routing escalation bias** (raise effective severity → existing
+`route_grounded` escalates sooner; **no new FSM edge**) and a **stronger-playbook preference** (config-backed
+catalog `strength`) in `selection.py`. Deterministic, **no LLM** on the feedback path (Constitution IV); the
+**supervisor stays the single writer** of status/disposition (feedback tunes inputs only). New **`FeedbackSettings`**
+section (`extra="forbid"`). New deterministic **`feedback`** eval gate (yaml block **+** registry runner added
+together — the declared⇔registered orphan check is a hard error in #13), fixtures under `tests/fixtures/feedback/`
+(baseline-vs-repeat); **extends** the temporal-memory (`remediation_outcome_flip` time-validity) + supervisor_routing
+(`prior_regressed_escalates`) + redaction (outcome fact + KPI view) gates rather than duplicating. Best-effort +
+graceful degradation: memory outage → no bias (baseline v1) + no write, never a block. Ships **3 M1 milestone PRs**
+(Constitution I): M1-a write-back → M1-b consumption/bias → M1-c eval gate + read-only dashboard KPI surface.
+**M2** (feed memory-derived intel → detector, the "closes the detection↔response loop" headline) is
+**designed-but-deferred, gated on the detector #14** — a defined export contract, detector still emits the
+existing ingestion schema. **Layering-contract watch-item**: v2 *design* proceeds ahead of the T1 tag
+(additive, roadmap §6.1); implementation code lands after the #12/#13 freeze or under a recorded `DECISIONS.md`
+entry.
 
-Prior components (done): `013-eval-harness` — the **consolidated evaluation harness** (T1, the day-9 freeze
+Prior components (done): `015-remediation-verification` (#15, first v2/T2) — closed the **action-applied →
+threat-eliminated** gap: a **deterministic** verification step at the **tail of the response stage** computes a
+`VerificationVerdict` (`verified`/`unverified`/`regressed`); `verified` keeps `auto_remediated`/`remediated`,
+`unverified`/`regressed` activates the reserved **`remediation_unverified`** disposition and **escalates**.
+Combines a real **indicator re-check** (`ThreatIntelClient.lookup` + `MemoryStore.query_fact(as_of=None)`) with
+an **executor status probe** (new read-only `probe()` on `ActionExecutor`) into a **pure `decide_verdict`**
+(worst-case; no LLM common-path, optional config-gated conflict-only tiebreak). New `StageOutcome.UNVERIFIED` +
+one edge `(RESPONDING, UNVERIFIED) → (ESCALATED, remediation_unverified)`; verdict rides `incidents.evidence`
+JSONB; verification fields on **`ResponseSettings`**; deterministic **`verification`** eval gate. **Read-only
+re-check, no new write authority** — memory write-back of the verdict is **#16's** job (this component). M2
+(`verifying` dwell-window monitoring loop) deferred, gated on #14. Plan: `specs/015-remediation-verification/plan.md`.
+
+`013-eval-harness` — the **consolidated evaluation harness** (T1, the day-9 freeze
 spec; depends on #2–#12). Backend-only `backend/eval/` entrypoint (`python -m backend.eval`) reads
 `config/eval_thresholds.yaml` via a **registry** (declared⇔registered **orphan/stale = hard error**) → pure
 `EvalReport` (`domain/eval.py`). Seven seeded gates consumed unchanged; **CI wiring** is the core gap closed

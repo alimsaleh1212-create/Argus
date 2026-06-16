@@ -114,6 +114,7 @@ def _make_app():
         get_audit_repo,
         get_auth_service,
         get_incident_repo,
+        get_redactor_dep,
         get_trace_repo,
     )
     from backend.domain.dashboard import MemoryHit, VolumeBucket
@@ -142,7 +143,7 @@ def _make_app():
         repo.kpi_disposition_counts = AsyncMock(return_value={"auto_remediated": 1})
         repo.kpi_mean_time_to_disposition_ms = AsyncMock(return_value=30_000)
         repo.kpi_enriched_and_hit_counts = AsyncMock(
-            return_value=MemoryHit(enriched=1, hits=1, rate=1.0)
+            return_value=MemoryHit(enriched=1, hits=1, rate=1.0, bias_applied=0)
         )
         repo.kpi_status_counts = AsyncMock(
             return_value={"active": 0, "awaiting_approval": 0, "auto_resolved": 1, "escalated": 0}
@@ -164,10 +165,18 @@ def _make_app():
         repo.get_trace_tree = AsyncMock(return_value=None)
         yield repo
 
+    class _PassThroughRedactor:
+        def redact_text(self, text, boundary):
+            return text
+
+        def redact_mapping(self, data, boundary):
+            return dict(data)
+
     app.dependency_overrides[get_incident_repo] = fake_incident_repo
     app.dependency_overrides[get_audit_repo] = fake_audit_repo
     app.dependency_overrides[get_approval_repo] = fake_approval_repo
     app.dependency_overrides[get_trace_repo] = fake_trace_repo
+    app.dependency_overrides[get_redactor_dep] = lambda: _PassThroughRedactor()
 
     return app
 

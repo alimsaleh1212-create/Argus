@@ -279,10 +279,11 @@ class IncidentRepository:
         return int(avg) if avg is not None else None
 
     async def kpi_enriched_and_hit_counts(self) -> MemoryHit:
-        """Return enriched count and memory-hit count.
+        """Return enriched count, memory-hit count, and feedback-bias count.
 
         Enriched = incident has evidence['enrichment'] key.
         Memory-hit = enriched AND internal_findings is non-empty (proxy for memory retrieval).
+        Bias applied = evidence['feedback']['bias_applied'] is true.
         """
         result = await self._session.execute(
             sa.text(
@@ -290,15 +291,19 @@ class IncidentRepository:
                 "  SUM(CASE WHEN evidence ? 'enrichment' THEN 1 ELSE 0 END) AS enriched, "
                 "  SUM(CASE WHEN evidence ? 'enrichment' "
                 "        AND jsonb_array_length(evidence->'enrichment'->'internal_findings') > 0 "
-                "        THEN 1 ELSE 0 END) AS hits "
+                "        THEN 1 ELSE 0 END) AS hits, "
+                "  SUM(CASE WHEN evidence ? 'feedback' "
+                "        AND evidence->'feedback'->>'bias_applied' = 'true' "
+                "        THEN 1 ELSE 0 END) AS bias_applied "
                 "FROM incidents"
             )
         )
         row = result.mappings().one()
         enriched = int(row["enriched"] or 0)
         hits = int(row["hits"] or 0)
+        bias_applied = int(row["bias_applied"] or 0)
         rate = (hits / enriched) if enriched > 0 else None
-        return MemoryHit(enriched=enriched, hits=hits, rate=rate)
+        return MemoryHit(enriched=enriched, hits=hits, rate=rate, bias_applied=bias_applied)
 
     async def kpi_status_counts(self) -> dict[str, int]:
         """Return counts grouped by broad status buckets for the stream kpi_counters."""

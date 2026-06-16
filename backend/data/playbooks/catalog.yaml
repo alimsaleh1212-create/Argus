@@ -4,6 +4,7 @@
 
 playbooks:
   - id: watchlist_and_ticket
+    strength: 1
     description: "Low-confidence or medium threat — add to watchlist and open a ticket for analyst follow-up."
     criteria:
       severity:
@@ -16,6 +17,7 @@ playbooks:
         params: {}
 
   - id: enrich_tag_and_ticket
+    strength: 2
     description: "High-confidence indicator hit — enrich, tag, and open ticket."
     criteria:
       severity:
@@ -30,6 +32,7 @@ playbooks:
         params: {}
 
   - id: isolate_and_ticket
+    strength: 3
     description: "Critical host compromise — isolate host and open high-priority ticket."
     criteria:
       severity:
@@ -46,6 +49,7 @@ playbooks:
         params: { priority: high }
 
   - id: block_ip_and_ticket
+    strength: 3
     description: "Critical network threat — block IP and open ticket."
     criteria:
       severity:
@@ -61,6 +65,7 @@ playbooks:
         params: { priority: high }
 
   - id: disable_user_and_ticket
+    strength: 3
     description: "Critical account compromise — disable user and open ticket."
     criteria:
       severity:
@@ -76,6 +81,7 @@ playbooks:
         params: { priority: high }
 
   - id: full_response
+    strength: 2
     description: "Critical with broad threat — watchlist, isolate host, and open high-priority ticket."
     criteria:
       severity:

@@ -55,7 +55,7 @@ class TestBuildKpiSnapshot:
         )
         mock_repo.kpi_mean_time_to_disposition_ms = AsyncMock(return_value=45_000)
         mock_repo.kpi_enriched_and_hit_counts = AsyncMock(
-            return_value=MemoryHit(enriched=10, hits=4, rate=0.4)
+            return_value=MemoryHit(enriched=10, hits=4, rate=0.4, bias_applied=2)
         )
 
         snapshot = await build_kpi_snapshot(mock_repo)
@@ -67,6 +67,7 @@ class TestBuildKpiSnapshot:
         assert snapshot.mean_time_to_disposition_ms == 45_000
         assert snapshot.memory_hit.hits == 4
         assert snapshot.memory_hit.rate == pytest.approx(0.4)
+        assert snapshot.memory_hit.bias_applied == 2
         assert snapshot.generated_at is not None
 
     @pytest.mark.asyncio
@@ -78,13 +79,14 @@ class TestBuildKpiSnapshot:
         mock_repo.kpi_disposition_counts = AsyncMock(return_value={})
         mock_repo.kpi_mean_time_to_disposition_ms = AsyncMock(return_value=None)
         mock_repo.kpi_enriched_and_hit_counts = AsyncMock(
-            return_value=MemoryHit(enriched=0, hits=0, rate=None)
+            return_value=MemoryHit(enriched=0, hits=0, rate=None, bias_applied=0)
         )
 
         snapshot = await build_kpi_snapshot(mock_repo)
 
         assert snapshot.memory_hit.enriched == 0
         assert snapshot.memory_hit.rate is None
+        assert snapshot.memory_hit.bias_applied == 0
         assert snapshot.mean_time_to_disposition_ms is None
 
     @pytest.mark.asyncio
@@ -96,7 +98,7 @@ class TestBuildKpiSnapshot:
         mock_repo.kpi_disposition_counts = AsyncMock(return_value={})
         mock_repo.kpi_mean_time_to_disposition_ms = AsyncMock(return_value=None)
         mock_repo.kpi_enriched_and_hit_counts = AsyncMock(
-            return_value=MemoryHit(enriched=0, hits=0, rate=None)
+            return_value=MemoryHit(enriched=0, hits=0, rate=None, bias_applied=0)
         )
 
         await build_kpi_snapshot(mock_repo)

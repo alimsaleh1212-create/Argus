@@ -38,6 +38,7 @@ _KNOWN_ARGUS_SECTIONS = frozenset(
         "enrichment",
         "response",
         "dashboard",
+        "feedback",
     }
 )
 _ARGUS_PREFIX = "ARGUS__"
@@ -64,6 +65,39 @@ def _check_unknown_env_sections() -> None:
         )
 
 
+def _load_dotenv_prefixed(path: str = ".env") -> None:
+    """Load only ARGUS__ prefixed keys from .env into os.environ.
+
+    The committed .env.example and user .env files also carry non-ARGUS keys
+    (GEMINI_API_KEY, ARGUS_ADMIN_*, etc.) that are consumed by the Docker
+    Compose vault-seed service, not by Settings. pydantic-settings' dotenv
+    source can reject those as extra fields when extra='forbid'; we filter
+    them here so load_settings() sees a clean ARGUS__ namespace.
+
+    Shell environment variables take precedence over .env values.
+    """
+    from pathlib import Path
+
+    try:
+        from dotenv import dotenv_values
+    except ImportError:
+        return
+
+    env_path = Path(path)
+    if not env_path.exists():
+        return
+
+    values = dotenv_values(env_path)
+    for key, value in values.items():
+        if value is None:
+            continue
+        if not key.upper().startswith(_ARGUS_PREFIX):
+            continue
+        # Env vars already set in the shell win over .env
+        if key not in os.environ:
+            os.environ[key] = value
+
+
 def load_settings() -> Settings:
     """Build and return the application Settings with unknown-key validation.
 
@@ -71,8 +105,9 @@ def load_settings() -> Settings:
     unknown-section check runs *before* pydantic wraps anything in a
     ValidationError (which can include input_value and expose raw strings).
     """
+    _load_dotenv_prefixed()
     _check_unknown_env_sections()
-    return Settings()
+    return Settings(_env_file=None)
 
 
 class AppSettings(BaseSettings):
@@ -123,6 +158,7 @@ class StartupSettings(BaseSettings):
 
     dependency_timeout_s: Annotated[float, Field(gt=0)] = 5.0
     connect_retries: Annotated[int, Field(ge=1)] = 5
+    skip_vault: bool = False
 
 
 class ObservabilitySettings(BaseSettings):
@@ -324,6 +360,19 @@ class DashboardSettings(BaseSettings):
     stream_poll_seconds: Annotated[float, Field(gt=0)] = 2.0
 
 
+class FeedbackSettings(BaseSettings):
+    """Cross-cutting settings for the memory feedback loop (#16)."""
+
+    model_config = SettingsConfigDict(extra="forbid")
+
+    enabled: bool = True
+    escalate_on: list[str] = Field(default_factory=lambda: ["regressed", "unverified"])
+    severity_bias: Literal["bump_one", "to_critical", "none"] = "bump_one"
+    prefer_stronger_playbook: bool = True
+    max_indicators: Annotated[int, Field(gt=0)] = 5
+    outcome_fact_type: str = "remediation_outcome"
+
+
 class ResponseSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="forbid")
 
@@ -383,7 +432,7 @@ class Settings(BaseSettings):
         extra="forbid",
         env_prefix="ARGUS__",
         env_nested_delimiter="__",
-        env_file=".env",
+        env_file=None,
         frozen=True,
     )
 
@@ -404,6 +453,7 @@ class Settings(BaseSettings):
     intel: IntelSettings = Field(default_factory=IntelSettings)
     response: ResponseSettings = Field(default_factory=ResponseSettings)
     dashboard: DashboardSettings = Field(default_factory=DashboardSettings)
+    feedback: FeedbackSettings = Field(default_factory=FeedbackSettings)
     eval: EvalSettings = Field(default_factory=EvalSettings)
 
     @model_validator(mode="after")

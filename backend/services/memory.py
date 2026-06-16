@@ -10,10 +10,14 @@ from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
 from backend.domain.incident import Incident, NormalizedEvent
-from backend.domain.memory import EntityKind, EntityRef, IncidentEpisode
+from backend.domain.memory import EntityKind, EntityRef, IncidentEpisode, TemporalFact
 from backend.domain.redaction import Boundary
+from backend.infra.logging import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
+    from backend.infra.config import FeedbackSettings
     from backend.infra.redaction import Redactor
 
 
@@ -81,6 +85,31 @@ def _redact_fields(fields: dict[str, Any], redactor: Redactor) -> dict[str, Any]
     return dict(redacted) if isinstance(redacted, dict) else {}
 
 
+def _resolve_target_kind(target: str, action_type: str | None = None) -> EntityKind | None:
+    """Best-effort entity-kind resolution for an action target.
+
+    The kind is not used by the memory query (which keys on value), but keeping
+    it consistent with _extract_entities makes the stored fact self-describing.
+    """
+    import re
+
+    if action_type == "block_ip":
+        return EntityKind.ADDRESS
+    if action_type == "isolate_host":
+        return EntityKind.HOST
+    if action_type == "disable_user":
+        return EntityKind.USER
+
+    if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", target):
+        return EntityKind.ADDRESS
+    if re.match(r"^([0-9a-fA-F]{32}|[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$", target):
+        return EntityKind.INDICATOR
+    if "." in target and not target.startswith("."):
+        return EntityKind.INDICATOR
+
+    return EntityKind.INDICATOR
+
+
 async def record_episode(
     incident: Incident,
     store: Any,  # MemoryStore protocol — typed loosely to avoid circular imports
@@ -119,3 +148,73 @@ async def record_episode(
         fields=fields,
     )
     await store.write_episode(episode)
+
+
+async def record_outcome_facts(
+    incident: Incident,
+    store: Any,
+    redactor: Redactor,
+    cfg: FeedbackSettings | None = None,
+) -> None:
+    """Write one time-valid remediation_outcome TemporalFact per applied target.
+
+    Best-effort; caller wraps in try/except. Errors here never block disposition.
+    """
+    from datetime import datetime
+
+    fact_type: str = "remediation_outcome"
+    if cfg is not None:
+        fact_type = getattr(cfg, "outcome_fact_type", fact_type) or fact_type
+
+    evidence_data = incident.evidence or {}
+    response_data = evidence_data.get("response")
+    if not isinstance(response_data, dict):
+        return
+
+    verification = response_data.get("verification")
+    if not isinstance(verification, dict):
+        return
+
+    verdict = verification.get("verdict")
+    if not isinstance(verdict, str) or not verdict:
+        return
+
+    results = response_data.get("results", [])
+    if not isinstance(results, list):
+        return
+
+    observed_at = incident.updated_at or datetime.now(UTC)
+
+    for raw in results:
+        if not isinstance(raw, dict):
+            continue
+        if raw.get("status") != "applied":
+            continue
+        target = raw.get("target")
+        if not isinstance(target, str) or not target:
+            continue
+
+        action_type = raw.get("type")
+        kind = _resolve_target_kind(target, action_type)
+        if kind is None:
+            continue
+
+        redacted_target = redactor.redact_text(target, Boundary.MEMORY_WRITE)
+        if not redacted_target:
+            continue
+
+        entity = EntityRef(kind=kind, value=redacted_target)
+        fact = TemporalFact(
+            entity=entity,
+            fact_type=fact_type,
+            value=verdict,
+            valid_from=observed_at,
+        )
+        try:
+            await store.write_fact(fact)
+        except Exception as exc:
+            logger.warning(
+                "record_outcome_facts_write_failed",
+                incident_id=str(incident.id),
+                error=str(exc),
+            )

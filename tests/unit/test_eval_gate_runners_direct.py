@@ -200,7 +200,8 @@ async def test_run_retrieval_no_memory_store_returns_corpus_only(monkeypatch):
 @pytest.mark.asyncio
 async def test_run_temporal_memory_unavailable_returns_none():
     """run_temporal_memory when test helper is absent → passed=None."""
-    from backend.eval.gates.deterministic import run_temporal_memory
+    import backend.eval.gates.temporal_memory  # noqa: F401
+    from backend.eval.gates.temporal_memory import run_temporal_memory
 
     spec = _spec("temporal_memory", {"pass_rate": 1.0})
     result = await run_temporal_memory(spec)
@@ -237,8 +238,8 @@ async def test_run_redaction_unavailable_returns_none():
 @pytest.mark.asyncio
 async def test_run_supervisor_routing_all_fixtures_pass():
     """run_supervisor_routing uses built-in fake repo + fake stages → 100% pass rate."""
-    import backend.eval.gates.deterministic  # noqa: F401
-    from backend.eval.gates.deterministic import run_supervisor_routing
+    import backend.eval.gates.supervisor_routing  # noqa: F401
+    from backend.eval.gates.supervisor_routing import run_supervisor_routing
 
     spec = _spec("supervisor_routing", {"pass_rate": 1.0})
     result = await run_supervisor_routing(spec)
@@ -251,7 +252,7 @@ async def test_run_supervisor_routing_all_fixtures_pass():
 async def test_run_supervisor_routing_returns_gate_result():
     """Gate result is well-formed GateResult from the runner."""
     from backend.domain.eval import GateResult
-    from backend.eval.gates.deterministic import run_supervisor_routing
+    from backend.eval.gates.supervisor_routing import run_supervisor_routing
 
     spec = _spec("supervisor_routing", {"pass_rate": 1.0})
     result = await run_supervisor_routing(spec)

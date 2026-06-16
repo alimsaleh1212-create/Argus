@@ -83,7 +83,7 @@ def _build_facts_from_scenario(scenario: dict) -> list[TemporalFact]:
             TemporalFact(
                 entity=entity,
                 fact_type=fact_type,
-                value=ep["summary"],  # use summary as fact value
+                value=ep.get("value", ep["summary"]),  # explicit value overrides summary
                 valid_from=observed_at,
                 valid_until=next_ep_time,
             )

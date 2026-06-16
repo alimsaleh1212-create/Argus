@@ -128,5 +128,47 @@
         "note": "Current time returns the benign fact (is_current=True); verification ignores the stale malicious signal"
       }
     ]
+  },
+  {
+    "case": "remediation_outcome_flip",
+    "description": "A remediation outcome flips from verified to regressed; the verified outcome is retained but superseded",
+    "entity": {"kind": "address", "value": "198.51.100.77"},
+    "fact_type": "remediation_outcome",
+    "episodes": [
+      {
+        "incident_id": "22222222-2222-2222-2222-222222222007",
+        "observed_at": "2024-01-15T09:00:00Z",
+        "summary": "Remediation outcome for 198.51.100.77: verified",
+        "value": "verified",
+        "verdict": "real",
+        "severity": "high",
+        "disposition": "auto_remediated",
+        "entities": [{"kind": "address", "value": "198.51.100.77"}],
+        "fields": {}
+      },
+      {
+        "incident_id": "22222222-2222-2222-2222-222222222008",
+        "observed_at": "2024-01-15T14:00:00Z",
+        "summary": "Remediation outcome for 198.51.100.77: regressed",
+        "value": "regressed",
+        "verdict": "real",
+        "severity": "critical",
+        "disposition": "escalated_response",
+        "entities": [{"kind": "address", "value": "198.51.100.77"}],
+        "fields": {}
+      }
+    ],
+    "checks": [
+      {
+        "as_of": "2024-01-15T09:00:00Z",
+        "expected_value_contains": "verified",
+        "expected_is_current": false
+      },
+      {
+        "as_of": null,
+        "expected_value_contains": "regressed",
+        "expected_is_current": true
+      }
+    ]
   }
 ]

@@ -1,0 +1,8 @@
+{
+  "name": "verified_prior_no_change",
+  "kind": "severity_route",
+  "severity": "medium",
+  "seed_outcome": {"indicator": "198.51.100.52", "value": "verified", "is_current": true},
+  "baseline": {"expected_route": "ambiguous", "expected_severity": "medium"},
+  "repeat": {"expected_route": "ambiguous", "expected_severity": "medium", "expect_severity_bumped": false}
+}

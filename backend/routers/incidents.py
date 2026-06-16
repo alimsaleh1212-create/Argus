@@ -16,6 +16,7 @@ from backend.dependencies import (
     get_approval_repo,
     get_audit_repo,
     get_incident_repo,
+    get_redactor_dep,
     get_trace_repo,
 )
 from backend.domain.dashboard import (
@@ -143,6 +144,7 @@ async def get_incident(
     incident_repo=Depends(get_incident_repo),
     audit_repo=Depends(get_audit_repo),
     approval_repo=Depends(get_approval_repo),
+    redactor=Depends(get_redactor_dep),
 ) -> IncidentDetailView:
     incident = await incident_repo.get(incident_id)
     if incident is None:
@@ -166,6 +168,11 @@ async def get_incident(
                 is_actionable=True,
             )
 
+    from backend.domain.redaction import Boundary
+
+    evidence = incident.evidence or {}
+    redacted_evidence = redactor.redact_mapping(dict(evidence), Boundary.OPERATIONAL)
+
     return IncidentDetailView(
         id=incident.id,
         status=incident.status.value,
@@ -176,7 +183,7 @@ async def get_incident(
         is_awaiting_approval=incident.status.value == "awaiting_approval",
         created_at=incident.created_at,
         updated_at=incident.updated_at,
-        evidence=incident.evidence,
+        evidence=redacted_evidence,
         normalized_event=incident.normalized_event,
         correlation_id=incident.correlation_id,
         pending_approval=pending_approval,

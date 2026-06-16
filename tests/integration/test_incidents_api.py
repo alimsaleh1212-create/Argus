@@ -67,6 +67,7 @@ def _make_app(
         get_audit_repo,
         get_auth_service,
         get_incident_repo,
+        get_redactor_dep,
     )
     from backend.infra.config import load_settings
     from backend.infra.container import clear_registry
@@ -103,9 +104,17 @@ def _make_app(
         repo.get_pending_for_incident = AsyncMock(return_value=None)
         yield repo
 
+    class _FakeRedactor:
+        def redact_text(self, text, boundary):
+            return text
+
+        def redact_mapping(self, data, boundary):
+            return dict(data)
+
     app.dependency_overrides[get_incident_repo] = fake_incident_repo
     app.dependency_overrides[get_audit_repo] = fake_audit_repo
     app.dependency_overrides[get_approval_repo] = fake_approval_repo
+    app.dependency_overrides[get_redactor_dep] = lambda: _FakeRedactor()
 
     return app, auth_svc
 
@@ -254,6 +263,59 @@ class TestDetailEndpoint:
         with TestClient(app, raise_server_exceptions=False) as client:
             resp = client.get(f"/incidents/{_INC_ID}")
         assert resp.status_code == 401
+
+    def test_feedback_prior_outcome_is_redacted_in_detail(self) -> None:
+        from backend.dependencies import get_redactor_dep
+        from backend.domain.incident import Incident, IncidentStatus, Severity
+
+        planted = "AKIAIOSFODNN7EXAMPLE"
+        fake_inc = Incident(
+            id=_INC_ID,
+            status=IncidentStatus.TRIAGING,
+            severity=Severity.HIGH,
+            correlation_id="corr-123",
+            dedup_fingerprint="fp-001",
+            source="wazuh",
+            raw_alert={},
+            evidence={
+                "summary": "Suspicious login attempt",
+                "verdict": "real",
+                "prior_outcome": {
+                    "signals": [
+                        {
+                            "indicator": f"ip:{planted}",
+                            "outcome": "failed",
+                            "is_current": True,
+                        }
+                    ],
+                    "biased_severity": "critical",
+                },
+            },
+            created_at=_NOW,
+            updated_at=_NOW,
+        )
+
+        class _ScrubbingRedactor:
+            def redact_text(self, text, boundary):
+                return text.replace(planted, "[REDACTED:CREDENTIAL]")
+
+            def redact_mapping(self, data, boundary):
+                import json
+
+                return json.loads(self.redact_text(json.dumps(data), boundary))
+
+        app, _ = _make_app(incident=fake_inc)
+        app.dependency_overrides[get_redactor_dep] = lambda: _ScrubbingRedactor()
+        token = _get_token(app)
+        with TestClient(app, raise_server_exceptions=False) as client:
+            resp = client.get(
+                f"/incidents/{_INC_ID}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        assert resp.status_code == 200
+        evidence = resp.json()["evidence"]
+        assert planted not in str(evidence["prior_outcome"])
+        assert "[REDACTED:CREDENTIAL]" in str(evidence["prior_outcome"])
 
 
 @pytest.mark.integration
