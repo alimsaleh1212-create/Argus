@@ -319,5 +319,5 @@ the **detection** layer (catching novel *behavior* is exactly where determinism 
 **decoupled** from the supervisor (it adds no second writer and no new FSM edge), and it **complements**
 the deterministic detector. To be captured as a `DECISIONS.md` entry + a constitution note before its
 implementation lands. Sequencing: `#14` first (real, Constitution-clean), then the ML anomaly detector (`#17`).
-XDR correlation (previously sketched at the 017 slot in the roadmap) rolls forward to a later slot / v3.
+XDR correlation (previously sketched at the 018 slot in the roadmap) rolls forward to a later slot / v3.
 Both leave `015-M2`/`016-M2` intact.
