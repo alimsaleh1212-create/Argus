@@ -1,0 +1,10 @@
+{
+  "description": "Probe reports expected post-state but indicator still re-checks as malicious.",
+  "signals": [
+    {
+      "probe": {"type": "block_ip", "target": "1.2.3.4", "state": "expected", "detail": ""},
+      "recheck": {"target": "1.2.3.4", "intel_verdict": "malicious", "fact_value": null, "fact_is_current": false}
+    }
+  ],
+  "expected_verdict": "regressed"
+}

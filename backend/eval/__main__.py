@@ -98,6 +98,7 @@ async def _run(args: argparse.Namespace) -> int:  # pragma: no cover
     import backend.eval.gates.llm  # noqa: F401
     import backend.eval.gates.rationale  # noqa: F401
     import backend.eval.gates.smoke  # noqa: F401
+    import backend.eval.gates.verification  # noqa: F401
     from backend.eval.gates import RegistryMismatchError, validate_registry
     from backend.eval.thresholds import load_specs
     from backend.infra.config import EvalSettings

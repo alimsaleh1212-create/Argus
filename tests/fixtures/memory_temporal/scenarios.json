@@ -86,5 +86,47 @@
     "fact_type": "reputation",
     "check": "The benign fact written at t1 must still be accessible via query_fact(as_of=t1) after the malicious fact is written at t2",
     "episodes_ref": "Same episodes as reputation_flip"
+  },
+  {
+    "case": "verification_superseded_absent",
+    "description": "Malicious reputation fact superseded by benign clearance after takedown. Verification must use only the current (benign) fact — the superseded malicious fact is treated as absent by decide_verdict (fact_is_current=False).",
+    "entity": {"kind": "address", "value": "10.20.30.40"},
+    "fact_type": "reputation",
+    "episodes": [
+      {
+        "incident_id": "22222222-2222-2222-2222-222222222005",
+        "observed_at": "2024-06-01T10:00:00Z",
+        "summary": "10.20.30.40 confirmed as C2 infrastructure — reputation: malicious",
+        "verdict": "real",
+        "severity": "critical",
+        "disposition": "escalated_enrichment",
+        "entities": [{"kind": "address", "value": "10.20.30.40"}],
+        "fields": {}
+      },
+      {
+        "incident_id": "22222222-2222-2222-2222-222222222006",
+        "observed_at": "2024-06-02T10:00:00Z",
+        "summary": "10.20.30.40 sinkholed and confirmed benign after takedown — reputation: benign",
+        "verdict": "noise",
+        "severity": "low",
+        "disposition": "auto_resolved_noise",
+        "entities": [{"kind": "address", "value": "10.20.30.40"}],
+        "fields": {}
+      }
+    ],
+    "checks": [
+      {
+        "as_of": "2024-06-01T10:00:00Z",
+        "expected_value_contains": "malicious",
+        "expected_is_current": false,
+        "note": "At t1 the malicious fact is in-window but superseded by the t2 episode — is_current=False"
+      },
+      {
+        "as_of": null,
+        "expected_value_contains": "benign",
+        "expected_is_current": true,
+        "note": "Current time returns the benign fact (is_current=True); verification ignores the stale malicious signal"
+      }
+    ]
   }
 ]

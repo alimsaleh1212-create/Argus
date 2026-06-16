@@ -85,6 +85,9 @@ async def run_supervisor_routing(spec: GateSpec, provider: str | None = None) ->
         ("indeterminate_severity", lambda: _incident("low", ["severity_defaulted"])),
         ("stage_error_escalates", lambda: _incident("medium")),
         ("cap_breach_escalates", lambda: _incident("medium")),
+        # Added by SPEC-remediation-verification (#15)
+        ("verified_resolves", lambda: _incident("critical")),
+        ("unverified_escalates", lambda: _incident("critical")),
     ]
 
     async def _triage_advance(inc):
@@ -107,6 +110,14 @@ async def run_supervisor_routing(spec: GateSpec, provider: str | None = None) ->
 
     async def _response_escalate(inc):
         return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.ESCALATE)
+
+    async def _response_remediated(inc):
+        return StageResult(
+            stage=StageName.RESPONSE, outcome=StageOutcome.RESOLVED, disposition="remediated"
+        )
+
+    async def _response_unverified(inc):
+        return StageResult(stage=StageName.RESPONSE, outcome=StageOutcome.UNVERIFIED)
 
     fixture_stages = {
         "noise_low": ({StageName.TRIAGE: _triage_resolved}, IncidentStatus.RESOLVED),
@@ -135,6 +146,15 @@ async def run_supervisor_routing(spec: GateSpec, provider: str | None = None) ->
                 StageName.ENRICHMENT: _enrich_advance,
                 StageName.RESPONSE: _response_escalate,
             },
+            IncidentStatus.ESCALATED,
+        ),
+        # SPEC-015 verification FSM edges
+        "verified_resolves": (
+            {StageName.RESPONSE: _response_remediated},
+            IncidentStatus.RESOLVED,
+        ),
+        "unverified_escalates": (
+            {StageName.RESPONSE: _response_unverified},
             IncidentStatus.ESCALATED,
         ),
     }

@@ -1,0 +1,10 @@
+{
+  "description": "Probe reports expected but indicator reputation is unknown (fail-closed).",
+  "signals": [
+    {
+      "probe": {"type": "block_ip", "target": "10.0.0.5", "state": "expected", "detail": ""},
+      "recheck": {"target": "10.0.0.5", "intel_verdict": "unknown", "fact_value": null, "fact_is_current": false}
+    }
+  ],
+  "expected_verdict": "unverified"
+}

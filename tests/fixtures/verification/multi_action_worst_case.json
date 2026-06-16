@@ -1,0 +1,14 @@
+{
+  "description": "Multi-action incident: one action verified, one regressed. Worst-case aggregate yields regressed.",
+  "signals": [
+    {
+      "probe": {"type": "add_to_watchlist", "target": "bad-host", "state": "expected", "detail": ""},
+      "recheck": {"target": "bad-host", "intel_verdict": "benign", "fact_value": null, "fact_is_current": false}
+    },
+    {
+      "probe": {"type": "block_ip", "target": "6.6.6.6", "state": "unexpected", "detail": "rule not in effect"},
+      "recheck": {"target": "6.6.6.6", "intel_verdict": "malicious", "fact_value": null, "fact_is_current": false}
+    }
+  ],
+  "expected_verdict": "regressed"
+}

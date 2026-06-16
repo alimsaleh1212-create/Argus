@@ -91,22 +91,18 @@ def _build_facts_from_scenario(scenario: dict) -> list[TemporalFact]:
     return facts
 
 
-def test_temporal_gate() -> None:
-    thresholds = _load_thresholds()
-    required_pass_rate = thresholds["pass_rate"]
-    required_cases = set(thresholds["cases"])
-
-    scenarios = _load_scenarios()
-    scenario_by_case = {s["case"]: s for s in scenarios}
-
+def _evaluate_cases(
+    required_cases: set[str],
+    scenario_by_case: dict,
+) -> tuple[int, int, list[str]]:
+    """Core evaluation loop — returns (passed, total, failures)."""
     passed = 0
     total = 0
     failures: list[str] = []
 
-    for case_name in required_cases:
+    for case_name in sorted(required_cases):
         if case_name == "no_destructive_delete":
-            # This case validates that superseded facts are retained (has_superseded=True)
-            # Use the reputation_flip facts
+            # Validates superseded facts are retained (has_superseded=True)
             scenario = scenario_by_case.get("reputation_flip")
             if not scenario:
                 failures.append(f"{case_name}: reputation_flip scenario missing")
@@ -119,7 +115,6 @@ def test_temporal_gate() -> None:
                 total += 1
                 continue
 
-            # Both t1 and now queries must report has_superseded=True
             t1 = datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC)
             state_t1 = _window_select(facts, as_of=t1)
             state_now = _window_select(facts, as_of=datetime.now(UTC))
@@ -131,6 +126,61 @@ def test_temporal_gate() -> None:
                     f"{case_name}: has_superseded not set "
                     f"(t1={state_t1.has_superseded}, now={state_now.has_superseded})"
                 )
+            total += 1
+            continue
+
+        if case_name == "verification_superseded_absent":
+            # Validates that a superseded malicious fact returns is_current=False so
+            # decide_verdict treats it as absent (not a REGRESSED signal).
+            scenario = scenario_by_case.get(case_name)
+            if not scenario:
+                failures.append(f"{case_name}: scenario not found in fixtures")
+                total += 1
+                continue
+
+            facts = _build_facts_from_scenario(scenario)
+            case_failed = False
+
+            # Standard checks — same as generic check path below
+            for check in scenario.get("checks", []):
+                as_of_raw = check.get("as_of")
+                as_of = (
+                    datetime.now(UTC)
+                    if as_of_raw is None
+                    else datetime.fromisoformat(as_of_raw.replace("Z", "+00:00"))
+                )
+                state = _window_select(facts, as_of=as_of)
+                expected_value = check.get("expected_value_contains", "")
+                expected_current = check.get("expected_is_current")
+
+                if state.fact is None:
+                    case_failed = True
+                    failures.append(f"{case_name}@{as_of_raw}: no fact returned")
+                    continue
+                if expected_value and expected_value.lower() not in state.fact.value.lower():
+                    case_failed = True
+                    failures.append(
+                        f"{case_name}@{as_of_raw}: expected '{expected_value}' in "
+                        f"'{state.fact.value}'"
+                    )
+                if expected_current is not None and state.is_current != expected_current:
+                    case_failed = True
+                    failures.append(
+                        f"{case_name}@{as_of_raw}: is_current={state.is_current}, "
+                        f"expected {expected_current}"
+                    )
+
+            # Extra invariant: the current query must return is_current=True (benign fact),
+            # confirming the superseded malicious fact is NOT the current signal.
+            current_state = _window_select(facts, as_of=datetime.now(UTC))
+            if current_state.fact is None or not current_state.is_current:
+                case_failed = True
+                failures.append(
+                    f"{case_name}: expected is_current=True for present-time query; "
+                    f"got fact={current_state.fact!r} is_current={current_state.is_current}"
+                )
+            if not case_failed:
+                passed += 1
             total += 1
             continue
 
@@ -149,10 +199,11 @@ def test_temporal_gate() -> None:
         case_failed = False
 
         for check in scenario["checks"]:
-            if check["as_of"] is None:
+            as_of_raw = check.get("as_of")
+            if as_of_raw is None:
                 as_of = datetime.now(UTC)
             else:
-                as_of = datetime.fromisoformat(check["as_of"].replace("Z", "+00:00"))
+                as_of = datetime.fromisoformat(as_of_raw.replace("Z", "+00:00"))
 
             state = _window_select(facts, as_of=as_of)
             expected_value = check.get("expected_value_contains", "")
@@ -180,6 +231,43 @@ def test_temporal_gate() -> None:
         if not case_failed:
             passed += 1
         total += 1
+
+    return passed, total, failures
+
+
+async def _run_temporal_scenarios() -> tuple[int, int]:
+    """Callable by the eval harness (run_temporal_memory in deterministic.py).
+
+    Returns (passed, total) so the harness can compute pass_rate.
+    Raises AssertionError on hard failures (caught by the harness).
+    """
+    thresholds = _load_thresholds()
+    required_cases = set(thresholds["cases"])
+    scenarios = _load_scenarios()
+    scenario_by_case = {s["case"]: s for s in scenarios}
+
+    passed, total, failures = _evaluate_cases(required_cases, scenario_by_case)
+
+    if failures:
+        import warnings
+
+        warnings.warn(
+            "temporal_memory gate failures:\n" + "\n".join(f"  - {f}" for f in failures),
+            stacklevel=2,
+        )
+
+    return passed, total
+
+
+def test_temporal_gate() -> None:
+    thresholds = _load_thresholds()
+    required_pass_rate = thresholds["pass_rate"]
+    required_cases = set(thresholds["cases"])
+
+    scenarios = _load_scenarios()
+    scenario_by_case = {s["case"]: s for s in scenarios}
+
+    passed, total, failures = _evaluate_cases(required_cases, scenario_by_case)
 
     assert total > 0, "No cases evaluated"
     pass_rate = passed / total

@@ -36,7 +36,7 @@ DISP_AUTO_REMEDIATED = "auto_remediated"
 DISP_REMEDIATED = "remediated"
 DISP_REJECTED_BY_HUMAN = "rejected_by_human"
 DISP_APPROVAL_EXPIRED = "approval_expired"
-DISP_REMEDIATION_UNVERIFIED = "remediation_unverified"  # RESERVED §v2c — unused in v1
+DISP_REMEDIATION_UNVERIFIED = "remediation_unverified"
 DISP_ESCALATED_TRIAGE = "escalated_triage"
 DISP_ESCALATED_ENRICHMENT = "escalated_enrichment"
 DISP_ESCALATED_RESPONSE = "escalated_response"
@@ -84,6 +84,11 @@ TRANSITIONS: dict[tuple[IncidentStatus, str], tuple[IncidentStatus, str | None]]
     (IncidentStatus.RESPONDING, StageOutcome.ESCALATE): (
         IncidentStatus.ESCALATED,
         DISP_ESCALATED_RESPONSE,
+    ),
+    # Verification outcome — remediation applied but post-state unconfirmed (#15)
+    (IncidentStatus.RESPONDING, StageOutcome.UNVERIFIED): (
+        IncidentStatus.ESCALATED,
+        DISP_REMEDIATION_UNVERIFIED,
     ),
 }
 

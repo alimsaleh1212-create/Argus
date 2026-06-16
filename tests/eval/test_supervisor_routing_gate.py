@@ -357,3 +357,57 @@ async def test_fixture_approval_expired():
     final = await repo.get(incident.id)
     assert final.status == IncidentStatus.ESCALATED
     assert final.disposition == "approval_expired"
+
+
+# ---------------------------------------------------------------------------
+# Remediation-verification fixtures — added by SPEC-remediation-verification (#15)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_fixture_verified_resolves():
+    """verified_resolves: response returns RESOLVED (after successful verification) → RESOLVED.
+
+    Uses critical severity to fast-path to RESPONDING, matching the critical_high pattern.
+    The (RESPONDING, RESOLVED) edge resolves with disposition 'remediated'.
+    """
+
+    async def response(inc):
+        return StageResult(
+            stage=StageName.RESPONSE,
+            outcome=StageOutcome.RESOLVED,
+            disposition="remediated",
+        )
+
+    incident = _make_incident("critical")
+    repo = FakeRepo(incident)
+    sv = _make_supervisor({StageName.RESPONSE: response})
+    await sv.run_incident(incident.id, repo)
+
+    final = await repo.get(incident.id)
+    assert final.status == IncidentStatus.RESOLVED
+    assert final.disposition == "remediated"
+
+
+@pytest.mark.asyncio
+async def test_fixture_unverified_escalates():
+    """unverified_escalates: response returns UNVERIFIED → ESCALATED/remediation_unverified.
+
+    Uses critical severity to fast-path to RESPONDING. Covers the new
+    (RESPONDING, UNVERIFIED) FSM edge added by SPEC-015.
+    """
+
+    async def response(inc):
+        return StageResult(
+            stage=StageName.RESPONSE,
+            outcome=StageOutcome.UNVERIFIED,
+        )
+
+    incident = _make_incident("critical")
+    repo = FakeRepo(incident)
+    sv = _make_supervisor({StageName.RESPONSE: response})
+    await sv.run_incident(incident.id, repo)
+
+    final = await repo.get(incident.id)
+    assert final.status == IncidentStatus.ESCALATED
+    assert final.disposition == "remediation_unverified"

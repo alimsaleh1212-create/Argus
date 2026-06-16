@@ -62,6 +62,7 @@ def test_validate_registry_passes_against_yaml():
     import backend.eval.gates.llm  # noqa: F401
     import backend.eval.gates.rationale  # noqa: F401
     import backend.eval.gates.smoke  # noqa: F401
+    import backend.eval.gates.verification  # noqa: F401
 
     specs = load_specs()
     # validate_registry raises on mismatch; should not raise here
@@ -74,6 +75,7 @@ def test_gate_result_is_well_formed():
     import backend.eval.gates.llm  # noqa: F401
     import backend.eval.gates.rationale  # noqa: F401
     import backend.eval.gates.smoke  # noqa: F401
+    import backend.eval.gates.verification  # noqa: F401
 
     for name, runner in GATE_REGISTRY.items():
         assert callable(runner), f"{name} runner is not callable"

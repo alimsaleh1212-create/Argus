@@ -337,6 +337,13 @@ class ResponseSettings(BaseSettings):
     max_output_tokens: Annotated[int, Field(gt=0)] = 768
     temperature: Annotated[float, Field(ge=0.0)] = 0.0
     prompt_version: str = "v1"
+    # Verification tail (§v2c — #15)
+    verify_remediation: bool = True
+    verify_regressed_verdicts: list[str] = Field(
+        default_factory=lambda: ["malicious", "suspicious"]
+    )
+    verify_llm_tiebreak: bool = False
+    dwell_window_s: Annotated[int, Field(gt=0)] = 900  # M2-reserved
 
 
 class EvalSettings(BaseSettings):

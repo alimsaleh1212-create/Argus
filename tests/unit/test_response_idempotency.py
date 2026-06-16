@@ -96,8 +96,8 @@ async def test_duplicate_execute_writes_one_audit_row():
     executors = build_mock_executors()
 
     with (
-        patch("backend.agents.response.ApprovalRepository", return_value=approval_repo),
-        patch("backend.agents.response.AuditRepository", return_value=audit_repo),
+        patch("backend.agents.response.handler.ApprovalRepository", return_value=approval_repo),
+        patch("backend.agents.response.handler.AuditRepository", return_value=audit_repo),
     ):
         handler = make_response_handler(
             llm=None,

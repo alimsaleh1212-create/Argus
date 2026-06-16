@@ -1,0 +1,10 @@
+{
+  "description": "Probe reports UNEXPECTED post-state (control reports action not in effect).",
+  "signals": [
+    {
+      "probe": {"type": "isolate_host", "target": "web-01", "state": "unexpected", "detail": "host still reachable"},
+      "recheck": {"target": "web-01", "intel_verdict": "benign", "fact_value": null, "fact_is_current": false}
+    }
+  ],
+  "expected_verdict": "regressed"
+}
