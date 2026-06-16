@@ -227,3 +227,15 @@ gates:
         - prior_failure_picks_stronger_playbook
         - verified_prior_no_change
         - superseded_prior_no_change
+
+  detection:
+    description: >
+      Detection precision/recall gate (SPEC-detector #14). Deterministic / provider-independent.
+      Runs the labeled replay set through the rule/threshold detector and scores
+      precision and recall over match/threshold scenarios. Extends the suite; does
+      not duplicate existing gates. The detector has no LLM, so this gate is
+      provider-independent.
+    required: true
+    threshold:
+      precision_min: 0.90
+      recall_min: 0.90

@@ -39,6 +39,7 @@ _KNOWN_ARGUS_SECTIONS = frozenset(
         "response",
         "dashboard",
         "feedback",
+        "detector",
     }
 )
 _ARGUS_PREFIX = "ARGUS__"
@@ -421,6 +422,23 @@ class EvalSettings(BaseSettings):
         return v
 
 
+class DetectorSettings(BaseSettings):
+    """Settings for the deterministic rule/threshold detector (SPEC-detector #14).
+
+    The detector is a one-shot command (`python -m backend.detector`) that
+    reads a YAML rule set and a JSON replay set, then fires matched alerts
+    into the existing ingestion path via `intake.accept(source=...)`.
+    """
+
+    model_config = SettingsConfigDict(extra="forbid")
+
+    enabled: bool = True
+    rules_path: str = "backend/data/detector/rules.yaml"
+    replay_path: str | None = None
+    max_events: Annotated[int, Field(gt=0)] = 10_000
+    source_tag: str = "detector"
+
+
 class Settings(BaseSettings):
     """Root settings object — built once at startup, frozen thereafter.
 
@@ -455,6 +473,7 @@ class Settings(BaseSettings):
     dashboard: DashboardSettings = Field(default_factory=DashboardSettings)
     feedback: FeedbackSettings = Field(default_factory=FeedbackSettings)
     eval: EvalSettings = Field(default_factory=EvalSettings)
+    detector: DetectorSettings = Field(default_factory=DetectorSettings)
 
     @model_validator(mode="after")
     def _ensure_dashboard_vault_path_required(self) -> Settings:

@@ -1,0 +1,105 @@
+[
+  {
+    "label": "malicious",
+    "expected_rule": "malicious-cmd",
+    "event_time": "2026-01-01T00:00:00+00:00",
+    "source_host": "host-a",
+    "fields": {
+      "data": {
+        "command_line": "Invoke-Mimikatz -DumpCreds"
+      }
+    }
+  },
+  {
+    "label": "benign",
+    "event_time": "2026-01-01T00:01:00+00:00",
+    "source_host": "host-b",
+    "fields": {
+      "data": {
+        "event_type": "login_success",
+        "command_line": "ls -la"
+      }
+    }
+  },
+  {
+    "label": "benign",
+    "event_time": "2026-01-01T00:02:00+00:00",
+    "source_host": "host-c",
+    "fields": {
+      "data": {
+        "event_type": "process_start",
+        "command_line": "whoami"
+      }
+    }
+  },
+  {
+    "label": "malicious",
+    "expected_rule": "failed-login-bruteforce",
+    "group": "brute-1",
+    "group_key": "10.10.10.10",
+    "event_time": "2026-01-01T01:00:00+00:00",
+    "source_host": "host-d",
+    "fields": {
+      "data": {
+        "event_type": "auth_failure",
+        "src_ip": "10.10.10.10"
+      }
+    }
+  },
+  {
+    "label": "malicious",
+    "expected_rule": "failed-login-bruteforce",
+    "group": "brute-1",
+    "group_key": "10.10.10.10",
+    "event_time": "2026-01-01T01:00:10+00:00",
+    "source_host": "host-d",
+    "fields": {
+      "data": {
+        "event_type": "auth_failure",
+        "src_ip": "10.10.10.10"
+      }
+    }
+  },
+  {
+    "label": "malicious",
+    "expected_rule": "failed-login-bruteforce",
+    "group": "brute-1",
+    "group_key": "10.10.10.10",
+    "event_time": "2026-01-01T01:00:20+00:00",
+    "source_host": "host-d",
+    "fields": {
+      "data": {
+        "event_type": "auth_failure",
+        "src_ip": "10.10.10.10"
+      }
+    }
+  },
+  {
+    "label": "malicious",
+    "expected_rule": "failed-login-bruteforce",
+    "group": "brute-1",
+    "group_key": "10.10.10.10",
+    "event_time": "2026-01-01T01:00:30+00:00",
+    "source_host": "host-d",
+    "fields": {
+      "data": {
+        "event_type": "auth_failure",
+        "src_ip": "10.10.10.10"
+      }
+    }
+  },
+  {
+    "label": "malicious",
+    "expected_rule": "failed-login-bruteforce",
+    "group": "brute-1",
+    "group_key": "10.10.10.10",
+    "event_time": "2026-01-01T01:00:40+00:00",
+    "source_host": "host-d",
+    "fields": {
+      "data": {
+        "event_type": "auth_failure",
+        "src_ip": "10.10.10.10"
+      }
+    }
+  }
+]

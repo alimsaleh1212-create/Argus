@@ -1,0 +1,66 @@
+# Detector rule set (SPEC-detector #14).
+#
+# Two rule kinds (match / threshold). Each carries:
+#   id            — stable rule id (becomes WazuhRule.id)
+#   description   — human reason (becomes WazuhRule.description)
+#   severity      — low|medium|high|critical (reused domain/incident.Severity)
+#   technique     — optional MITRE technique id
+#
+# Paths: this file lives at backend/data/detector/rules.yaml. The runner
+# reads it via DetectorSettings.rules_path (default: this path). Empty or
+# missing file → no alerts, no crash.
+#
+# Editing only: adding/removing rules here requires NO code change (SC-005).
+
+lists:
+  ioc_ips:
+    - "203.0.113.10"
+    - "198.51.100.7"
+  ioc_hashes:
+    - "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+rules:
+  # ---- signature (match) ----
+  - id: ioc-match
+    kind: match
+    description: "Indicator on known-bad IOC list"
+    field: data.src_ip
+    op: in_list
+    list_ref: ioc_ips
+    severity: high
+
+  - id: malicious-cmd
+    kind: match
+    description: "Process command-line matches known-malicious pattern"
+    field: data.command_line
+    op: regex
+    value: "(?i)(mimikatz|-enc\\s+[A-Za-z0-9+/=]{40,})"
+    severity: high
+    technique: T1059
+
+  # ---- aggregation (threshold) ----
+  - id: failed-login-bruteforce
+    kind: threshold
+    description: "Repeated authentication failures from one source"
+    match:
+      field: data.event_type
+      op: equals
+      value: auth_failure
+    group_by: data.src_ip
+    count: 5
+    window_seconds: 60
+    severity: high
+    technique: T1110
+
+  - id: connection-fanout
+    kind: threshold
+    description: "Connection fan-out / port scan from one source"
+    match:
+      field: data.event_type
+      op: equals
+      value: connection
+    group_by: data.src_ip
+    count: 20
+    window_seconds: 30
+    severity: medium
+    technique: T1046

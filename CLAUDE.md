@@ -2,15 +2,33 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
-**Active component**: `016-memory-feedback-loop` (Component #16 — `SPEC-memory-feedback-loop`; the **second
-v2/T2 component**, value-early per the roadmap `T1 freeze → 015-M1 → 016-M1`). Makes the system **get smarter
-over time** — **memory/retrieval, not retraining** (Constitution VI). **#14-detector dir is intentionally
-skipped** for now; `011` remains the safety gap (v3b/VD1).
-- Plan: `specs/016-memory-feedback-loop/plan.md`
-- Spec: `specs/016-memory-feedback-loop/spec.md`
-- Design: `specs/016-memory-feedback-loop/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
+**Active component**: `014-detector` (Component #14 — `SPEC-detector`; the **T3 detection layer**, per the
+roadmap `…016-M1 →[T2]→ 014`). A **deterministic** rule/threshold detector (Constitution IV — *no LLM, no
+ML*) that **fires** alerts into the **existing `#4` ingestion contract** with **zero downstream change**. The
+ML anomaly detector is now planned as **`#17`** (decoupled, reads SIEM logs, **complements not replaces**
+#14); `011` remains the safety gap (v3b/VD1).
+- Plan: `specs/014-detector/plan.md`
+- Spec: `specs/014-detector/spec.md`
+- Design: `specs/014-detector/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
-Stack (this component): a **backend-only** extension (mirrors #9/#15 — zero migration, closure-factory DI, pure
+Stack (this component, #14): a **backend-only** extension (mirrors #8 one-shot `seed-corpus` + #9/#15
+closure-factory DI; pure domain types in a new `domain/detector.py`; **zero migration**). A one-shot
+`python -m backend.detector` loads a **config-backed rule set** (`backend/data/detector/rules.yaml` —
+`match` signature + `threshold` aggregation rules) and a **replayed event set**, runs a **pure**
+`services/detector.evaluate()`, maps each `FiredAlert → WazuhAlert`, and emits **in-process via the
+existing `services/intake.accept()`** seam with one **backward-compatible** change — `accept(...,
+source="wazuh")` parameterized so detector incidents are tagged `source="detector"` (FR-006).
+Redaction/dedup/persist/enqueue are all reused (Constitution III redaction is free; the existing dedup
+makes replay idempotent). Severity from the matched rule; multi-match → highest severity (one event → ≤1
+alert). New **`DetectorSettings`** (`extra="forbid"`) + new deterministic, provider-independent
+**`detection`** eval gate (precision/recall on a labeled replay set; yaml block **+** registry runner added
+together — orphan check is a hard error in #13). **No** new write authority over incident state (creates
+`received` incidents only; supervisor stays single writer); **no** change to schema/FSM/agents/existing
+gates. Ships **M-a** (detector core + `intake` source param + unit/integration) → **M-b** (`detection` gate
++ fixtures + e2e), each ≤~400 lines. **Out of scope**: ML/anomaly (that is `#17`), live capture (v3c),
+`016-M2` feed-to-detector tuning.
+
+Prior #16 (`016-memory-feedback-loop`, done) — build detail: a **backend-only** extension (mirrors #9/#15 — zero migration, closure-factory DI, pure
 domain types in a new `domain/feedback.py`). **M1** (buildable now) **writes** each verification verdict (from
 #15, `evidence["response"]["verification"]`) back to temporal memory as a **time-valid `TemporalFact`**
 (`fact_type="remediation_outcome"`, `value=<verdict>`) keyed **identically to the reputation fact** so

@@ -1,4 +1,4 @@
-# Capstone Proposal — Sentinel
+# Capstone Proposal — Argus
 
 **An AI-Driven SOAR with Temporal Incident Memory**
 Solo capstone · 12 working days (10 hrs/day) · submitted for approval
@@ -7,19 +7,19 @@ Solo capstone · 12 working days (10 hrs/day) · submitted for approval
 
 ## What I'm proposing, in one paragraph
 
-Sentinel is an AI-driven SOAR (Security Orchestration, Automation & Response) platform. It ingests security alerts in Wazuh format, processes each through a supervisor-coordinated pipeline of three specialized agents — **triage → enrichment → response** — and either auto-executes low-risk remediations or pauses on a **human-in-the-loop approval interrupt** for destructive ones. Its distinguishing feature is a **temporal incident-memory layer** built on Graphiti: the system accumulates what it has seen and what analysts decided, so it reasons about new incidents in the context of past ones and gets more useful over time. It ships with a **polished, informative React operations dashboard**, is built to the full engineering-standards bar — async, dependency-injected, evals gating CI, three-tier tests green every day — and every architectural choice is one I can defend line by line.
+Argus is an AI-driven SOAR (Security Orchestration, Automation & Response) platform. It ingests security alerts in Wazuh format, processes each through a supervisor-coordinated pipeline of three specialized agents — **triage → enrichment → response** — and either auto-executes low-risk remediations or pauses on a **human-in-the-loop approval interrupt** for destructive ones. Its distinguishing feature is a **temporal incident-memory layer** built on Graphiti: the system accumulates what it has seen and what analysts decided, so it reasons about new incidents in the context of past ones and gets more useful over time. It ships with a **polished, informative React operations dashboard**, is built to the full engineering-standards bar — async, dependency-injected, evals gating CI, three-tier tests green every day — and every architectural choice is one I can defend line by line.
 
-## Where Sentinel sits, and why that's a deliberate choice
+## Where Argus sits, and why that's a deliberate choice
 
-A SOAR is a **response** platform. By design it sits downstream of detection — exactly like Cortex XSOAR or Splunk SOAR, neither of which contains a detector. Detection is the job of the SIEM and its analytics layers; SOAR consumes the alerts they produce and orchestrates what happens next. Building a detector into a SOAR would signal a misunderstanding of where the category sits in the stack.
+A SOAR is a **response** platform. By design it sits downstream of detection — exactly like Cortex XSOAR or Splunk SOAR, neither of which contains a detector. Detection is the job of the SIEM and its analytics layers; SOAR consumes the alerts they produce and orchestrates what happens next. Welding a detector *into the SOAR's response pipeline* would signal a misunderstanding of where the category sits in the stack — so the detection sources Argus grows after the core spine (a deterministic rule detector, **#14**, then an ML anomaly detector over SIEM logs, **#17**; see the **Detection Strategy Update** addendum, 2026-06-16) are built as **decoupled sources that feed the ingestion front door**, never as stages inside the supervisor. The decoupling is the architecture, not a gap.
 
-So Sentinel ingests alerts in **Wazuh's alert format**. Wazuh performs rule-based detection upstream — deterministic, precise pattern-matching against known indicators. That is a complete, honest detection story for v1, because it is exactly what Wazuh ships today. The "Detection: Scope & Roadmap" section makes the boundary explicit and lays out the professional maturation path, so the line between detection and response reads as an architectural decision, not a gap.
+So Argus ingests alerts in **Wazuh's alert format**. Wazuh performs rule-based detection upstream — deterministic, precise pattern-matching against known indicators. That is a complete, honest detection story for v1, because it is exactly what Wazuh ships today. The "Detection: Scope & Roadmap" section makes the boundary explicit and lays out the professional maturation path, so the line between detection and response reads as an architectural decision, not a gap.
 
 ## What's genuinely new here (vs. my prior work)
 
 Week 7 (Maintainer's Copilot) was a single tool-calling chatbot with RAG, memory, auth, Vault/MinIO, tracing, redaction, and CI eval gates. Week 8 (Concierge) was a multi-tenant SaaS with RLS isolation, a guardrails sidecar, an injection/cross-tenant red-team CI gate, and tenant-filtered pgvector. I'm reusing those patterns rather than re-justifying them. The capstone earns its place through three things neither prior project required:
 
-1. **A supervisor-coordinated multi-agent pipeline.** Concierge was deliberately *one* agent behind a router. Sentinel's incident lifecycle has genuinely distinct stages with different tools, prompts, and failure modes — and the separation is a *security boundary*, not decoration: the triage agent structurally holds no action tools, so a prompt-injected alert that hijacks triage still cannot execute a remediation.
+1. **A supervisor-coordinated multi-agent pipeline.** Concierge was deliberately *one* agent behind a router. Argus's incident lifecycle has genuinely distinct stages with different tools, prompts, and failure modes — and the separation is a *security boundary*, not decoration: the triage agent structurally holds no action tools, so a prompt-injected alert that hijacks triage still cannot execute a remediation.
 
 2. **Temporal incident memory (Graphiti).** The "gets smarter over time" capability. Not model retraining — institutional memory made queryable, with the time dimension preserved so the agent reasons about how facts (an IP's reputation, a host's role, an analyst's disposition) changed, not just what's currently true.
 
@@ -31,7 +31,7 @@ Everything else (guardrails sidecar, redaction, Vault/MinIO, tracing, CI eval di
 
 ## Scope discipline (what I am deliberately NOT building)
 
-- **No ML detector.** Detection is upstream and out of scope by design (see roadmap). v1 ingests Wazuh-format rule-based alerts.
+- **No detector *welded into the response pipeline*.** Detection stays decoupled from response. *(Update 2026-06-16: after the core spine ships, Argus grows its own **decoupled** detection sources — a deterministic rule detector (#14) and an ML anomaly detector (#17) reading **SIEM logs, not raw traffic** — both emitting the existing ingestion contract with zero downstream change, both honestly mock-replayed in the demo. The ML layer **complements**, it does not replace, the rule detector. See the Detection Strategy Update addendum. The v1 spine still ingests Wazuh-format alerts unchanged.)*
 - **No multi-tenancy.** A SOC monitors one organization. I proved RLS in Concierge; re-doing it here adds cost for zero new learning.
 - **No embeddable widget.** An internal SOC tool isn't embedded on public sites. One authenticated React dashboard instead.
 - **No live network capture.** Demo runs on replayed sample alerts. The pipeline behaves identically to live ingestion.
@@ -120,7 +120,7 @@ A system that gets more useful as it sees more incidents — **memory and retrie
 
 **Why Graphiti.** Security context is inherently temporal: an IP benign last month is now flagged; a host's role changed; an analyst's disposition evolved. A flat vector store or static Graph RAG collapses this into "what's true now," losing "what was true when." Graphiti models facts as time-bounded entities/relationships, incrementally integrates new episodes without batch recomputation, and on conflict *invalidates* the old relationship rather than deleting it. Apache-2.0, supports Anthropic as the LLM backend, runs on Neo4j Community Edition (free, GPLv3, best-documented backend).
 
-**What it honestly delivers (and what it doesn't).** It makes Sentinel better at *responding* to novel incidents — escalating ambiguous ones with full historical context and surfacing the closest past incident and its disposition. It does **not** detect zero-days; a true zero-day the detector scores benign never produces an alert to reason about. Detecting the novel is a detection-layer problem (the roadmap), not a response-layer one.
+**What it honestly delivers (and what it doesn't).** It makes Argus better at *responding* to novel incidents — escalating ambiguous ones with full historical context and surfacing the closest past incident and its disposition. It does **not** detect zero-days; a true zero-day the detector scores benign never produces an alert to reason about. Detecting the novel is a **detection-layer** problem — now partly addressed by the in-project ML anomaly layer added per the 2026-06-16 *Detection Strategy Update* (with the honest caveat that behavioral anomaly detection raises recall on novel *behavior*, not literal zero-day exploits) — not a response-layer one.
 
 **De-risking.** Graphiti adds a new service (Neo4j) and framework on the critical path and makes LLM calls during graph construction. So a **day-1 integration spike** stands Neo4j up in compose and runs Graphiti's quickstart against sample incident data to measure real latency and token cost before committing — with the pgvector + relational fallback ready if it bites.
 
@@ -151,12 +151,12 @@ Not a throwaway admin panel — a **polished, informative single-page operations
 
 ## Detection: Scope & Roadmap
 
-**v1 (this project) — rule-based ingestion.** Sentinel consumes Wazuh-format alerts. Wazuh's core detection is rule/signature-based: deterministic, precise, low false-positive on known patterns — necessary but not sufficient (can't catch zero-days; over-fires in dynamic environments). v1 owns the response side honestly.
+**v1 (this project) — rule-based ingestion.** Argus consumes Wazuh-format alerts. Wazuh's core detection is rule/signature-based: deterministic, precise, low false-positive on known patterns — necessary but not sufficient (can't catch zero-days; over-fires in dynamic environments). v1 owns the response side honestly.
 
 **The professional maturation path (v2+).** The industry answer to rule-based limits isn't replacement — it's *layering*, because signature and anomaly detection cover each other's blind spots.
-- **v2a — Anomaly detection layer.** ML behavioral/UEBA-style detection alongside the rule-based alerts. Published hybrids (Random Forest + DBSCAN on Wazuh) report ~97% accuracy and false-positive rates below 0.1 at sub-100ms latency. *This is the domain of a separate detection-focused project in our cohort, so the two halves compose into the full layered pipeline.*
+- **v2a — Anomaly detection layer.** ML behavioral/UEBA-style detection **reading SIEM logs (not raw traffic)**, alongside the rule-based alerts. Published hybrids (Random Forest + DBSCAN on Wazuh) report ~97% accuracy and false-positive rates below 0.1. *Update 2026-06-16: now brought **in-project** as spec **#17**, a decoupled ML anomaly detector built **after** the rule detector (#14) — trained offline on a public log dataset (e.g. CERT Insider Threat or LANL authentication logs) and mock-replayed in the demo, emitting the existing ingestion contract. It **complements** the deterministic rule detector rather than replacing it: signature and anomaly cover each other's blind spots. See the Detection Strategy Update addendum.*
 - **v2b — Cross-layer correlation (XDR-style).** Fuse signals from multiple detection sources before they reach the SOAR.
-- **v2c — The feedback loop.** Sentinel's accumulated Graphiti incident memory feeds threat intelligence *back* to the detection layer — closing the detection↔response loop that defines a mature SOC. (Targeted within this build; see plan.)
+- **v2c — The feedback loop.** Argus's accumulated Graphiti incident memory feeds threat intelligence *back* to the detection layer — closing the detection↔response loop that defines a mature SOC. (Targeted within this build; see plan.)
 
 The detection layer is deliberately decoupled from response. A SOAR welded to one detector can't serve a SOC that runs five — the decoupling is the point.
 
@@ -270,3 +270,54 @@ Full rationale + rejected alternatives live in `DECISIONS.md` (D1–D11); this i
 *Component #1 status (2026-06-07): unit tier green (17/17), `import-linter` 2 contracts kept, `ruff`
 clean, CI workflow + ≥80% coverage gate wired, `DECISIONS.md` D1–D11 recorded. Integration/e2e tiers run
 under Docker in CI.*
+
+---
+
+## Detection Strategy Update — Components #14 (rule detector) + #17 (ML anomaly detector) · 2026-06-16
+
+Refines the "Scope discipline" and "Detection: Scope & Roadmap" statements above. Argus now grows
+**its own detection sources in-project**, after the core triage→enrichment→response spine. This does
+**not** change where the SOAR sits: the detectors are **decoupled sources** that emit the existing `#4`
+ingestion contract (`WazuhAlert`/`NormalizedEvent` shape) with **zero downstream change** — never stages
+welded into the supervisor pipeline. Two sources, built in sequence, that **layer** rather than compete:
+
+**1. Deterministic rule/threshold detector (`#14`) — built first, the real shipping source.**
+- **How it detects.** Config-backed rule/threshold matching over event fields (the Wazuh/Sigma model):
+  signature matches on known-bad patterns/IOCs and aggregation thresholds (e.g. *N failed logins within a
+  window*). It fires **deterministically with an exact, auditable reason** ("matched rule X").
+- **Why it is kept (not replaced by ML).** It is the **high-precision baseline for known threats**: near-
+  zero false positives, **no training data, no baseline period, no drift, no cold-start**, sub-millisecond
+  and GPU-free, trivially CI-gateable, and Constitution-IV-clean (determinism first). In a SOC the known-
+  bad majority *should* be caught by cheap, exact, explainable rules — an ML score of `0.87` cannot be
+  audited the way "matched rule X" can. It is also the **honest, real** detector in the demo.
+
+**2. ML anomaly detection layer (UEBA-style) — spec `#17`, built after `#14`, complementary.**
+- **How it detects.** Reads **SIEM logs/events (not raw network traffic)**, baselines "normal" behavior,
+  and flags deviations — the **high-recall net for novel behavior** that signatures miss (compromised
+  credentials, lateral movement, insider-threat / APT-style activity). This is the standard industry
+  pattern: Splunk UBA, Microsoft Argus UEBA/Fusion, Exabeam, and the Wazuh + OpenSearch Anomaly
+  Detection plugin all sit *on top of* SIEM telemetry. The published Wazuh hybrid (Random Forest 97.2% /
+  DBSCAN 91.06%, FP ≈ 0.082) classifies `wazuh-alerts`, not packets.
+- **Dataset (offline training).** A public **log-based** dataset — **CERT Insider Threat** (scenario-
+  labeled user-activity logs; cleanest demo fit) or the **LANL** comprehensive auth/DNS/process events
+  (red-team-labeled lateral movement). Network-flow sets (UNSW-NB15, CIC-IDS2017) are a weaker fit for the
+  "logs not traffic" framing.
+- **Demo / mock honesty.** No live Wazuh is required. A small model (e.g. Isolation Forest or a compact
+  autoencoder) is **trained offline** on the dataset and saved; at demo time, log events are **replayed**
+  through it and anomalies over threshold fire alerts into the ingestion path — *real ML, mock
+  environment*, the same honesty bar as `#14`. The writeup states plainly: trained offline on a public
+  dataset, inference over **replayed logs**, not a live feed — **no real-time production-efficacy claim**.
+
+**Layering, not replacement (the decision).** Signature + anomaly **cover each other's blind spots** —
+the proposal's central thesis. The deterministic detector handles known-bad with precision and
+explainability; the ML layer extends recall to novel behavior. Running anomaly detection *instead of*
+signatures is a misconception no mature SOC follows; Argus runs **both**.
+
+**Constitution reconciliation.** Constitution IV ("determinism first; ML/agents only for the ambiguous
+long tail") is preserved on the **response** path. The ML detector is an explicit, recorded exception at
+the **detection** layer (catching novel *behavior* is exactly where determinism does not suffice), it is
+**decoupled** from the supervisor (it adds no second writer and no new FSM edge), and it **complements**
+the deterministic detector. To be captured as a `DECISIONS.md` entry + a constitution note before its
+implementation lands. Sequencing: `#14` first (real, Constitution-clean), then the ML anomaly detector (`#17`).
+XDR correlation (previously sketched at the 017 slot in the roadmap) rolls forward to a later slot / v3.
+Both leave `015-M2`/`016-M2` intact.
