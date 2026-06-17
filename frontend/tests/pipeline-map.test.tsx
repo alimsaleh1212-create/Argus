@@ -102,6 +102,13 @@ describe('FlowEdge', () => {
       'bg-cyan-400'
     )
   })
+
+  it('applies the journey highlight styling when highlighted is true', () => {
+    const { container } = render(<FlowEdge active={false} highlighted={true} />)
+    expect(container.querySelector('[data-testid="flow-edge"] > div')).toHaveClass(
+      'bg-sky-300'
+    )
+  })
 })
 
 describe('TerminalColumn', () => {
