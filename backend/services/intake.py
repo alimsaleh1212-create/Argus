@@ -75,8 +75,12 @@ async def accept(
                     deduplicated=True,
                 )
 
-    # Step 4: Normalize
-    _normalized_event, _flags = normalize_with_flags(alert)
+    # Step 4: Normalize (redact at OPERATIONAL boundary — credentials stripped,
+    # security metadata retained for the pipeline; PII preserved for correlation)
+    normalized_event, _flags = normalize_with_flags(alert)
+    redacted_ne = redactor.redact_mapping(
+        normalized_event.model_dump(mode="json"), Boundary.OPERATIONAL
+    )
     severity = level_to_severity(alert.rule.level)
 
     # Step 5: Persist Incident(received)
@@ -89,6 +93,7 @@ async def accept(
         dedup_fingerprint=fingerprint,
         source=source,
         raw_alert=redacted_alert,
+        normalized_event=redacted_ne,
     )
     created = await repo.create(incident)
 

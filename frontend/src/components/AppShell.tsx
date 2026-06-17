@@ -30,8 +30,8 @@ export function AppShell() {
       {/* Sidebar */}
       <aside className="w-56 flex-shrink-0 bg-[#0F172A] border-r border-slate-800 flex flex-col">
         {/* Brand */}
-        <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-800">
-          <img src={logo} alt="Argus" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-800">
+          <img src={logo} alt="Argus" className="w-11 h-11 rounded-lg object-cover flex-shrink-0" />
           <span className="text-base font-bold text-slate-50 tracking-tight">Argus</span>
         </div>
 

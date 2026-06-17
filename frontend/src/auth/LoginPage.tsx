@@ -36,8 +36,8 @@ export function LoginPage() {
     <div className="min-h-screen bg-[#020617] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {/* Logo / brand */}
-        <div className="flex flex-col items-center mb-8 gap-3">
-          <div className="w-16 h-16 rounded-lg overflow-hidden bg-sky-400/10 border border-sky-400/30 flex items-center justify-center">
+        <div className="flex flex-col items-center mb-8 gap-4">
+          <div className="w-28 h-28 rounded-xl overflow-hidden bg-sky-400/10 border-2 border-sky-400/40 flex items-center justify-center shadow-lg shadow-sky-400/10">
             <img src={logo} alt="Argus" className="w-full h-full object-cover" />
           </div>
           <div className="text-center">

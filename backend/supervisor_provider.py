@@ -97,10 +97,21 @@ class SupervisorProvider:
         if llm_client is not None and db_engine is not None:
             from sqlalchemy.ext.asyncio import async_sessionmaker
 
-            from backend.infra.executors import build_mock_executors
+            from backend.infra.executors import (
+                ActionType,
+                build_inconclusive_executors,
+                build_mock_executors,
+                build_regressed_executors,
+            )
 
             session_factory = async_sessionmaker(db_engine.engine, expire_on_commit=False)
-            executors = build_mock_executors()
+            probe_mode = getattr(response_cfg, "verify_probe_mode", "expected")
+            if probe_mode == "inconclusive":
+                executors = build_inconclusive_executors(*ActionType)
+            elif probe_mode == "regressed":
+                executors = build_regressed_executors(*ActionType)
+            else:
+                executors = build_mock_executors()
             catalog = load_playbook_catalog(response_cfg.catalog_dir)
             response_handler = make_response_handler(
                 llm=llm_client,
