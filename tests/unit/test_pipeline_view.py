@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -11,6 +12,13 @@ from backend.domain.dashboard import (
     PipelineSnapshot,
     StageNode,
     TerminalCounts,
+)
+from backend.services.pipeline_view import (
+    STAGES,
+    build_pipeline_snapshot,
+    stage_branches,
+    stage_in_flight,
+    terminal_counts,
 )
 
 
@@ -38,17 +46,6 @@ class TestPipelineDtos:
     def test_stage_node_branches_default_empty(self) -> None:
         node = StageNode(key="intake", label="Intake", in_flight=0)
         assert node.branches == []
-
-
-from unittest.mock import AsyncMock
-
-from backend.services.pipeline_view import (
-    STAGES,
-    build_pipeline_snapshot,
-    stage_branches,
-    stage_in_flight,
-    terminal_counts,
-)
 
 
 class TestStageMapping:
@@ -79,8 +76,8 @@ class TestStageMapping:
         assert {b.to: b.count for b in branches["triage"]} == {"resolved": 2, "escalated": 1}
         assert {b.to: b.count for b in branches["response"]} == {"resolved": 5, "escalated": 1}
         # unknown disposition is attributed to no stage
-        flat = [b.to for stage in branches.values() for b in stage]
-        assert all("unknown" not in label for label in flat)
+        total_attributed = sum(b.count for stage in branches.values() for b in stage)
+        assert total_attributed == 9  # unknown disposition (count 9) excluded; 2+1+5+1
 
     def test_terminal_counts_sums_by_branch_plus_awaiting(self) -> None:
         status = {"awaiting_approval": 2}
