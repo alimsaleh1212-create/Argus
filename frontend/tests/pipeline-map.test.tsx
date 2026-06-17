@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { StageNodeCard } from '@/features/map/StageNode'
 import { FlowEdge } from '@/features/map/FlowEdge'
+import { TerminalColumn } from '@/features/map/TerminalColumn'
 
 describe('StageNodeCard', () => {
   const stage = { key: 'triage', label: 'Triage', in_flight: 4, branches: [] }
@@ -37,5 +38,34 @@ describe('FlowEdge', () => {
     expect(container.querySelector('[data-testid="flow-edge"] > div')).toHaveClass(
       'bg-green-500'
     )
+  })
+})
+
+describe('TerminalColumn', () => {
+  const terminals = { resolved: 12, escalated: 3, awaiting: 1 }
+
+  it('renders all three terminal tiles with an icon and a count each', () => {
+    render(<TerminalColumn terminals={terminals} changedKeys={new Set()} />)
+    expect(screen.getByTestId('terminal-resolved')).toBeInTheDocument()
+    expect(screen.getByTestId('terminal-escalated')).toBeInTheDocument()
+    expect(screen.getByTestId('terminal-awaiting')).toBeInTheDocument()
+    expect(screen.getByText('12')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
+  })
+
+  it('flashes only the tile whose key changed', () => {
+    render(
+      <TerminalColumn terminals={terminals} changedKeys={new Set(['escalated'])} />
+    )
+    expect(screen.getByTestId('terminal-escalated')).toHaveClass('border-orange-500')
+    expect(screen.getByTestId('terminal-resolved')).not.toHaveClass('border-green-500')
+  })
+
+  it('labels each tile so color is never the only signal', () => {
+    render(<TerminalColumn terminals={terminals} changedKeys={new Set()} />)
+    expect(screen.getByText('Resolved')).toBeInTheDocument()
+    expect(screen.getByText('Escalated')).toBeInTheDocument()
+    expect(screen.getByText('Awaiting')).toBeInTheDocument()
   })
 })
