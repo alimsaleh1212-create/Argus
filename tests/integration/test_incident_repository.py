@@ -185,16 +185,27 @@ class TestPipelineRepositoryReads:
     async def test_disposition_counts_since_respects_window(self, db_session) -> None:
         import sqlalchemy as sa
 
-        inc, repo = await self._resolved(db_session, disposition="auto_remediated")
-        # Backdate this incident far outside the 24h window.
+        from backend.repositories.incidents import IncidentRepository
+
+        repo = IncidentRepository(db_session)
+        # Baseline: current within-window count for this disposition (the shared
+        # container may already hold rows from other tests).
+        baseline = (await repo.disposition_counts_since(window_hours=24)).get("auto_remediated", 0)
+
+        # A resolved incident backdated OUTSIDE the 24h window must NOT be counted.
+        inc_old, _ = await self._resolved(db_session, disposition="auto_remediated")
         await db_session.execute(
-            sa.text("UPDATE incidents SET updated_at = now() - make_interval(hours => 100) WHERE id = :id"),
-            {"id": str(inc.id)},
+            sa.text(
+                "UPDATE incidents SET updated_at = now() - make_interval(hours => 100) "
+                "WHERE id = :id"
+            ),
+            {"id": str(inc_old.id)},
         )
         await db_session.commit()
-        # A second, in-window resolved incident.
-        await self._resolved(db_session, disposition="auto_remediated")
+        after_old = (await repo.disposition_counts_since(window_hours=24)).get("auto_remediated", 0)
+        assert after_old == baseline  # backdated row excluded from the window
 
-        counts = await repo.disposition_counts_since(window_hours=24)
-        # The 100h-old one is excluded; the fresh one is counted.
-        assert counts.get("auto_remediated", 0) >= 1
+        # A fresh, in-window resolved incident MUST be counted.
+        await self._resolved(db_session, disposition="auto_remediated")
+        after_new = (await repo.disposition_counts_since(window_hours=24)).get("auto_remediated", 0)
+        assert after_new == baseline + 1  # in-window row included
