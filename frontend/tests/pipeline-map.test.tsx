@@ -59,6 +59,33 @@ describe('StageNodeCard', () => {
     render(<StageNodeCard stage={stage} justChanged={false} />)
     expect(screen.getByTestId('stage-node-triage')).not.toHaveClass('border-cyan-400')
   })
+
+  it('shows an expand toggle and calls onToggleExpand when clicked', async () => {
+    const onToggleExpand = vi.fn()
+    const { default: userEvent } = await import('@testing-library/user-event')
+    render(
+      <StageNodeCard stage={stage} justChanged={false} expanded={false} onToggleExpand={onToggleExpand} />
+    )
+    await userEvent.click(screen.getByRole('button', { name: /expand triage/i }))
+    expect(onToggleExpand).toHaveBeenCalledOnce()
+  })
+
+  it('renders a collapse label when expanded is true', () => {
+    render(
+      <StageNodeCard stage={stage} justChanged={false} expanded={true} onToggleExpand={vi.fn()} />
+    )
+    expect(screen.getByRole('button', { name: /collapse triage/i })).toBeInTheDocument()
+  })
+
+  it('applies dimmed styling when dimmed is true', () => {
+    render(<StageNodeCard stage={stage} justChanged={false} dimmed={true} />)
+    expect(screen.getByTestId('stage-node-triage')).toHaveClass('opacity-40')
+  })
+
+  it('shows journey timing when journeyTimingMs is provided', () => {
+    render(<StageNodeCard stage={stage} justChanged={false} journeyTimingMs={1500} />)
+    expect(screen.getByText('1.5s')).toBeInTheDocument()
+  })
 })
 
 describe('FlowEdge', () => {
