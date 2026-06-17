@@ -13,6 +13,8 @@ from backend.domain.dashboard import (
     StageNode,
     TerminalCounts,
 )
+from backend.domain.incident import IncidentStatus
+from backend.services import pipeline_view, supervisor
 from backend.services.pipeline_view import (
     STAGES,
     build_pipeline_snapshot,
@@ -116,3 +118,37 @@ class TestBuildPipelineSnapshot:
         assert snap.window_hours == 24
         repo.status_counts.assert_called_once()
         repo.disposition_counts_since.assert_called_once_with(window_hours=24)
+
+
+class TestExhaustiveness:
+    def test_every_supervisor_disposition_is_terminal_mapped_or_excluded(self) -> None:
+        # awaiting_approval_destructive is paired with the non-terminal AWAITING_APPROVAL
+        # status (a parked state) — it is intentionally excluded from terminal counting.
+        excluded = {supervisor.DISP_AWAITING_APPROVAL}
+        all_dispositions = {
+            value
+            for name, value in vars(supervisor).items()
+            if name.startswith("DISP_") and isinstance(value, str)
+        }
+        assert all_dispositions, "sanity check: supervisor module exposes DISP_* constants"
+
+        unmapped = all_dispositions - excluded - set(pipeline_view._DISPOSITION_TO_TERMINAL_BRANCH)
+        assert not unmapped, (
+            f"Disposition(s) {unmapped} are emitted by the supervisor but missing from "
+            "_DISPOSITION_TO_TERMINAL_BRANCH — they would be silently dropped from "
+            "terminals.resolved/escalated. Add them to the map (or to `excluded` above "
+            "if genuinely non-terminal)."
+        )
+
+    def test_every_active_incident_status_is_stage_mapped_or_terminal(self) -> None:
+        terminal_statuses = {"resolved", "escalated", "failed"}
+        unmapped = {
+            status.value
+            for status in IncidentStatus
+            if status.value not in pipeline_view._STATUS_TO_STAGE
+            and status.value not in terminal_statuses
+        }
+        assert not unmapped, (
+            f"IncidentStatus value(s) {unmapped} are neither mapped to a pipeline-map "
+            "stage nor in the known terminal set — they would be invisible on the rail."
+        )

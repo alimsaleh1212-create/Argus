@@ -50,6 +50,19 @@ _DISPOSITION_TO_BRANCH: dict[str, tuple[str, str]] = {
     "escalated_response": ("response", "escalated"),
 }
 
+# Every terminal disposition → its branch ("resolved" | "escalated"), independent of
+# stage attribution. Includes everything in _DISPOSITION_TO_BRANCH (stage-attributable)
+# PLUS supervisor safety-net escalations that can fire from any in-flight stage and so
+# cannot be attributed to a single rail stage — these must still count toward the
+# headline escalated total, just not toward any one stage's breakdown.
+_DISPOSITION_TO_TERMINAL_BRANCH: dict[str, str] = {
+    **{disposition: branch for disposition, (_, branch) in _DISPOSITION_TO_BRANCH.items()},
+    "escalated_step_cap": "escalated",
+    "escalated_token_cap": "escalated",
+    "escalated_stage_error": "escalated",
+    "escalated_illegal_transition": "escalated",
+}
+
 
 def stage_in_flight(status_counts: dict[str, int]) -> dict[str, int]:
     """Sum active-status counts into the four stage buckets (0 when empty)."""
@@ -83,10 +96,9 @@ def terminal_counts(
     resolved = 0
     escalated = 0
     for disposition, count in disposition_counts.items():
-        mapping = _DISPOSITION_TO_BRANCH.get(disposition)
-        if mapping is None:
+        branch = _DISPOSITION_TO_TERMINAL_BRANCH.get(disposition)
+        if branch is None:
             continue
-        _, branch = mapping
         if branch == "resolved":
             resolved += count
         elif branch == "escalated":
