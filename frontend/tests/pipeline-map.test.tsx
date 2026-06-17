@@ -11,6 +11,27 @@ vi.mock('@/features/map/useAnimatedPipeline', () => ({
   useAnimatedPipeline: vi.fn(),
 }))
 
+vi.mock('@/features/map/HumanAttentionLane', () => ({
+  HumanAttentionLane: () => <div data-testid="human-attention-lane-mock" />,
+}))
+
+vi.mock('@/features/map/IncidentDrawer', () => ({
+  IncidentDrawer: ({ incidentId }: { incidentId: string | null }) => (
+    <div data-testid="incident-drawer-mock">{incidentId ?? 'none'}</div>
+  ),
+}))
+
+vi.mock('@/features/map/BranchBreakdown', () => ({
+  BranchBreakdown: ({ stage }: { stage: { key: string } }) => (
+    <div data-testid={`branch-breakdown-mock-${stage.key}`} />
+  ),
+}))
+
+vi.mock('@/features/map/JourneyOverlay', () => ({
+  JourneyOverlay: () => null,
+  useJourney: vi.fn(() => null),
+}))
+
 const mockUseAnimatedPipeline = vi.mocked(animatedApi.useAnimatedPipeline)
 
 function makeSnapshot() {
@@ -212,5 +233,59 @@ describe('PipelineMap', () => {
     } as ReturnType<typeof animatedApi.useAnimatedPipeline>)
     render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
     expect(screen.getByRole('button', { name: /paused/i })).toBeInTheDocument()
+  })
+
+  it('renders the Human Attention lane below the rail', () => {
+    mockUseAnimatedPipeline.mockReturnValue(
+      baseAnimatedPipeline() as ReturnType<typeof animatedApi.useAnimatedPipeline>
+    )
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    expect(screen.getByTestId('human-attention-lane-mock')).toBeInTheDocument()
+  })
+
+  it('expands a stage to reveal its branch breakdown when the expand toggle is clicked', async () => {
+    mockUseAnimatedPipeline.mockReturnValue(
+      baseAnimatedPipeline() as ReturnType<typeof animatedApi.useAnimatedPipeline>
+    )
+    const { default: userEvent } = await import('@testing-library/user-event')
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    expect(screen.queryByTestId('branch-breakdown-mock-triage')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: /expand triage/i }))
+    expect(screen.getByTestId('branch-breakdown-mock-triage')).toBeInTheDocument()
+  })
+
+  it('collapses an expanded stage when its toggle is clicked again', async () => {
+    mockUseAnimatedPipeline.mockReturnValue(
+      baseAnimatedPipeline() as ReturnType<typeof animatedApi.useAnimatedPipeline>
+    )
+    const { default: userEvent } = await import('@testing-library/user-event')
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    await userEvent.click(screen.getByRole('button', { name: /expand triage/i }))
+    await userEvent.click(screen.getByRole('button', { name: /collapse triage/i }))
+    expect(screen.queryByTestId('branch-breakdown-mock-triage')).toBeNull()
+  })
+
+  it('passes the incident id from the URL query param to the drawer', () => {
+    mockUseAnimatedPipeline.mockReturnValue(
+      baseAnimatedPipeline() as ReturnType<typeof animatedApi.useAnimatedPipeline>
+    )
+    render(<PipelineMap />, {
+      wrapper: ({ children }) => (
+        <MemoryRouter initialEntries={['/map?incident=00000000-0000-0000-0000-000000000099']}>
+          {children}
+        </MemoryRouter>
+      ),
+    })
+    expect(screen.getByTestId('incident-drawer-mock')).toHaveTextContent(
+      '00000000-0000-0000-0000-000000000099'
+    )
+  })
+
+  it('passes no incident id to the drawer when none is selected', () => {
+    mockUseAnimatedPipeline.mockReturnValue(
+      baseAnimatedPipeline() as ReturnType<typeof animatedApi.useAnimatedPipeline>
+    )
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    expect(screen.getByTestId('incident-drawer-mock')).toHaveTextContent('none')
   })
 })
