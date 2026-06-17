@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import timedelta
 from typing import Annotated, Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from backend.domain.anomaly import ScoreBands, parse_window
 from backend.domain.llm import ProviderId
 
 _KNOWN_ARGUS_SECTIONS = frozenset(
@@ -40,6 +42,7 @@ _KNOWN_ARGUS_SECTIONS = frozenset(
         "dashboard",
         "feedback",
         "detector",
+        "anomaly",
     }
 )
 _ARGUS_PREFIX = "ARGUS__"
@@ -439,6 +442,51 @@ class DetectorSettings(BaseSettings):
     source_tag: str = "detector"
 
 
+class AnomalySettings(BaseSettings):
+    """Settings for the ML anomaly detector (SPEC-ml-anomaly-detector #17).
+
+    The detector is a one-shot replay command (`python -m backend.anomaly_detector`)
+    that loads a saved Isolation Forest artifact, scores per-entity windows, and
+    fires alerts into the existing ingestion path via `intake.accept(source=...)`.
+    """
+
+    model_config = SettingsConfigDict(extra="forbid")
+
+    enabled: bool = True
+    model_path: str = "backend/data/anomaly/model.joblib"
+    replay_path: str | None = None
+    window: timedelta = Field(default_factory=lambda: parse_window("1d"))
+    fire_threshold: Annotated[float, Field(ge=0.0, le=1.0)] = 0.60
+    band_medium: Annotated[float, Field(ge=0.0, le=1.0)] = 0.60
+    band_high: Annotated[float, Field(ge=0.0, le=1.0)] = 0.75
+    band_critical: Annotated[float, Field(ge=0.0, le=1.0)] = 0.90
+    max_events: Annotated[int, Field(gt=0)] = 100_000
+    source_tag: str = "anomaly-detector"
+    score_bands: ScoreBands = Field(
+        default_factory=lambda: ScoreBands(
+            fire_threshold=0.60,
+            band_medium=0.60,
+            band_high=0.75,
+            band_critical=0.90,
+        )
+    )
+
+    @model_validator(mode="after")
+    def _sync_bands(self) -> AnomalySettings:
+        """Keep the flat band fields and the nested ScoreBands object in sync."""
+        object.__setattr__(
+            self,
+            "score_bands",
+            ScoreBands(
+                fire_threshold=self.fire_threshold,
+                band_medium=self.band_medium,
+                band_high=self.band_high,
+                band_critical=self.band_critical,
+            ),
+        )
+        return self
+
+
 class Settings(BaseSettings):
     """Root settings object — built once at startup, frozen thereafter.
 
@@ -474,6 +522,7 @@ class Settings(BaseSettings):
     feedback: FeedbackSettings = Field(default_factory=FeedbackSettings)
     eval: EvalSettings = Field(default_factory=EvalSettings)
     detector: DetectorSettings = Field(default_factory=DetectorSettings)
+    anomaly: AnomalySettings = Field(default_factory=AnomalySettings)
 
     @model_validator(mode="after")
     def _ensure_dashboard_vault_path_required(self) -> Settings:

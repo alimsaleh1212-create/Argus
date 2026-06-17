@@ -26,6 +26,8 @@ dependencies = [
     "redis>=5",
     "graphiti-core[google-genai]>=0.3",
     "pyjwt>=2.13.0",
+    "scikit-learn>=1.5",
+    "numpy>=1.26",
 ]
 
 [dependency-groups]
@@ -38,6 +40,7 @@ dev = [
     "ruff>=0.4",
     "pre-commit>=3.7",
     "httpx>=0.27",
+    "pandas>=2.2",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -144,14 +147,39 @@ forbidden_modules = [
     "backend.infra",
 ]
 
-# No-bypass guard (FR-018): opentelemetry and presidio must only be imported
-# from backend.infra.* — never from routers/services/agents/repositories/domain
-# directly. Enforced structurally by the layered contract above (which prevents
-# those layers from importing backend.infra's private helpers directly) and by
-# code-review convention. A full transitive "forbidden" contract would require
-# exhaustive ignore_imports entries for every valid infra-layer chain; the
-# layered architecture contract is the authoritative structural guard.
+# No-bypass guard (FR-018): opentelemetry, presidio, scikit-learn and joblib
+# must only be imported from backend.infra.* — never from routers/services/agents/
+# repositories/domain directly. Enforced structurally by the layered contract above
+# (which prevents those layers from importing backend.infra's private helpers directly)
+# and by code-review convention. A full transitive "forbidden" contract would require
+# exhaustive ignore_imports entries for every valid infra-layer chain; the layered
+# architecture contract is the authoritative structural guard.
 #
+# scikit-learn/joblib addendum: the only legitimate importers are backend.infra.*,
+# the offline training entrypoint backend.anomaly_train, and the eval gate
+# backend.eval.gates.anomaly_detection. Unit/integration/e2e tests inject a
+# FakeAnomalyModel and never load sklearn.
+[[tool.importlinter.contracts]]
+name = "No sklearn/joblib bypass"
+type = "forbidden"
+source_modules = [
+    "backend.domain",
+    "backend.services",
+    "backend.agents",
+    "backend.repositories",
+    "backend.routers",
+]
+forbidden_modules = [
+    "sklearn",
+    "joblib",
+]
+ignore_imports = [
+    "backend.infra.anomaly_model -> sklearn",
+    "backend.infra.anomaly_model -> joblib",
+    "backend.anomaly_train -> sklearn",
+    "backend.anomaly_train -> joblib",
+]
+
 # Ruff ban (direct-only, no transitives):
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"

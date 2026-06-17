@@ -154,6 +154,11 @@ be built unless a tier checkpoint is met with genuine surplus: an ML anomaly det
 v2a/v3), multi-tenancy, an embeddable widget, live network capture, an LLM-driven supervisor, and
 any fourth agent (supervisor + triage/enrichment/response only).
 
+> **Exception**: Component #17 (SPEC-ml-anomaly-detector) is an ML anomaly detector at the
+detection layer, authorized by the 2026-06-16 *Detection Strategy Update* as a bounded, decoupled
+complement to the deterministic rule detector (#14). The exception is recorded in `DECISIONS.md`
+**AD2** and in the Amendment log below; it does not generalize to the other out-of-scope items.
+
 Delivery is **layered and independently shippable**. Each tier is a complete, honest deliverable on
 its own:
 
@@ -209,4 +214,20 @@ change. Versioning follows semantic versioning:
 For day-to-day runtime guidance (technologies, structure, shell commands), developers and agents
 read the current plan and the relevant component `SPEC.md`, as directed by `CLAUDE.md`.
 
-**Version**: 2.0.0 | **Ratified**: 2026-06-06 | **Last Amended**: 2026-06-15
+**Version**: 2.0.1 | **Ratified**: 2026-06-06 | **Last Amended**: 2026-06-16
+
+## Amendment log
+
+### 2026-06-16 — Detection-layer ML exception for SPEC-ml-anomaly-detector (#17)
+
+**Scope**: Principle IV / Scope-Discipline.
+
+**Change**: Records a justified, time-bound exception for component #17 (UEBA-style ML anomaly
+detection). The exception is bounded: the response path remains deterministic; the detector is
+decoupled (no second writer, no new FSM edge); and it complements (does not replace) the existing
+deterministic rule detector (#14). Full rationale, mitigations, and rejected alternatives are
+recorded in `DECISIONS.md` **AD2**.
+
+**Impact**: The v1-out-of-scope / T4-stretch line for "an ML anomaly detector" is explicitly
+overridden for #17 by the 2026-06-16 *Detection Strategy Update*. No other scope-discipline items
+are affected. No template changes required.
