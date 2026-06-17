@@ -18,6 +18,9 @@ const TraceInspector = lazy(() =>
 const KpiDashboard = lazy(() =>
   import('@/features/kpis/KpiDashboard').then((m) => ({ default: m.KpiDashboard }))
 )
+const PipelineMap = lazy(() =>
+  import('@/features/map/PipelineMap').then((m) => ({ default: m.PipelineMap }))
+)
 
 function Loading() {
   return (
@@ -54,6 +57,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <IncidentQueue />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'map',
+        element: (
+          <Suspense fallback={<Loading />}>
+            <PipelineMap />
           </Suspense>
         ),
       },

@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Shield, LayoutDashboard, BarChart3, LogOut } from 'lucide-react'
+import { Shield, LayoutDashboard, BarChart3, LogOut, GitGraph } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/auth/AuthContext'
 import { ConnectionIndicator } from './ConnectionIndicator'
@@ -8,6 +8,7 @@ import { useConnectionState, useSSEStream } from '@/api/stream'
 
 const navItems = [
   { to: '/queue', label: 'Queue', icon: LayoutDashboard },
+  { to: '/map', label: 'Pipeline Map', icon: GitGraph },
   { to: '/kpis', label: 'KPIs', icon: BarChart3 },
 ]
 

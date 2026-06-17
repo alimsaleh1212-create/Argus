@@ -1,8 +1,44 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { StageNodeCard } from '@/features/map/StageNode'
 import { FlowEdge } from '@/features/map/FlowEdge'
 import { TerminalColumn } from '@/features/map/TerminalColumn'
+import { PipelineMap } from '@/features/map/PipelineMap'
+import * as animatedApi from '@/features/map/useAnimatedPipeline'
+
+vi.mock('@/features/map/useAnimatedPipeline', () => ({
+  useAnimatedPipeline: vi.fn(),
+}))
+
+const mockUseAnimatedPipeline = vi.mocked(animatedApi.useAnimatedPipeline)
+
+function makeSnapshot() {
+  return {
+    stages: [
+      { key: 'intake', label: 'Intake', in_flight: 2, branches: [] },
+      { key: 'triage', label: 'Triage', in_flight: 4, branches: [] },
+      { key: 'enrichment', label: 'Enrichment', in_flight: 1, branches: [] },
+      { key: 'response', label: 'Response', in_flight: 3, branches: [] },
+    ],
+    terminals: { resolved: 10, escalated: 2, awaiting: 1 },
+    window_hours: 24,
+    generated_at: '2026-06-17T12:00:00Z',
+  }
+}
+
+function baseAnimatedPipeline() {
+  return {
+    snapshot: makeSnapshot(),
+    isLoading: false,
+    error: null,
+    changedStageKeys: new Set<string>(),
+    changedTerminalKeys: new Set<string>(),
+    paused: false,
+    togglePaused: vi.fn(),
+    prefersReducedMotion: false,
+  }
+}
 
 describe('StageNodeCard', () => {
   const stage = { key: 'triage', label: 'Triage', in_flight: 4, branches: [] }
@@ -67,5 +103,80 @@ describe('TerminalColumn', () => {
     expect(screen.getByText('Resolved')).toBeInTheDocument()
     expect(screen.getByText('Escalated')).toBeInTheDocument()
     expect(screen.getByText('Awaiting')).toBeInTheDocument()
+  })
+})
+
+describe('PipelineMap', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('renders a loading skeleton while data is loading', () => {
+    mockUseAnimatedPipeline.mockReturnValue({
+      ...baseAnimatedPipeline(),
+      snapshot: undefined,
+      isLoading: true,
+    } as ReturnType<typeof animatedApi.useAnimatedPipeline>)
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    expect(screen.getByLabelText('Loading pipeline map')).toBeInTheDocument()
+  })
+
+  it('renders an error state when the fetch fails', () => {
+    mockUseAnimatedPipeline.mockReturnValue({
+      ...baseAnimatedPipeline(),
+      snapshot: undefined,
+      isLoading: false,
+      error: new Error('fetch failed'),
+    } as ReturnType<typeof animatedApi.useAnimatedPipeline>)
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    expect(screen.getByText(/failed to load pipeline map/i)).toBeInTheDocument()
+  })
+
+  it('renders an empty state when there are no in-flight incidents and no terminals', () => {
+    mockUseAnimatedPipeline.mockReturnValue({
+      ...baseAnimatedPipeline(),
+      snapshot: {
+        stages: [
+          { key: 'intake', label: 'Intake', in_flight: 0, branches: [] },
+          { key: 'triage', label: 'Triage', in_flight: 0, branches: [] },
+          { key: 'enrichment', label: 'Enrichment', in_flight: 0, branches: [] },
+          { key: 'response', label: 'Response', in_flight: 0, branches: [] },
+        ],
+        terminals: { resolved: 0, escalated: 0, awaiting: 0 },
+        window_hours: 24,
+        generated_at: '2026-06-17T12:00:00Z',
+      },
+    } as ReturnType<typeof animatedApi.useAnimatedPipeline>)
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    expect(screen.getByText(/no incidents in flight/i)).toBeInTheDocument()
+  })
+
+  it('renders the rail and terminal column when data is loaded', () => {
+    mockUseAnimatedPipeline.mockReturnValue(
+      baseAnimatedPipeline() as ReturnType<typeof animatedApi.useAnimatedPipeline>
+    )
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    expect(screen.getByTestId('stage-node-intake')).toBeInTheDocument()
+    expect(screen.getByTestId('stage-node-response')).toBeInTheDocument()
+    expect(screen.getByTestId('terminal-column')).toBeInTheDocument()
+  })
+
+  it('calls togglePaused when the Live/Pause button is clicked', async () => {
+    const togglePaused = vi.fn()
+    mockUseAnimatedPipeline.mockReturnValue({
+      ...baseAnimatedPipeline(),
+      togglePaused,
+    } as ReturnType<typeof animatedApi.useAnimatedPipeline>)
+    const { default: userEvent } = await import('@testing-library/user-event')
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    await userEvent.click(screen.getByRole('button', { name: /live|pause/i }))
+    expect(togglePaused).toHaveBeenCalledOnce()
+  })
+
+  it('shows "Paused" label when paused is true', () => {
+    mockUseAnimatedPipeline.mockReturnValue({
+      ...baseAnimatedPipeline(),
+      paused: true,
+    } as ReturnType<typeof animatedApi.useAnimatedPipeline>)
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    expect(screen.getByRole('button', { name: /paused/i })).toBeInTheDocument()
   })
 })
