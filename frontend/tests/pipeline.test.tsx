@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useQuery } from '@tanstack/react-query'
 import { diffSnapshots, usePipeline, type PipelineSnapshot } from '@/api/pipeline'
-import { apiFetch } from '@/api/client'
 import * as pipelineApi from '@/api/pipeline'
 import { useAnimatedPipeline, usePrefersReducedMotion } from '@/features/map/useAnimatedPipeline'
 
@@ -87,17 +85,10 @@ describe('usePipeline', () => {
     return <QueryClientProvider client={qc}>{children}</QueryClientProvider>
   }
 
-  beforeEach(() => {
-    // Configure the mock to delegate to the real useQuery implementation
-    mockUsePipeline.mockImplementation((options = {}) => {
-      const { paused = false } = options
-      return useQuery({
-        queryKey: ['pipeline'],
-        queryFn: () => apiFetch<PipelineSnapshot>('/incidents/pipeline'),
-        refetchInterval: 2000,
-        enabled: !paused,
-      })
-    })
+  beforeEach(async () => {
+    // Configure the mock to delegate to the real usePipeline implementation
+    const actual = await vi.importActual<typeof import('@/api/pipeline')>('@/api/pipeline')
+    mockUsePipeline.mockImplementation(actual.usePipeline)
 
     vi.stubGlobal(
       'fetch',
