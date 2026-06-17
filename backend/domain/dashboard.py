@@ -148,6 +148,39 @@ class KpiSnapshot(BaseModel):
     generated_at: datetime
 
 
+class BranchOutflow(BaseModel):
+    """One terminal exit from a stage over the rolling window."""
+
+    to: str  # "resolved" | "escalated"
+    count: int
+
+
+class StageNode(BaseModel):
+    """One stage on the pipeline rail."""
+
+    key: str  # "intake" | "triage" | "enrichment" | "response"
+    label: str
+    in_flight: int
+    branches: list[BranchOutflow] = Field(default_factory=list)
+
+
+class TerminalCounts(BaseModel):
+    """Rolling-window terminal totals + live awaiting-approval count."""
+
+    resolved: int
+    escalated: int
+    awaiting: int
+
+
+class PipelineSnapshot(BaseModel):
+    """Aggregate read for the SOC pipeline-map view (read-only)."""
+
+    stages: list[StageNode]
+    terminals: TerminalCounts
+    window_hours: int
+    generated_at: datetime
+
+
 class LoginRequest(BaseModel):
     """Auth login body — extra='forbid' to reject unknown fields."""
 

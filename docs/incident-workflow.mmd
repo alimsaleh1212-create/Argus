@@ -1,0 +1,65 @@
+flowchart TD
+    subgraph Sources
+        A1[Wazuh Adapter]
+        A2[Deterministic Detector]
+        A3[Anomaly Detector]
+    end
+
+    A1 --> B
+    A2 --> B
+    A3 --> B
+
+    B[Intake<br/>redact · dedup · persist · enqueue] --> C[Redis Queue]
+    C --> D[Worker: ground + feedback bias]
+    D --> E[GROUNDED]
+
+    E --> F{Supervisor route}
+    F -->|autoclose severity| G[RESOLVED<br/>auto_resolved_noise]
+    F -->|critical severity| H[RESPONDING]
+    F -->|ambiguous| I[TRIAGING]
+
+    I --> J{Triage LLM}
+    J -->|real + high conf| K[ENRICHING]
+    J -->|noise + high conf| L[RESOLVED<br/>auto_resolved_triage]
+    J -->|uncertain / low conf| M[ESCALATED<br/>escalated_triage]
+
+    K --> N{Enrichment LLM}
+    N -->|confirmed + high conf| H
+    N -->|benign + high conf| O[RESOLVED<br/>auto_resolved_enrichment]
+    N -->|inconclusive / low conf| P[ESCALATED<br/>escalated_enrichment]
+
+    H --> Q[Response: select playbook]
+    Q --> R{Action risk}
+    R -->|only AUTO| S[Execute auto actions]
+    R -->|APPROVAL_REQUIRED| T[NEEDS_APPROVAL<br/>AWAITING_APPROVAL]
+
+    S --> U{Verify remediation}
+    U -->|VERIFIED| V[RESOLVED<br/>auto_remediated]
+    U -->|UNVERIFIED / REGRESSED| W[ESCALATED<br/>remediation_unverified]
+
+    T --> X{Human decision}
+    X -->|approve| Y[Execute approved actions]
+    X -->|reject| Z[RESOLVED<br/>rejected_by_human]
+    X -->|timeout| AA[ESCALATED<br/>approval_expired]
+
+    Y --> U
+
+    G --> AB[(Memory feedback)]
+    L --> AB
+    O --> AB
+    V --> AB
+    W --> AB
+    Z --> AB
+    M --> AB
+    P --> AB
+    AA --> AB
+
+    style G fill:#90ee90
+    style L fill:#90ee90
+    style O fill:#90ee90
+    style V fill:#90ee90
+    style Z fill:#90ee90
+    style M fill:#ff9999
+    style P fill:#ff9999
+    style W fill:#ff9999
+    style AA fill:#ff9999

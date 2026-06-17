@@ -135,3 +135,77 @@ class TestIncidentRepository:
         non_terminal = await repo.list_non_terminal()
         ids = [r.id for r in non_terminal]
         assert created.id in ids
+
+
+@pytest.mark.integration
+class TestPipelineRepositoryReads:
+    async def _resolved(self, session, *, disposition: str):
+        from backend.domain.incident import Incident, IncidentStatus, Severity
+        from backend.repositories.incidents import IncidentRepository
+
+        repo = IncidentRepository(session)
+        inc = Incident(
+            id=uuid.uuid4(),
+            status=IncidentStatus.RECEIVED,
+            severity=Severity.HIGH,
+            correlation_id=str(uuid.uuid4()),
+            dedup_fingerprint=f"fp-{uuid.uuid4().hex}",
+            source="wazuh",
+            raw_alert={"rule": {"level": 10}},
+        )
+        await repo.create(inc)
+        await repo.advance_status(
+            inc.id,
+            expected=IncidentStatus.RECEIVED,
+            target=IncidentStatus.RESOLVED,
+            disposition=disposition,
+        )
+        return inc, repo
+
+    async def test_status_counts_groups_by_status(self, db_session) -> None:
+        from backend.domain.incident import Incident, IncidentStatus, Severity
+        from backend.repositories.incidents import IncidentRepository
+
+        repo = IncidentRepository(db_session)
+        for _ in range(2):
+            inc = Incident(
+                id=uuid.uuid4(),
+                status=IncidentStatus.RECEIVED,
+                severity=Severity.LOW,
+                correlation_id=str(uuid.uuid4()),
+                dedup_fingerprint=f"fp-{uuid.uuid4().hex}",
+                source="wazuh",
+                raw_alert={"rule": {"level": 3}},
+            )
+            await repo.create(inc)
+
+        counts = await repo.status_counts()
+        assert counts.get("received", 0) >= 2
+
+    async def test_disposition_counts_since_respects_window(self, db_session) -> None:
+        import sqlalchemy as sa
+
+        from backend.repositories.incidents import IncidentRepository
+
+        repo = IncidentRepository(db_session)
+        # Baseline: current within-window count for this disposition (the shared
+        # container may already hold rows from other tests).
+        baseline = (await repo.disposition_counts_since(window_hours=24)).get("auto_remediated", 0)
+
+        # A resolved incident backdated OUTSIDE the 24h window must NOT be counted.
+        inc_old, _ = await self._resolved(db_session, disposition="auto_remediated")
+        await db_session.execute(
+            sa.text(
+                "UPDATE incidents SET updated_at = now() - make_interval(hours => 100) "
+                "WHERE id = :id"
+            ),
+            {"id": str(inc_old.id)},
+        )
+        await db_session.commit()
+        after_old = (await repo.disposition_counts_since(window_hours=24)).get("auto_remediated", 0)
+        assert after_old == baseline  # backdated row excluded from the window
+
+        # A fresh, in-window resolved incident MUST be counted.
+        await self._resolved(db_session, disposition="auto_remediated")
+        after_new = (await repo.disposition_counts_since(window_hours=24)).get("auto_remediated", 0)
+        assert after_new == baseline + 1  # in-window row included

@@ -320,6 +320,26 @@ class IncidentRepository:
             "escalated": raw.get("escalated", 0),
         }
 
+    async def status_counts(self) -> dict[str, int]:
+        """Return raw per-status counts across all incidents (pipeline-map rail)."""
+        result = await self._session.execute(
+            sa.text("SELECT status, COUNT(*) AS cnt FROM incidents GROUP BY status")
+        )
+        return {row["status"]: row["cnt"] for row in result.mappings().all()}
+
+    async def disposition_counts_since(self, *, window_hours: int) -> dict[str, int]:
+        """Return per-disposition counts for incidents updated within the window."""
+        result = await self._session.execute(
+            sa.text(
+                "SELECT disposition, COUNT(*) AS cnt FROM incidents "
+                "WHERE disposition IS NOT NULL "
+                "AND updated_at >= now() - make_interval(hours => :wh) "
+                "GROUP BY disposition"
+            ),
+            {"wh": window_hours},
+        )
+        return {row["disposition"]: row["cnt"] for row in result.mappings().all()}
+
     async def list_non_terminal(self) -> list[Incident]:
         result = await self._session.execute(
             sa.text(
