@@ -361,6 +361,7 @@ class DashboardSettings(BaseSettings):
     vault_path_admin: str = "secret/dashboard"
     token_ttl_minutes: Annotated[int, Field(gt=0)] = 60
     algorithm: str = "HS256"
+    pipeline_window_hours: Annotated[int, Field(gt=0)] = 24
     stream_poll_seconds: Annotated[float, Field(gt=0)] = 2.0
 
 

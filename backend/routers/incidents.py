@@ -25,6 +25,7 @@ from backend.domain.dashboard import (
     AuditView,
     IncidentDetailView,
     KpiSnapshot,
+    PipelineSnapshot,
     QueuePage,
     SpanView,
     TelemetryView,
@@ -33,6 +34,7 @@ from backend.domain.dashboard import (
 from backend.domain.telemetry import Span, TelemetryRecord
 from backend.services.dashboard_stream import incident_stream
 from backend.services.kpis import build_kpi_snapshot
+from backend.services.pipeline_view import build_pipeline_snapshot
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
@@ -118,6 +120,15 @@ async def get_kpis(
     repo=Depends(get_incident_repo),
 ) -> KpiSnapshot:
     return await build_kpi_snapshot(repo)
+
+
+@router.get("/pipeline", response_model=PipelineSnapshot)
+async def get_pipeline(
+    request: Request,
+    repo=Depends(get_incident_repo),
+) -> PipelineSnapshot:
+    window = request.app.state.settings.dashboard.pipeline_window_hours
+    return await build_pipeline_snapshot(repo, window_hours=window)
 
 
 @router.get("/stream")
