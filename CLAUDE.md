@@ -2,31 +2,45 @@
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
 
-**Active component**: `014-detector` (Component #14 — `SPEC-detector`; the **T3 detection layer**, per the
-roadmap `…016-M1 →[T2]→ 014`). A **deterministic** rule/threshold detector (Constitution IV — *no LLM, no
-ML*) that **fires** alerts into the **existing `#4` ingestion contract** with **zero downstream change**. The
-ML anomaly detector is now planned as **`#17`** (decoupled, reads SIEM logs, **complements not replaces**
-#14); `011` remains the safety gap (v3b/VD1).
-- Plan: `specs/014-detector/plan.md`
-- Spec: `specs/014-detector/spec.md`
-- Design: `specs/014-detector/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
+**Active component**: `017-ml-anomaly-detector` (Component #17 — `SPEC-ml-anomaly-detector`; the **ML
+anomaly detection layer**, UEBA-style — built **after** the rule detector #14, per the 2026-06-16
+*Detection Strategy Update*). A **decoupled, complementary** ML source that reads **replayed SIEM logs**,
+scores **per-entity time windows** for behavioral deviation, and **fires** alerts into the **existing `#4`
+ingestion contract** with **zero downstream change**. It **complements, does not replace** #14 (signature +
+anomaly cover each other's blind spots). XDR correlation rolls to **#18/v3**; `011` remains the safety gap
+(v3b/VD1).
+- Plan: `specs/017-ml-anomaly-detector/plan.md`
+- Spec: `specs/017-ml-anomaly-detector/spec.md`
+- Design: `specs/017-ml-anomaly-detector/research.md`, `data-model.md`, `quickstart.md`, `contracts/`
 
-Stack (this component, #14): a **backend-only** extension (mirrors #8 one-shot `seed-corpus` + #9/#15
-closure-factory DI; pure domain types in a new `domain/detector.py`; **zero migration**). A one-shot
-`python -m backend.detector` loads a **config-backed rule set** (`backend/data/detector/rules.yaml` —
-`match` signature + `threshold` aggregation rules) and a **replayed event set**, runs a **pure**
-`services/detector.evaluate()`, maps each `FiredAlert → WazuhAlert`, and emits **in-process via the
-existing `services/intake.accept()`** seam with one **backward-compatible** change — `accept(...,
-source="wazuh")` parameterized so detector incidents are tagged `source="detector"` (FR-006).
-Redaction/dedup/persist/enqueue are all reused (Constitution III redaction is free; the existing dedup
-makes replay idempotent). Severity from the matched rule; multi-match → highest severity (one event → ≤1
-alert). New **`DetectorSettings`** (`extra="forbid"`) + new deterministic, provider-independent
-**`detection`** eval gate (precision/recall on a labeled replay set; yaml block **+** registry runner added
-together — orphan check is a hard error in #13). **No** new write authority over incident state (creates
-`received` incidents only; supervisor stays single writer); **no** change to schema/FSM/agents/existing
-gates. Ships **M-a** (detector core + `intake` source param + unit/integration) → **M-b** (`detection` gate
-+ fixtures + e2e), each ≤~400 lines. **Out of scope**: ML/anomaly (that is `#17`), live capture (v3c),
-`016-M2` feed-to-detector tuning.
+Stack (this component, #17): a **backend-only** extension that **mirrors #14** (one-shot commands + pure
+`services` core + closure-factory DI; pure domain types in a new `domain/anomaly.py`; **zero migration**).
+An **offline** `python -m backend.anomaly_train` reads the **CERT Insider Threat (r6.2)** dataset (NOT
+committed), builds per-user-day features, fits an **Isolation Forest** (pinned seed), and saves a small
+**committed** artifact (`backend/data/anomaly/model.joblib`). A replay one-shot `python -m
+backend.anomaly_detector` (`make_anomaly_runner` DI) loads the artifact (behind the pure **`AnomalyModel`
+Protocol**, `infra/anomaly_model.py`, faked in tests), builds **entity-windows** from replayed logs, scores
+them, maps **`score → severity` via config-backed bands** + a `fire_threshold`, and emits each over-threshold
+window as `AnomalyFinding → WazuhAlert` **in-process via the existing `services/intake.accept(...,
+source="anomaly-detector")`** seam — whose `source` param **already exists** (from #14), so **`intake` is
+reused unchanged** (no migration, no schema/FSM/agent change). New **`AnomalySettings`** (`extra="forbid"`)
++ new deterministic, provider-independent, **blocking** **`anomaly_detection`** eval gate (precision/recall +
+FP ceiling, scored against the committed artifact; yaml block **+** registry runner **+** `__main__` import
+added together — orphan check is a hard error in #13). **NEW runtime deps**: `scikit-learn` + `numpy`
+(inference); `pandas` dev-only (training). **Constitution note**: this is ML at the **detection** layer — an
+explicit **recorded exception** to Principle IV (response path stays deterministic; detector is decoupled —
+no second writer, no FSM edge), requiring a `DECISIONS.md` entry + constitution note **before** implementation
+(M-0 precondition). Ships **M-a** (train + features + model/infra) → **M-b** (runner + emit + integration/e2e)
+→ **M-c** (`anomaly_detection` gate + labeled fixture), each ≤~400 lines. **Out of scope**: live feeds (v3c),
+drift/retraining, feed-to-detector tuning of the model, XDR (#18).
+
+Prior #14 (`014-detector`, done) — a **deterministic** rule/threshold detector (Constitution IV, no LLM/ML):
+one-shot `python -m backend.detector` loads a config-backed rule set (`backend/data/detector/rules.yaml` —
+`match` + `threshold` rules) + a replayed event set, runs pure `services/detector.evaluate()`, maps
+`FiredAlert → WazuhAlert`, emits via `services/intake.accept(..., source="detector")` (it **added** the
+backward-compatible `source` param #17 now reuses). `DetectorSettings` + deterministic **`detection`** gate.
+Zero downstream change; supervisor stays single writer. The **real, Constitution-clean** shipping detector
+that #17 complements. Plan: `specs/014-detector/plan.md`.
 
 Prior #16 (`016-memory-feedback-loop`, done) — build detail: a **backend-only** extension (mirrors #9/#15 — zero migration, closure-factory DI, pure
 domain types in a new `domain/feedback.py`). **M1** (buildable now) **writes** each verification verdict (from

@@ -1,6 +1,6 @@
 # ML Anomaly Detector on SIEM Logs — Discussion & Decision
 
-**Date:** 2026-06-16 · **Status:** decision record (feeds future spec **#17**)
+**Date:** 2026-06-16 · **Status:** decision record (spec **#17** specified & clarified — see §11)
 **Context:** raised while specifying `014-detector`. Captures the research, the layering decision
 (keep the deterministic detector, *add* ML — do not replace), datasets, and how to mock it in the demo.
 See also: [resources/SOAR_brief.md](resources/SOAR_brief.md) (*Detection Strategy Update* addendum) and
@@ -129,7 +129,60 @@ be captured as a `DECISIONS.md` entry + a constitution note before `#17` impleme
 - ML anomaly detection is a substantial effort (dataset + training + baselining + drift + eval skew) —
   pursue `#17` only with genuine surplus; otherwise it stays designed-but-deferred.
 
-## 10. Sources
+## 10. Code structure — `backend/` across layers, NOT a standalone `ml/` dir
+
+**Decision (plan-time): keep #17 inside `backend/`, distributed across the existing inward-only layers.**
+Not a top-level `ml/` package; not even a `backend/ml/` sub-package. (Recorded as `DECISIONS.md` **AD1**.)
+
+| Piece | Location | Layer rule it respects |
+|---|---|---|
+| Pure types + `AnomalyModel` Protocol | `backend/domain/anomaly.py` | `domain` isolated, no outward imports but `Severity` |
+| Feature build / scoring / mapping (pure) | `backend/services/anomaly.py` | mirrors `services/detector.py` |
+| sklearn wrapper (`joblib` load + `score_samples`) | `backend/infra/anomaly_model.py` | `infra` owns external SDKs (like `infra/llm_drivers.py`) |
+| Offline trainer / replay runner | `backend/anomaly_train.py`, `backend/anomaly_detector.py` | one-shot entrypoints (like `backend/detector.py`) |
+| Artifact | `backend/data/anomaly/model.joblib` | next to `backend/data/detector/rules.yaml` |
+| Eval gate | `backend/eval/gates/anomaly_detection.py` | next to `gates/detection.py` |
+
+**Why backend, not standalone `ml/`:**
+1. **The runner calls back into `backend`** — it ends at `services/intake.accept(..., source="anomaly-detector")`
+   and reuses config/redaction/queue/cache. A top-level `ml/` importing `backend.services.intake` inverts
+   the dependency direction (outer → inner) and breaks the `import-linter` contract. The emitter belongs in
+   the package that owns ingestion.
+2. **"One image, many containers"** (platform decision #1) — the single backend image already runs
+   API/migrate/worker/detector as different commands; `anomaly_train` + `anomaly_detector` are two more
+   one-shot commands in that mold. A standalone dir implies a second runtime/uv-project for zero benefit
+   (Isolation Forest is CPU-only, sub-second).
+3. **The layers absorb ML cleanly** — pure transforms → `services`, the sklearn wrapper → `infra` (behind
+   the injected `AnomalyModel` Protocol, faked in tests), entrypoints at top level. **No new top-level
+   layer, no new import-linter contract.** A `backend/ml/` sub-package would straddle the
+   `routers→services→agents→repositories→infra` graph (pure transforms + sklearn I/O + an entrypoint in one
+   folder) — a layering smell. `scikit-learn` stays confined to `infra` + the train/eval entrypoints;
+   `pandas` is dev/training-only, kept off the serve path.
+
+**When a standalone dir *would* be right (deferred, not now):** only if the ML layer became a genuine
+separate deployable — a model-serving microservice, a GPU runtime (autoencoder, rejected), or the cohort
+"detection-focused project supplies this half" composition (v3a). Then it would be a **uv workspace member
+with its own image**, talking to `backend` over the **ingestion contract (`POST /ingest`)**, not via
+imports. That seam already exists, so #17 can spin out later with zero rework — the decoupling-as-architecture
+exit ramp.
+
+## 11. Spec #17 clarification decisions (2026-06-16)
+
+Resolved during `/speckit-clarify` on `specs/017-ml-anomaly-detector/spec.md`. These supersede the
+"decide at plan time" notes that were open items.
+
+| # | Decision | Choice | Rationale |
+|---|----------|--------|-----------|
+| D1 | **Scoring granularity** | **Per-entity time window** (UEBA-style) | Aggregate each user/host's activity over a configured window into behavioral features, then score the window. Single events lack behavioral context; window scoring is the UEBA standard and matches CERT/LANL label semantics. |
+| D2 | **Alert severity** | **Config-backed score→severity bands** | Map anomaly-score ranges onto the existing severity scale via config. Deterministic, tunable without code, and preserves the score's signal for supervisor routing (vs. a fixed severity that discards it). |
+| D3 | **Eval gate posture** | **Blocking / required** | Committed precision/recall floors + FP ceiling fail CI — same posture as #14's detection gate and Constitution II default. Justified: gate scores the saved artifact (FR-010), so it is deterministic with no runtime variance to excuse softening. |
+| D4 | **Dataset** | **CERT Insider Threat (r6.2)** | Scenario-labeled user-activity logs (logon, device, file, email, http); entities = users; clean malicious-vs-normal labels; manageable size for a solo build; widely paired with Isolation Forest. LANL was the considered alternative (richer, much larger, ~0.00007% malicious imbalance). |
+
+**Remaining plan-time items** (not ambiguous, just config-level): CERT release/version, time-window
+length, concrete threshold values, score→severity band breakpoints, model library (Isolation Forest
+preferred — lightweight, GPU-free — vs. compact autoencoder), model-artifact storage (repo vs. MinIO).
+
+## 12. Sources
 
 - [Exabeam — UEBA tools & capabilities](https://www.exabeam.com/explainers/ueba/ueba-tools-key-capabilities-and-7-tools-you-should-know/)
 - [Microsoft Learn — UEBA in Microsoft Sentinel](https://learn.microsoft.com/en-us/azure/sentinel/identify-threats-with-entity-behavior-analytics)

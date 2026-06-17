@@ -1001,3 +1001,86 @@ The `Incident` schema is unchanged (FR-013 — zero downstream change).
 **Rejected**: Standalone detector service with its own router (adds a new layer /
 endpoint, no benefit over in-process emission per DD1). Detector as a Celery task
 (extra infra dependency; the one-shot command is enough for a replay tool).
+
+---
+
+## SPEC-ml-anomaly-detector #17
+
+### AD1 — Code lives in `backend/` across existing layers; NOT a standalone `ml/` dir
+
+**Decision**: The ML anomaly detector lives **inside `backend/`**, distributed across the
+existing inward-only layers — **not** a top-level standalone `ml/` package, and **not**
+even a `backend/ml/` sub-package:
+- `backend/domain/anomaly.py` — pure types + the `AnomalyModel` Protocol (only outward
+  import: `Severity` from `domain/incident.py`).
+- `backend/services/anomaly.py` — pure `build_windows` / `featurize` / `score_to_severity`
+  / `finding_to_wazuh_alert` / `load_replay_events` (mirrors `services/detector.py`).
+- `backend/infra/anomaly_model.py` — `SklearnAnomalyModel(AnomalyModel)`: `joblib` load +
+  `score_samples → [0,1]`, fail-closed on a missing/unloadable artifact. **Owns the
+  `scikit-learn`/`joblib` imports** (infra owns external SDKs, like `infra/llm_drivers.py`).
+- `backend/anomaly_train.py` (offline) and `backend/anomaly_detector.py` (replay) — two
+  one-shot entrypoints, siblings of `backend/detector.py` / `backend/worker.py`;
+  `make_anomaly_runner(...)` closure-factory DI.
+- `backend/data/anomaly/model.joblib` — the committed artifact;
+  `backend/eval/gates/anomaly_detection.py` — the gate.
+
+**Why**:
+- **The runner must call back into `backend`** — it ends at `services/intake.accept(...)`
+  and reuses config/redaction/queue/cache. A top-level `ml/` importing
+  `backend.services.intake` inverts the dependency direction (outer → inner) and would
+  break the `import-linter` contract. The emitter belongs in the package that owns ingestion.
+- **"One image, many containers" (D-platform)** — a single backend image already runs
+  API/migrate/worker/detector as different commands; `anomaly_train` + `anomaly_detector`
+  are two more one-shot commands in that mold. A standalone dir implies a second
+  runtime/uv-project for zero benefit (Isolation Forest is CPU-only, sub-second).
+- **The layers absorb ML cleanly** — pure transforms → `services`, the sklearn wrapper →
+  `infra` (behind the `AnomalyModel` Protocol, injected, faked in tests), entrypoints at
+  top level. **No new top-level layer, no new import-linter contract.** A `backend/ml/`
+  sub-package would straddle the `routers→services→agents→repositories→infra` graph (pure
+  transforms + sklearn I/O + an entrypoint in one folder) — a layering smell.
+- **`scikit-learn` stays confined** to `infra` + the train/eval entrypoints (extends the
+  existing no-bypass import guard that fences `opentelemetry`/`presidio`); `pandas` is a
+  dev/training-only group, kept off the serve path.
+
+**Rejected**:
+- *Standalone top-level `ml/` package* — inverts the dependency into `backend`, needs its
+  own import-linter placement, and the detector is not a separate deployable here (it is a
+  one-shot replay command reusing `intake`).
+- *`backend/ml/` sub-package* — a layer-straddling grab-bag; distributing the pieces across
+  the layers they actually belong to is cleaner and needs no new contract.
+
+**When standalone *would* be right** (deferred, not now): if the ML layer became a genuine
+separate deployable — a model-serving microservice, a GPU runtime (autoencoder, rejected),
+or the cohort "detection-focused project supplies this half" composition (v3a roadmap). Then
+it would be a **uv workspace member with its own image**, talking to `backend` over the
+**ingestion contract (`POST /ingest`)**, not via imports. That seam already exists, so #17
+can spin out later with zero rework — the decoupling-as-architecture exit ramp.
+
+### AD2 — Recorded exception to Constitution Principle IV (detection-layer ML)
+
+**Decision**: Component #17 introduces an **Isolation Forest at the detection layer** — an
+explicit, time-bound exception to Principle IV ("Determinism First") and to the Scope-Discipline
+line that lists "an ML anomaly detector" as v1-out-of-scope / T4-stretch. The exception is
+**bounded and decoupled**:
+- The **response path stays deterministic** (supervisor remains a hand-written FSM; agents reason
+  only over supplied evidence).
+- The detector is **decoupled**: no second writer, no new FSM edge, no status transitions; it only
+  creates `received` incidents through the existing `intake.accept()` seam.
+- It **complements** (does not replace) the deterministic rule detector (#14).
+
+This exception is authorized by the 2026-06-16 *Detection Strategy Update* that brings the
+ML anomaly layer in-project as #17, immediately after #14.
+
+**Why**: Signature-based detectors (#14) structurally cannot fire on novel behavior (compromised
+credentials, lateral movement, insider exfil). The brief's detection thesis requires signature +
+anomaly layering to cover each other's blind spots. Isolation Forest is CPU-only, deterministic
+once a `random_state` is pinned, and confined to `infra` + offline training/eval entrypoints.
+
+**Rejected simpler alternative**: Stay purely deterministic for this capability — rejected because
+a deterministic rule set, by construction, only fires on enumerated known-bad patterns and cannot
+surface novel behavioral deviations.
+
+**Mitigations**: The exception is recorded here and in `.specify/memory/constitution.md`; the
+model is injected behind a pure `AnomalyModel` Protocol; unit/integration/e2e tests use a
+deterministic `FakeAnomalyModel` and never load `scikit-learn`; the one blocking eval gate
+(`anomaly_detection`) scores a committed artifact deterministically, so it is bit-stable.
