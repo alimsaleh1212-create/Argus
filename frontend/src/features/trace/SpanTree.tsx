@@ -22,7 +22,7 @@ function StatusIcon({ status }: { status: string }) {
     return <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" aria-label="Error" />
   }
   if (status === 'ok') {
-    return <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" aria-label="OK" />
+    return <CheckCircle className="w-3.5 h-3.5 text-cyan-400 shrink-0" aria-label="OK" />
   }
   return <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-label="Pending" />
 }
@@ -50,7 +50,7 @@ function SpanNode({ span, children, depth, onSelect, selectedId }: SpanNodeProps
         className={[
           'flex items-center gap-2 py-1.5 px-2 rounded cursor-pointer transition-colors',
           'hover:bg-slate-800',
-          isSelected ? 'bg-slate-800 ring-1 ring-green-500/50' : '',
+          isSelected ? 'bg-slate-800 ring-1 ring-sky-400/50' : '',
           isError ? 'border-l-2 border-red-500 pl-1.5' : '',
         ].join(' ')}
         style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }}

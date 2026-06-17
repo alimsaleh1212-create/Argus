@@ -137,7 +137,7 @@ export function IncidentQueue() {
               className={cn(
                 'px-3 py-1.5 text-sm rounded-md font-medium transition-colors cursor-pointer min-h-[36px]',
                 view === v
-                  ? 'bg-green-500/20 text-green-400'
+                  ? 'bg-sky-400/20 text-sky-400'
                   : 'text-slate-400 hover:text-slate-200'
               )}
             >
@@ -161,14 +161,14 @@ export function IncidentQueue() {
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm cursor-pointer min-h-[36px] transition-colors',
               showFilters
-                ? 'bg-green-500/20 text-green-400'
+                ? 'bg-sky-400/20 text-sky-400'
                 : 'text-slate-400 hover:text-slate-200 bg-[#0F172A]'
             )}
           >
             <Filter className="w-4 h-4" aria-hidden="true" />
             Filters
             {(statusFilter.length + severityFilter.length) > 0 && (
-              <span className="ml-1 bg-green-500 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+              <span className="ml-1 bg-sky-400 text-slate-950 text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                 {statusFilter.length + severityFilter.length}
               </span>
             )}
@@ -189,7 +189,7 @@ export function IncidentQueue() {
                   className={cn(
                     'px-2 py-0.5 rounded text-xs cursor-pointer transition-colors min-h-[28px]',
                     statusFilter.includes(s)
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      ? 'bg-sky-400/20 text-sky-400 border border-sky-400/30'
                       : 'bg-slate-800 text-slate-400 hover:text-slate-200'
                   )}
                 >
@@ -208,7 +208,7 @@ export function IncidentQueue() {
                   className={cn(
                     'px-2 py-0.5 rounded text-xs cursor-pointer transition-colors min-h-[28px]',
                     severityFilter.includes(s)
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      ? 'bg-sky-400/20 text-sky-400 border border-sky-400/30'
                       : 'bg-slate-800 text-slate-400 hover:text-slate-200'
                   )}
                 >

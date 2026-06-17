@@ -14,7 +14,7 @@ const TILES: {
   iconColor: string
   flashBorder: string
 }[] = [
-  { key: 'resolved', label: 'Resolved', icon: CheckCircle2, iconColor: 'text-green-400', flashBorder: 'border-green-500' },
+  { key: 'resolved', label: 'Resolved', icon: CheckCircle2, iconColor: 'text-cyan-400', flashBorder: 'border-cyan-400' },
   { key: 'escalated', label: 'Escalated', icon: AlertTriangle, iconColor: 'text-orange-400', flashBorder: 'border-orange-500' },
   { key: 'awaiting', label: 'Awaiting', icon: Clock, iconColor: 'text-amber-400', flashBorder: 'border-amber-500' },
 ]

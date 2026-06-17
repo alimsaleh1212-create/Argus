@@ -12,7 +12,7 @@ export function StageNodeCard({ stage, justChanged }: StageNodeCardProps) {
       className={cn(
         'rounded-lg bg-slate-900 border border-slate-700 p-4 flex flex-col gap-1 min-w-[120px]',
         'transition-colors duration-300 ease-out',
-        justChanged && 'border-green-500 bg-green-500/10'
+        justChanged && 'border-cyan-400 bg-cyan-400/10'
       )}
       data-testid={`stage-node-${stage.key}`}
     >

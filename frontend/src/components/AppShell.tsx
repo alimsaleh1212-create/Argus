@@ -1,10 +1,11 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Shield, LayoutDashboard, BarChart3, LogOut, GitGraph } from 'lucide-react'
+import { LayoutDashboard, BarChart3, LogOut, GitGraph } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/auth/AuthContext'
 import { ConnectionIndicator } from './ConnectionIndicator'
 import { queryClient } from '@/api/queryClient'
 import { useConnectionState, useSSEStream } from '@/api/stream'
+import logo from '@/assets/argus-logo.jpg'
 
 const navItems = [
   { to: '/queue', label: 'Queue', icon: LayoutDashboard },
@@ -29,8 +30,8 @@ export function AppShell() {
       {/* Sidebar */}
       <aside className="w-56 flex-shrink-0 bg-[#0F172A] border-r border-slate-800 flex flex-col">
         {/* Brand */}
-        <div className="flex items-center gap-2.5 px-4 py-5 border-b border-slate-800">
-          <Shield className="w-5 h-5 text-green-500" aria-hidden="true" />
+        <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-800">
+          <img src={logo} alt="Argus" className="w-8 h-8 rounded object-cover flex-shrink-0" />
           <span className="text-base font-bold text-slate-50 tracking-tight">Argus</span>
         </div>
 
@@ -44,7 +45,7 @@ export function AppShell() {
                 cn(
                   'flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer',
                   isActive
-                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                    ? 'bg-sky-400/10 text-sky-400 border border-sky-400/20'
                     : 'text-slate-400 hover:text-slate-50 hover:bg-slate-800'
                 )
               }

@@ -104,7 +104,7 @@ export function ApprovalPanel({ approval, onDecided }: ApprovalPanelProps) {
                 onClick={() => setPendingDecision('approve')}
                 disabled={isPending}
                 aria-label="Approve remediation"
-                className="bg-green-600 hover:bg-green-500 text-white min-h-[44px]"
+                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 min-h-[44px]"
               >
                 Approve
               </Button>

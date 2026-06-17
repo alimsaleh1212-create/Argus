@@ -52,12 +52,12 @@ describe('StageNodeCard', () => {
 
   it('applies the flash styling when justChanged is true', () => {
     render(<StageNodeCard stage={stage} justChanged={true} />)
-    expect(screen.getByTestId('stage-node-triage')).toHaveClass('border-green-500')
+    expect(screen.getByTestId('stage-node-triage')).toHaveClass('border-cyan-400')
   })
 
   it('does not apply the flash styling when justChanged is false', () => {
     render(<StageNodeCard stage={stage} justChanged={false} />)
-    expect(screen.getByTestId('stage-node-triage')).not.toHaveClass('border-green-500')
+    expect(screen.getByTestId('stage-node-triage')).not.toHaveClass('border-cyan-400')
   })
 })
 
@@ -65,14 +65,14 @@ describe('FlowEdge', () => {
   it('renders without the active styling by default', () => {
     const { container } = render(<FlowEdge active={false} />)
     expect(container.querySelector('[data-testid="flow-edge"] > div')).not.toHaveClass(
-      'bg-green-500'
+      'bg-cyan-400'
     )
   })
 
   it('applies the active styling when active is true', () => {
     const { container } = render(<FlowEdge active={true} />)
     expect(container.querySelector('[data-testid="flow-edge"] > div')).toHaveClass(
-      'bg-green-500'
+      'bg-cyan-400'
     )
   })
 })
@@ -95,7 +95,7 @@ describe('TerminalColumn', () => {
       <TerminalColumn terminals={terminals} changedKeys={new Set(['escalated'])} />
     )
     expect(screen.getByTestId('terminal-escalated')).toHaveClass('border-orange-500')
-    expect(screen.getByTestId('terminal-resolved')).not.toHaveClass('border-green-500')
+    expect(screen.getByTestId('terminal-resolved')).not.toHaveClass('border-cyan-400')
   })
 
   it('labels each tile so color is never the only signal', () => {
