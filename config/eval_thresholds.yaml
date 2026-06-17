@@ -239,3 +239,15 @@ gates:
     threshold:
       precision_min: 0.90
       recall_min: 0.90
+
+  anomaly_detection:
+    description: >
+      ML anomaly-detection precision/recall gate (SPEC-ml-anomaly-detector #17). Deterministic /
+      provider-independent. Scores the committed Isolation Forest artifact over a labeled held-out
+      set of per-entity windows (CERT-derived). Blocking: the gate scores the saved artifact, so it
+      is deterministic with no runtime variance. Extends the suite; does not duplicate existing gates.
+    required: true
+    threshold:
+      precision_min: 0.80
+      recall_min: 0.80
+      max_false_positive_rate: 0.10

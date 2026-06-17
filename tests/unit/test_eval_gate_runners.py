@@ -62,6 +62,8 @@ def test_gate_registry_has_required_gates():
 
 def test_validate_registry_passes_against_yaml():
     """Registry + yaml are consistent (no orphan/stale) after imports."""
+    import backend.eval.gates.anomaly_detection  # noqa: F401
+    import backend.eval.gates.detection  # noqa: F401
     import backend.eval.gates.deterministic  # noqa: F401
     import backend.eval.gates.feedback  # noqa: F401
     import backend.eval.gates.llm  # noqa: F401

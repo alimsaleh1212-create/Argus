@@ -131,6 +131,10 @@ be captured as a `DECISIONS.md` entry + a constitution note before `#17` impleme
 
 ## 10. Code structure — `backend/` across layers, NOT a standalone `ml/` dir
 
+> **Quick lookup:** for a flat "what file is X in" table plus dataset/target/metrics/model-mechanism
+> answers, see [anomal-detector-mechanism.md](anomal-detector-mechanism.md). This section covers the
+> *why*, not the file map.
+
 **Decision (plan-time): keep #17 inside `backend/`, distributed across the existing inward-only layers.**
 Not a top-level `ml/` package; not even a `backend/ml/` sub-package. (Recorded as `DECISIONS.md` **AD1**.)
 
