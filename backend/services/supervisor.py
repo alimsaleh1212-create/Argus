@@ -45,6 +45,7 @@ DISP_ESCALATED_TOKEN_CAP = "escalated_token_cap"
 DISP_ESCALATED_STAGE_ERROR = "escalated_stage_error"
 DISP_ESCALATED_ILLEGAL = "escalated_illegal_transition"
 DISP_AWAITING_APPROVAL = "awaiting_approval_destructive"
+DISP_OPERATOR_RESOLVED = "operator_resolved"
 
 # ---------------------------------------------------------------------------
 # Transition table  (state, outcome_or_route) → (next_state, disposition | None)
@@ -464,6 +465,42 @@ class Supervisor:
                     action="approval_expired",
                     target=None,
                     outcome="not_executed",
+                )
+            except Exception:
+                pass
+        return True
+
+    async def close_incident(
+        self,
+        incident_id: uuid.UUID,
+        repo: object,
+        audit_repo: object | None = None,
+        actor: str = "operator",
+    ) -> bool:
+        """Operator-driven manual close of an escalated incident (single-writer edge).
+
+        ESCALATED → RESOLVED (operator_resolved). Returns True iff the guard held.
+        Does NOT emit a remediation_outcome feedback fact (no remediation occurred).
+        """
+        advanced = await repo.advance_status(
+            incident_id,
+            expected=IncidentStatus.ESCALATED,
+            target=IncidentStatus.RESOLVED,
+            disposition=DISP_OPERATOR_RESOLVED,
+        )
+        if not advanced:
+            logger.info("supervisor_close_guard_lost", incident_id=str(incident_id))
+            return False
+
+        logger.info("supervisor_incident_closed", incident_id=str(incident_id), actor=actor)
+        if audit_repo is not None:
+            try:
+                await audit_repo.append(
+                    incident_id=incident_id,
+                    actor=actor,
+                    action="operator_resolved",
+                    target=None,
+                    outcome="resolved",
                 )
             except Exception:
                 pass

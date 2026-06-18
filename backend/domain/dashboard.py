@@ -182,6 +182,7 @@ _DISPOSITION_TO_TERMINAL_BRANCH: dict[str, str] = {
     "escalated_token_cap": "escalated",
     "escalated_stage_error": "escalated",
     "escalated_illegal_transition": "escalated",
+    "operator_resolved": "resolved",
 }
 
 _ERRORED_DISPOSITIONS = frozenset(
