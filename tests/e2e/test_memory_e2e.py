@@ -25,6 +25,27 @@ from backend.domain.memory import EpisodeQuery, IncidentEpisode
 from backend.infra.memory import NullMemory
 
 
+class _FakeSession:
+    async def __aenter__(self):
+        return AsyncMock()
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+class _FakeSessionFactory:
+    """Tiny stand-in for async_sessionmaker — returns a fresh async-context session."""
+
+    def __call__(self):
+        return _FakeSession()
+
+
+async def _drain_pending_tasks() -> None:
+    """Await any fire-and-forget tasks (e.g. the episode-write task) deterministically."""
+    pending = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+    await asyncio.gather(*pending, return_exceptions=True)
+
+
 def _make_grounded_incident(
     incident_id: uuid.UUID | None = None,
     status: IncidentStatus = IncidentStatus.RESOLVED,
@@ -128,12 +149,24 @@ class TestMemoryE2E:
             summary="test",
         )
 
+        session_factory = _FakeSessionFactory()
+
         with (
             patch("backend.services.grounding.ground", return_value=evidence),
             patch("backend.services.pipeline.dispatch_to_pipeline"),
+            patch("backend.worker.IncidentRepository") as MockRepo,
         ):
+            MockRepo.return_value.get = AsyncMock(return_value=incident)
             with pytest.raises(asyncio.CancelledError):
-                await _run(settings, queue, repo, tracer=None, memory=NullMemory())
+                await _run(
+                    settings,
+                    queue,
+                    repo,
+                    tracer=None,
+                    memory=NullMemory(),
+                    session_factory=session_factory,
+                )
+            await _drain_pending_tasks()
 
         queue.ack.assert_called_once_with(str(incident_id))
 
@@ -183,11 +216,24 @@ class TestMemoryE2E:
             summary="test",
         )
 
+        session_factory = _FakeSessionFactory()
+
         with (
             patch("backend.services.grounding.ground", return_value=evidence),
             patch("backend.services.pipeline.dispatch_to_pipeline"),
+            patch("backend.worker.IncidentRepository") as MockRepo,
         ):
+            MockRepo.return_value.get = AsyncMock(return_value=incident)
             with pytest.raises(asyncio.CancelledError):
-                await _run(settings, queue, repo, tracer=None, memory=failing_memory)
+                await _run(
+                    settings,
+                    queue,
+                    repo,
+                    tracer=None,
+                    memory=failing_memory,
+                    session_factory=session_factory,
+                )
+            await _drain_pending_tasks()
 
         queue.ack.assert_called_once_with(str(incident_id))
+        failing_memory.write_episode.assert_called_once()
