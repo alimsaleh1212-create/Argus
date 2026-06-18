@@ -7,6 +7,7 @@ import type { IncidentSummary } from '@/api/incidents'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SeverityBadge } from '@/components/SeverityBadge'
+import { JourneyTrace } from '@/components/JourneyTrace'
 import { DeadlineCountdown } from '@/features/approvals/DeadlineCountdown'
 import { DecisionDialog } from '@/features/approvals/DecisionDialog'
 
@@ -102,6 +103,7 @@ function EscalatedCard({ incident, onOpen }: { incident: IncidentSummary; onOpen
           <span className="font-mono text-[11px] text-slate-500 truncate">{incident.id}</span>
         </div>
         {incident.summary && <p className="text-slate-200 text-sm">{incident.summary}</p>}
+        <JourneyTrace steps={incident.journey ?? []} />
         <Button variant="outline" size="sm" onClick={onOpen} aria-label="View detail">
           View detail
         </Button>

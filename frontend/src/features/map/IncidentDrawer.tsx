@@ -4,6 +4,7 @@ import { useIncidentDetail } from '@/api/incidents'
 import { SeverityBadge } from '@/components/SeverityBadge'
 import { StatusBadge } from '@/components/StatusBadge'
 import { ErrorState } from '@/components/ErrorState'
+import { JourneyTrace } from '@/components/JourneyTrace'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { ApprovalPanel } from '@/features/approvals/ApprovalPanel'
@@ -45,6 +46,7 @@ export function IncidentDrawer({ incidentId, onClose }: IncidentDrawerProps) {
               <SheetDescription>
                 Source: {data.source} · Updated: {new Date(data.updated_at).toLocaleString()}
               </SheetDescription>
+              <JourneyTrace steps={data?.journey ?? []} />
             </SheetHeader>
 
             {data.pending_approval && <ApprovalPanel approval={data.pending_approval} />}

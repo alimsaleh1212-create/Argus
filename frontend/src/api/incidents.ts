@@ -1,6 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from './client'
 
+export interface JourneyStep {
+  stage: string
+  label: string
+  outcome: 'advance' | 'resolved' | 'escalated' | 'errored'
+  detail: string | null
+  score: number | null
+}
+
 export interface IncidentSummary {
   id: string
   status: string
@@ -11,6 +19,7 @@ export interface IncidentSummary {
   is_awaiting_approval: boolean
   created_at: string
   updated_at: string
+  journey: JourneyStep[]
 }
 
 export interface ApprovalView {
@@ -57,6 +66,7 @@ export interface IncidentDetailView {
   correlation_id: string | null
   pending_approval: ApprovalView | null
   audit: AuditView[]
+  journey: JourneyStep[]
 }
 
 export interface QueueFilters {
