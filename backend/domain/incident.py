@@ -105,6 +105,8 @@ class Incident(BaseModel):
     attempts: int = 0
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    acknowledged_at: datetime | None = None
+    acknowledged_by: str | None = None
 
 
 class IngestResult(BaseModel):

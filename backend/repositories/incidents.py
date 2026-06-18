@@ -181,6 +181,25 @@ class IncidentRepository:
         await self._session.commit()
         return result.first() is not None
 
+    async def acknowledge(self, incident_id: uuid.UUID, *, actor: str) -> bool:
+        """Mark an escalated incident acknowledged (idempotent; status unchanged).
+
+        Guarded UPDATE: only sets the columns when the incident is currently
+        'escalated' and not already acknowledged. Returns True iff it set them.
+        """
+        now = datetime.now(UTC)
+        result = await self._session.execute(
+            sa.text(
+                "UPDATE incidents SET acknowledged_at = :now, acknowledged_by = :actor, "
+                "updated_at = :now "
+                "WHERE id = :id AND status = 'escalated' AND acknowledged_at IS NULL "
+                "RETURNING id"
+            ),
+            {"id": str(incident_id), "actor": actor, "now": now},
+        )
+        await self._session.commit()
+        return result.first() is not None
+
     async def mark_failed(self, incident_id: uuid.UUID, reason: str = "") -> None:
         now = datetime.now(UTC)
         await self._session.execute(
@@ -205,7 +224,7 @@ class IncidentRepository:
         params["offset"] = offset
         sql = (
             "SELECT id, status, severity, disposition, source, evidence, "
-            "evidence->>'summary' AS summary, updated_at, created_at "
+            "evidence->>'summary' AS summary, updated_at, created_at, acknowledged_at "
             f"FROM incidents{where} ORDER BY {order} LIMIT :limit OFFSET :offset"
         )
         result = await self._session.execute(sa.text(sql), params)
@@ -221,6 +240,7 @@ class IncidentRepository:
                 is_awaiting_approval=row["status"] == "awaiting_approval",
                 created_at=row["created_at"],
                 updated_at=row["updated_at"],
+                acknowledged_at=row["acknowledged_at"],
                 journey=build_journey(_row_journey_stub(row)),
             )
             for row in rows
@@ -452,4 +472,6 @@ def _row_to_incident(row: Any) -> Incident:
         attempts=row["attempts"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
+        acknowledged_at=row.get("acknowledged_at"),
+        acknowledged_by=row.get("acknowledged_by"),
     )
