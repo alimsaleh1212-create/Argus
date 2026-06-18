@@ -22,5 +22,35 @@
     "title": "Ransomware Containment Runbook",
     "techniques": ["T1486"],
     "steps": "1) Immediately isolate affected hosts from the network. 2) Identify the ransomware variant using file extension and ransom note. 3) Check backup integrity and recoverability. 4) Notify legal, management, and if required law enforcement. 5) Do not pay ransom without legal/management approval. 6) Restore from clean backups after confirming the infection vector is remediated. 7) Conduct a post-incident review."
+  },
+  {
+    "key": "rb-lateral-movement",
+    "title": "Lateral Movement Containment Runbook",
+    "techniques": ["T1046", "T1021"],
+    "steps": "1) Confirm the scanning host and target subnet from network logs. 2) Isolate the scanning host from the network immediately. 3) Review the host for compromise indicators (new accounts, tools, scheduled tasks). 4) Block lateral paths between the source and critical subnets via segmentation. 5) Hunt for follow-on remote service logins (T1021) on targeted hosts. 6) Reset credentials for any accounts used from the source host. 7) Escalate to IR if persistence is found."
+  },
+  {
+    "key": "rb-c2-beacon",
+    "title": "C2 Beacon Response Runbook",
+    "techniques": ["T1071"],
+    "steps": "1) Confirm the beaconing pattern (fixed interval, small payload) and destination. 2) Block the C2 domain and IP at DNS, proxy, and firewall. 3) Isolate the beaconing host. 4) Capture the beacon sample for threat-intel enrichment. 5) Review host for dropped payloads and persistence (T1053). 6) Identify other hosts beaconing to the same infrastructure. 7) Reset credentials of users active on the host."
+  },
+  {
+    "key": "rb-exfiltration",
+    "title": "Data Exfiltration Response Runbook",
+    "techniques": ["T1048"],
+    "steps": "1) Quantify the exfiltrated volume, destination ASN, and time window from flow logs. 2) Block the destination at the perimeter. 3) Isolate the source host and preserve volatile evidence. 4) Identify the data set accessed (sensitive directories, DB records). 5) Determine the channel (HTTPS, DNS, cloud storage) and close it. 6) Notify legal/compliance if regulated data is involved. 7) Conduct user interviews and review access logs."
+  },
+  {
+    "key": "rb-obfuscated-powershell",
+    "title": "Obfuscated PowerShell Response Runbook",
+    "techniques": ["T1059.001", "T1027", "T1218"],
+    "steps": "1) Capture the full command line and decode any base64/encoded payload. 2) Isolate the host and collect script-block logs. 3) Identify the parent process (e.g. winword.exe) and the delivery vector. 4) Search endpoint telemetry for the decoded indicator across the fleet. 5) Block the dropped payload hash and C2 destination. 6) Reset credentials of the active user. 7) Reimage the host if persistence or deep compromise is confirmed."
+  },
+  {
+    "key": "rb-impossible-travel",
+    "title": "Impossible Travel / Account Compromise Runbook",
+    "techniques": ["T1078", "T1133"],
+    "steps": "1) Confirm the two login locations, times, and delta from IdP logs. 2) Force a password reset and revoke all sessions for the account. 3) Enable/verify MFA enrollment. 4) Review activity between the two logins for data access or changes. 5) Contact the user to validate whether travel is legitimate. 6) If illegitimate, treat as account compromise and follow rb-valid-accounts. 7) Block the anomalous source IP/geo if malicious."
   }
 ]

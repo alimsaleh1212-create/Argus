@@ -24,6 +24,12 @@
     "mitigations": "Restrict script execution via application allow-listing. Disable or limit interpreter access where not required. Log and monitor interpreter invocations. Use endpoint detection to alert on suspicious script usage."
   },
   {
+    "id": "T1059.001",
+    "title": "PowerShell",
+    "tactic": "execution",
+    "mitigations": "Enforce PowerShell Constrained Language Mode. Enable script block logging and module logging. Disable interactive PowerShell for standard users. Alert on encoded commands (-enc/-EncodedCommand) and base64 payloads. Use AMSI for runtime inspection."
+  },
+  {
     "id": "T1021",
     "title": "Remote Services",
     "tactic": "lateral-movement",
@@ -46,5 +52,41 @@
     "title": "Scheduled Task/Job",
     "tactic": "persistence",
     "mitigations": "Audit scheduled tasks and cron jobs regularly. Monitor for new or modified scheduled tasks. Restrict permissions to create scheduled tasks. Alert on scheduled task creation by non-privileged users."
+  },
+  {
+    "id": "T1046",
+    "title": "Network Service Discovery",
+    "tactic": "discovery",
+    "mitigations": "Monitor for port-scanning and host-enumeration patterns (e.g. nmap, masscan). Segment the network so discovery blast radius is limited. Alert on internal hosts scanning critical subnets. Correlate scans with subsequent lateral movement attempts."
+  },
+  {
+    "id": "T1071",
+    "title": "Application Layer Protocol",
+    "tactic": "command-and-control",
+    "mitigations": "Inspect outbound TLS traffic for beaconing patterns (regular intervals, small payloads). Block known C2 domains and IPs at DNS, proxy, and firewall layers. Use threat-intel feeds to flag outbound connections to malicious infrastructure. Hunt for DGAs and look-alike domains."
+  },
+  {
+    "id": "T1048",
+    "title": "Exfiltration Over Alternative Protocol",
+    "tactic": "exfiltration",
+    "mitigations": "Monitor outbound data volume per host and per destination. Alert on large or sustained transfers to unknown/unregistered ASNs. Block uncommon protocols on perimeter egress. DLP on sensitive directories. Investigate after-hours bulk transfers."
+  },
+  {
+    "id": "T1218",
+    "title": "System Binary Proxy Execution",
+    "tactic": "defense-evasion",
+    "mitigations": "Monitor signed binaries (e.g. mshta, rundll32, certutil) used to execute suspicious content. Alert on signed binaries spawned by unusual parents (e.g. office apps spawning interpreters). Use behavioral EDR rules. Restrict binary execution on endpoints."
+  },
+  {
+    "id": "T1133",
+    "title": "External Remote Services",
+    "tactic": "initial-access",
+    "mitigations": "Require MFA for all external remote access. Monitor for impossible-travel and anomalous geo logins. Limit VPN/RDP exposure via jump hosts. Alert on privileged logins from new geographies. Enforce time-bound access for privileged accounts."
+  },
+  {
+    "id": "T1027",
+    "title": "Obfuscated Files or Information",
+    "tactic": "defense-evasion",
+    "mitigations": "Inspect and decode obfuscated content (base64, XOR, encoded payloads) at the endpoint and email gateway. Alert on encoded command-line invocations. Use AMSI and script-block logging. Block macros that spawn encoded interpreters."
   }
 ]
