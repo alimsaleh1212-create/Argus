@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from backend.domain.dashboard import (
     BranchOutflow,
     PipelineSnapshot,
+    StageIncident,
     StageNode,
     TerminalCounts,
 )
@@ -110,14 +111,74 @@ def terminal_counts(
     )
 
 
+def _to_stage_incident(incident) -> StageIncident:
+    """Project an Incident onto a StageIncident, extracting scores from its evidence.
+
+    Pure: reads only the merged evidence dict. Every score is None when the
+    producing stage has not yet completed for this incident.
+    """
+    evidence = incident.evidence or {}
+    triage = evidence.get("triage") or {}
+    enrichment = evidence.get("enrichment") or {}
+    response = evidence.get("response") or {}
+    plan = response.get("plan") or {}
+    verification = response.get("verification") or {}
+
+    def _conf(value) -> float | None:
+        if value is None:
+            return None
+        try:
+            f = float(value)
+        except (TypeError, ValueError):
+            return None
+        return f if 0.0 <= f <= 1.0 else None
+
+    return StageIncident(
+        id=incident.id,
+        severity=incident.severity.value,
+        status=incident.status.value,
+        source=incident.source,
+        summary=evidence.get("summary"),
+        updated_at=incident.updated_at,
+        triage_verdict=triage.get("verdict"),
+        triage_confidence=_conf(triage.get("confidence")),
+        enrichment_assessment=enrichment.get("assessment"),
+        enrichment_confidence=_conf(enrichment.get("confidence")),
+        response_plan_id=plan.get("playbook_id"),
+        response_selected_by=plan.get("selected_by"),
+        response_verdict=verification.get("verdict"),
+    )
+
+
+def stage_incidents(incidents) -> dict[str, list[StageIncident]]:
+    """Group in-flight incidents by their current stage and project scores.
+
+    Incidents whose status does not map to a rail stage are dropped.
+    """
+    by_stage: dict[str, list[StageIncident]] = {key: [] for key, _ in STAGES}
+    for incident in incidents:
+        stage = _STATUS_TO_STAGE.get(incident.status.value)
+        if stage is None:
+            continue
+        by_stage[stage].append(_to_stage_incident(incident))
+    return by_stage
+
+
 async def build_pipeline_snapshot(repo, *, window_hours: int) -> PipelineSnapshot:
     """Compose a PipelineSnapshot from two read-only aggregate reads."""
     status_counts = await repo.status_counts()
     disposition_counts = await repo.disposition_counts_since(window_hours=window_hours)
     in_flight = stage_in_flight(status_counts)
     branches = stage_branches(disposition_counts)
+    incidents_by_stage = stage_incidents(await repo.list_in_flight_with_evidence())
     stages = [
-        StageNode(key=key, label=label, in_flight=in_flight[key], branches=branches.get(key, []))
+        StageNode(
+            key=key,
+            label=label,
+            in_flight=in_flight[key],
+            branches=branches.get(key, []),
+            incidents=incidents_by_stage.get(key, []),
+        )
         for key, label in STAGES
     ]
     return PipelineSnapshot(

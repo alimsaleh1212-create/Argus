@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from typing import NamedTuple
 
 from backend.agents.response.catalog import PlaybookCatalog
 from backend.domain.feedback import FeedbackSignal, prefer_stronger_playbook
@@ -130,17 +131,40 @@ def _feedback_signals_from_evidence(evidence: dict) -> list[FeedbackSignal]:
     return signals
 
 
+class SelectionResult(NamedTuple):
+    """Result of playbook selection: the plan plus split LLM token usage for tracing."""
+
+    plan: RemediationPlan
+    tokens_consumed: int
+    tokens_in: int | None
+    tokens_out: int | None
+    llm_model: str | None
+
+
+def _split_tokens(response: object) -> tuple[int | None, int | None, str | None]:
+    """Return (tokens_in, tokens_out, model) from the LLM response usage, or Nones."""
+    usage = getattr(response, "usage", None)
+    model = getattr(response, "model", None)
+    if usage is None:
+        return None, None, model
+    return (
+        getattr(usage, "prompt_tokens", None),
+        getattr(usage, "completion_tokens", None),
+        model,
+    )
+
+
 async def select_playbook(
     incident: Incident,
     catalog: PlaybookCatalog,
     llm: object | None,
     cfg: object,
     feedback_cfg: object | None = None,
-) -> tuple[RemediationPlan, int]:
+) -> SelectionResult:
     """Select a playbook deterministically or via one LLM call for the ambiguous tail.
 
-    Returns (plan, tokens_consumed).
-    Raises ToolError (retryable=False) when no confident selection can be made (fail-closed).
+    Returns a SelectionResult (plan + token usage). Raises ToolError
+    (retryable=False) when no confident selection can be made (fail-closed).
     """
     evidence = incident.evidence or {}
     plan_id = uuid.uuid4().hex
@@ -153,7 +177,7 @@ async def select_playbook(
         actions = _build_actions(pb.actions, str(incident.id), pb.id)
         if not actions:
             raise ToolError(retryable=False, kind="no_executable_actions")
-        return (
+        return SelectionResult(
             RemediationPlan(
                 plan_id=plan_id,
                 playbook_id=pb.id,
@@ -162,6 +186,9 @@ async def select_playbook(
                 selected_by="deterministic",
             ),
             0,
+            None,
+            None,
+            None,
         )
 
     # Feedback-driven stronger-playbook preference (deterministic, before LLM).
@@ -176,7 +203,7 @@ async def select_playbook(
             pb = stronger
             actions = _build_actions(pb.actions, str(incident.id), pb.id)
             if actions:
-                return (
+                return SelectionResult(
                     RemediationPlan(
                         plan_id=plan_id,
                         playbook_id=pb.id,
@@ -185,6 +212,9 @@ async def select_playbook(
                         selected_by="deterministic",
                     ),
                     0,
+                    None,
+                    None,
+                    None,
                 )
 
     if not catalog:
@@ -236,6 +266,7 @@ async def select_playbook(
         _map_and_raise_llm_error(exc)
 
     tokens = _tokens(response)
+    tokens_in, tokens_out, llm_model = _split_tokens(response)
 
     try:
         content: str = getattr(response, "content", "")
@@ -258,7 +289,7 @@ async def select_playbook(
     if not actions:
         raise ToolError(retryable=False, kind="no_executable_actions")
 
-    return (
+    return SelectionResult(
         RemediationPlan(
             plan_id=plan_id,
             playbook_id=playbook_id,
@@ -267,6 +298,9 @@ async def select_playbook(
             selected_by="llm",
         ),
         tokens,
+        tokens_in,
+        tokens_out,
+        llm_model,
     )
 
 

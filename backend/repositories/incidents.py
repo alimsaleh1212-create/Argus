@@ -349,6 +349,24 @@ class IncidentRepository:
         )
         return [_row_to_incident(row) for row in result.mappings().all()]
 
+    async def list_in_flight_with_evidence(self, *, limit: int = 100) -> list[Incident]:
+        """Return recent non-terminal incidents (with evidence) for the pipeline map.
+
+        Covers every active (non-terminal) status so the map can render in-flight
+        incidents per stage together with their latest triage/enrichment/response
+        scores. Ordered by most-recently-updated so the busiest incidents surface.
+        """
+        active = list(_ACTIVE_STATUSES)
+        placeholders = ", ".join(f":vs{i}" for i in range(len(active)))
+        result = await self._session.execute(
+            sa.text(
+                f"SELECT * FROM incidents WHERE status IN ({placeholders}) "
+                "ORDER BY updated_at DESC LIMIT :limit"
+            ),
+            {**{f"vs{i}": v for i, v in enumerate(active)}, "limit": limit},
+        )
+        return [_row_to_incident(row) for row in result.mappings().all()]
+
 
 def _build_queue_where(
     *,

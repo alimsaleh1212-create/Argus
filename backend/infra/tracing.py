@@ -79,6 +79,21 @@ class _Tracer:
         except Exception:
             self._dropped_batches += 1
 
+    async def flush(self) -> None:
+        """Flush any queued spans to the exporter's store.
+
+        Spans are enqueued synchronously off the incident path (FR-015) but
+        persistence is async. Without periodic flushing spans only land in the
+        trace store at process shutdown — call this from a background loop so
+        traces are observable while incidents are in flight.
+        """
+        if self._exporter is None:
+            return
+        try:
+            await self._exporter.flush()
+        except Exception:
+            self._dropped_batches += 1
+
     @property
     def dropped_batches(self) -> int:
         return self._dropped_batches

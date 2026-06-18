@@ -115,6 +115,9 @@ async def _finalize_with_verification(
     base_evidence: dict,
     resolved_disposition: str,
     tokens_consumed: int,
+    tokens_in: int | None = None,
+    tokens_out: int | None = None,
+    llm_model: str | None = None,
     note: str,
 ) -> StageResult:
     """Run the verification tail (if enabled) and build the terminal StageResult.
@@ -133,6 +136,9 @@ async def _finalize_with_verification(
             stage=StageName.RESPONSE,
             outcome=StageOutcome.RESOLVED,
             tokens_consumed=tokens_consumed,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            llm_model=llm_model,
             disposition=resolved_disposition,
             evidence_patch={
                 "response": {
@@ -174,6 +180,9 @@ async def _finalize_with_verification(
             stage=StageName.RESPONSE,
             outcome=StageOutcome.UNVERIFIED,
             tokens_consumed=tokens_consumed,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            llm_model=llm_model,
             disposition=None,
             evidence_patch={"response": response_evidence},
             note=verdict_note,
@@ -183,6 +192,9 @@ async def _finalize_with_verification(
         stage=StageName.RESPONSE,
         outcome=StageOutcome.RESOLVED,
         tokens_consumed=tokens_consumed,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        llm_model=llm_model,
         disposition=resolved_disposition,
         evidence_patch={"response": response_evidence},
         note=verdict_note,
@@ -208,9 +220,12 @@ async def _pass_a(
     feedback_cfg: object | None = None,
 ) -> StageResult:
     """Pass A — forward path: select → classify → execute auto / park destructive → verify."""
-    plan_raw, tokens_consumed = await select_playbook(
-        incident, catalog, llm, cfg, feedback_cfg=feedback_cfg
-    )
+    selection = await select_playbook(incident, catalog, llm, cfg, feedback_cfg=feedback_cfg)
+    plan_raw = selection.plan
+    tokens_consumed = selection.tokens_consumed
+    tokens_in = selection.tokens_in
+    tokens_out = selection.tokens_out
+    llm_model = selection.llm_model
     plan = classify(plan_raw, cfg)
 
     auto_actions = [a for a in plan.actions if a.risk == RiskClass.AUTO]
@@ -246,6 +261,9 @@ async def _pass_a(
             stage=StageName.RESPONSE,
             outcome=StageOutcome.NEEDS_APPROVAL,
             tokens_consumed=tokens_consumed,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            llm_model=llm_model,
             disposition=None,
             evidence_patch={
                 "response": {
@@ -270,6 +288,9 @@ async def _pass_a(
         base_evidence={"plan": plan.model_dump(mode="json"), "approval_id": None},
         resolved_disposition="auto_remediated",
         tokens_consumed=tokens_consumed,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        llm_model=llm_model,
         note=note,
     )
 

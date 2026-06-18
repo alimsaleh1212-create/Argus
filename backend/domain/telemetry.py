@@ -101,15 +101,18 @@ class TelemetryRecord:
     @classmethod
     def from_trace_tree(cls, tree: TraceTree) -> TelemetryRecord:
         spans = tree.all_spans()
-        llm_spans = [s for s in spans if s.kind == SpanKind.LLM_CALL]
+        # Tokens are attributed to the stage (agent-step) spans that recorded
+        # split prompt/completion usage; the root is excluded to avoid
+        # double-counting. None means "unknown" (provider omitted usage).
+        non_root = [s for s in spans if s.kind != SpanKind.ROOT]
         tin = (
-            sum(s.tokens_in for s in llm_spans if s.tokens_in is not None) or None
-            if any(s.tokens_in is not None for s in llm_spans)
+            sum(s.tokens_in for s in non_root if s.tokens_in is not None) or None
+            if any(s.tokens_in is not None for s in non_root)
             else None
         )
         tout = (
-            sum(s.tokens_out for s in llm_spans if s.tokens_out is not None) or None
-            if any(s.tokens_out is not None for s in llm_spans)
+            sum(s.tokens_out for s in non_root if s.tokens_out is not None) or None
+            if any(s.tokens_out is not None for s in non_root)
             else None
         )
         return cls(
@@ -117,7 +120,7 @@ class TelemetryRecord:
             total_tokens_in=tin,
             total_tokens_out=tout,
             end_to_end_ms=tree.root.latency_ms,
-            step_count=len([s for s in spans if s.kind != SpanKind.ROOT]),
+            step_count=len(non_root),
             error_steps=len([s for s in spans if s.status == SpanStatus.ERROR]),
         )
 

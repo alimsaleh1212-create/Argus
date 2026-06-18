@@ -12,7 +12,7 @@ Covers:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -155,3 +155,23 @@ class TestTraceTree:
         assert rec.total_tokens_out == 25
         assert rec.step_count == 1
         assert rec.error_steps == 0
+
+
+class TestTracerFlush:
+    @pytest.mark.asyncio
+    async def test_flush_delegates_to_exporter(self) -> None:
+        exporter = MagicMock()
+        exporter.enqueue = MagicMock()
+        exporter.flush = AsyncMock()
+        tracer = build_tracer(exporter=exporter, max_attr_bytes=64)
+
+        with span(tracer, "root", SpanKind.ROOT, correlation_id="inc_f"):
+            pass
+
+        await tracer.flush()
+        exporter.flush.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_flush_noop_without_exporter(self) -> None:
+        tracer = build_tracer(exporter=None, max_attr_bytes=64)
+        await tracer.flush()

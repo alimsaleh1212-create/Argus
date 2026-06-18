@@ -155,6 +155,30 @@ class BranchOutflow(BaseModel):
     count: int
 
 
+class StageIncident(BaseModel):
+    """One in-flight incident projected onto a pipeline stage with its latest scores.
+
+    Scores are derived from the incident's merged evidence (triage/enrichment/response
+    patches) so the map can show triage/enrichment/response results "on the fly" for
+    ongoing incidents. Any score field is None when that stage has not yet produced a
+    result for this incident.
+    """
+
+    id: uuid.UUID
+    severity: str
+    status: str
+    source: str
+    summary: str | None = None
+    updated_at: datetime
+    triage_verdict: str | None = None
+    triage_confidence: float | None = None
+    enrichment_assessment: str | None = None
+    enrichment_confidence: float | None = None
+    response_plan_id: str | None = None
+    response_selected_by: str | None = None
+    response_verdict: str | None = None
+
+
 class StageNode(BaseModel):
     """One stage on the pipeline rail."""
 
@@ -162,6 +186,7 @@ class StageNode(BaseModel):
     label: str
     in_flight: int
     branches: list[BranchOutflow] = Field(default_factory=list)
+    incidents: list[StageIncident] = Field(default_factory=list)
 
 
 class TerminalCounts(BaseModel):

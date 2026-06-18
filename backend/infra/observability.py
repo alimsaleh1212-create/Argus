@@ -14,6 +14,7 @@ opentelemetry, presidio, or logging directly outside of backend/infra/.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
@@ -105,10 +106,37 @@ class ObservabilityProvider:
         bundle = Observability(redactor=redactor, tracer=tracer)
         logger.info("observability_ready")
 
+        # Periodic span flush: spans are enqueued synchronously off the incident
+        # path; without a flush loop they only persist at shutdown, so traces
+        # appear empty while incidents are in flight. Flush on a short cadence.
+        flush_task: asyncio.Task[None] | None = None
+        if repo is not None:
+            flush_interval = float(getattr(obs_settings, "span_flush_interval_s", 2.0))
+
+            async def _flush_loop() -> None:
+                while True:
+                    await asyncio.sleep(flush_interval)
+                    try:
+                        await repo.flush()
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception as exc:
+                        logger.warning("trace_periodic_flush_error", error=str(exc))
+
+            flush_task = asyncio.create_task(_flush_loop(), name="trace-flush-loop")
+
         try:
             yield bundle
         finally:
-            # Force-flush any buffered spans before shutdown (FR-019)
+            # Stop the flush loop, then force-flush any remainder (FR-019)
+            if flush_task is not None:
+                flush_task.cancel()
+                try:
+                    await flush_task
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    pass
             if repo is not None:
                 try:
                     await repo.flush()

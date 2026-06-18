@@ -91,6 +91,19 @@ def _tokens(response: object) -> int:
     return prompt + completion
 
 
+def _split_tokens(response: object) -> tuple[int | None, int | None, str | None]:
+    """Return (tokens_in, tokens_out, model) from the LLM response usage, or Nones."""
+    usage = getattr(response, "usage", None)
+    model = getattr(response, "model", None)
+    if usage is None:
+        return None, None, model
+    return (
+        getattr(usage, "prompt_tokens", None),
+        getattr(usage, "completion_tokens", None),
+        model,
+    )
+
+
 def decide_outcome(judgment: TriageJudgment, cfg: object) -> tuple[StageOutcome, str | None]:
     """Pure config-threshold-gated outcome mapping. Top-to-bottom precedence."""
     advance_min: float = getattr(cfg, "advance_min_confidence", 0.6)
@@ -147,6 +160,7 @@ def make_triage_handler(llm: object, cfg: object) -> StageHandler:
 
         outcome, disposition = decide_outcome(judgment, cfg)
         tokens = _tokens(response)
+        tokens_in, tokens_out, llm_model = _split_tokens(response)
         note = (f"verdict={judgment.verdict} conf={judgment.confidence:.2f}: {judgment.rationale}")[
             :200
         ]
@@ -155,6 +169,9 @@ def make_triage_handler(llm: object, cfg: object) -> StageHandler:
             stage=StageName.TRIAGE,
             outcome=outcome,
             tokens_consumed=tokens,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            llm_model=llm_model,
             disposition=disposition,
             evidence_patch={"triage": judgment.model_dump(mode="json")},
             note=note,

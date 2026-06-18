@@ -14,6 +14,7 @@ from backend.agents.enrichment.reasoning import (
     decide_outcome,
     map_llm_error,
     report_from_response,
+    split_tokens,
     tokens,
 )
 from backend.domain.corpus import CorpusRetriever
@@ -81,6 +82,7 @@ def make_enrichment_handler(
 
         # 5. Map outcome
         outcome, disposition = decide_outcome(report, cfg)
+        tokens_in, tokens_out, llm_model = split_tokens(response)
         note = (
             f"assessment={report.assessment} conf={report.confidence:.2f}: "
             f"{report.correlation_summary}"
@@ -91,6 +93,9 @@ def make_enrichment_handler(
             stage=StageName.ENRICHMENT,
             outcome=outcome,
             tokens_consumed=tokens(response),
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            llm_model=llm_model,
             disposition=disposition,
             evidence_patch={"enrichment": report.model_dump(mode="json")},
             note=note,

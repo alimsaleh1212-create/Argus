@@ -77,7 +77,9 @@ def _catalog_no_match() -> list[PlaybookEntry]:
 async def test_select_deterministic_single_match():
     inc = _incident(severity="medium")
     cfg = ResponseSettings()
-    plan, tokens = await select_playbook(inc, _catalog_single(), llm=None, cfg=cfg)
+    selection = await select_playbook(inc, _catalog_single(), llm=None, cfg=cfg)
+    plan = selection.plan
+    tokens = selection.tokens_consumed
     assert plan.selected_by == "deterministic"
     assert plan.playbook_id == "watchlist_and_ticket"
     assert tokens == 0
@@ -88,8 +90,10 @@ async def test_select_deterministic_single_match():
 async def test_select_deterministic_zero_tokens():
     inc = _incident(severity="low")
     cfg = ResponseSettings()
-    _, tokens = await select_playbook(inc, _catalog_single(), llm=None, cfg=cfg)
-    assert tokens == 0
+    sel = await select_playbook(inc, _catalog_single(), llm=None, cfg=cfg)
+    assert sel.tokens_consumed == 0
+    assert sel.tokens_in is None
+    assert sel.tokens_out is None
 
 
 @pytest.mark.asyncio
@@ -142,11 +146,16 @@ async def test_select_ambiguous_uses_llm():
     inc = _incident(severity="medium")
     cfg = ResponseSettings()
     llm = _FakeLlm({"playbook_id": "pb_a", "confidence": 0.9, "rationale": "pb_a fits"})
-    plan, tokens = await select_playbook(inc, _catalog_multi(), llm=llm, cfg=cfg)
+    selection = await select_playbook(inc, _catalog_multi(), llm=llm, cfg=cfg)
+    plan = selection.plan
+    tokens = selection.tokens_consumed
     assert llm.call_count == 1
     assert plan.playbook_id == "pb_a"
     assert plan.selected_by == "llm"
     assert tokens > 0
+    assert selection.tokens_in == 10
+    assert selection.tokens_out == 5
+    assert selection.llm_model == "test"
 
 
 @pytest.mark.asyncio

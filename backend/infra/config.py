@@ -175,6 +175,10 @@ class ObservabilitySettings(BaseSettings):
     export_batch_size: Annotated[int, Field(gt=0)] = 512
     export_interval_ms: Annotated[int, Field(gt=0)] = 2000
     trace_to_stdout: bool = False
+    # Cadence for the background span-flush loop (ObservabilityProvider). Spans
+    # are enqueued synchronously off the incident path; this drains the queue to
+    # the trace_spans table so traces are observable while incidents are in flight.
+    span_flush_interval_s: Annotated[float, Field(gt=0)] = 2.0
 
 
 class RedisSettings(BaseSettings):
