@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
-import { JourneyTrace } from './JourneyTrace'
+import { JourneyTrace } from '@/components/JourneyTrace'
 
 describe('JourneyTrace', () => {
   it('renders a chip per step with label and score', () => {
