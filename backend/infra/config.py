@@ -460,7 +460,7 @@ class AnomalySettings(BaseSettings):
 
     enabled: bool = True
     model_path: str = "backend/data/anomaly/model.joblib"
-    replay_path: str | None = None
+    replay_path: str | None = "backend/data/anomaly/replay.jsonl"
     window: timedelta = Field(default_factory=lambda: parse_window("1d"))
     fire_threshold: Annotated[float, Field(ge=0.0, le=1.0)] = 0.60
     band_medium: Annotated[float, Field(ge=0.0, le=1.0)] = 0.60
