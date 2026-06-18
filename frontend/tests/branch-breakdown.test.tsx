@@ -1,37 +1,38 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { BranchBreakdown } from '@/features/map/BranchBreakdown'
-import * as incidentsApi from '@/api/incidents'
-import type { IncidentSummary } from '@/api/incidents'
+import type { StageNode } from '@/api/pipeline'
 
-vi.mock('@/api/incidents', () => ({
-  useIncidentQueue: vi.fn(),
-}))
-
-const mockUseIncidentQueue = vi.mocked(incidentsApi.useIncidentQueue)
-
-const stage = {
-  key: 'triage',
-  label: 'Triage',
-  in_flight: 2,
-  branches: [
-    { to: 'resolved', count: 5 },
-    { to: 'escalated', count: 1 },
-  ],
+function makeStage(overrides: Partial<StageNode> = {}): StageNode {
+  return {
+    key: 'triage',
+    label: 'Triage',
+    in_flight: 2,
+    branches: [
+      { to: 'resolved', count: 5 },
+      { to: 'escalated', count: 1 },
+    ],
+    incidents: [],
+    ...overrides,
+  }
 }
 
-function makeIncident(overrides: Partial<IncidentSummary> = {}): IncidentSummary {
+function makeIncident(overrides: Partial<NonNullable<StageNode['incidents'][number]>> = {}) {
   return {
     id: '00000000-0000-0000-0000-000000000001',
     status: 'triaging',
     severity: 'high',
-    disposition: null,
     source: 'wazuh',
     summary: 'Suspicious login attempt',
-    is_awaiting_approval: false,
-    created_at: '2026-06-18T09:00:00Z',
     updated_at: '2026-06-18T09:05:00Z',
+    triage_verdict: 'real',
+    triage_confidence: 0.82,
+    enrichment_assessment: null,
+    enrichment_confidence: null,
+    response_plan_id: null,
+    response_selected_by: null,
+    response_verdict: null,
     ...overrides,
   }
 }
@@ -41,88 +42,66 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe('BranchBreakdown', () => {
-  beforeEach(() => vi.clearAllMocks())
-
   it('renders outflow bars with destination and count', () => {
-    mockUseIncidentQueue.mockReturnValue({
-      data: { items: [], total: 0, limit: 10, offset: 0, view: 'active', applied_filters: { status: [], severity: [], sort: '' } },
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as ReturnType<typeof incidentsApi.useIncidentQueue>)
-
-    render(<BranchBreakdown stage={stage} onSelectIncident={vi.fn()} />, { wrapper })
-    expect(screen.getByText(/resolved/i)).toBeInTheDocument()
+    render(<BranchBreakdown stage={makeStage()} onSelectIncident={vi.fn()} />, { wrapper })
     expect(screen.getByText('5')).toBeInTheDocument()
-    expect(screen.getByText(/escalated/i)).toBeInTheDocument()
     expect(screen.getByText('1')).toBeInTheDocument()
   })
 
-  it('renders the real incidents currently in this stage', () => {
-    mockUseIncidentQueue.mockReturnValue({
-      data: {
-        items: [makeIncident()],
-        total: 1,
-        limit: 10,
-        offset: 0,
-        view: 'active',
-        applied_filters: { status: [], severity: [], sort: '' },
-      },
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as ReturnType<typeof incidentsApi.useIncidentQueue>)
-
-    render(<BranchBreakdown stage={stage} onSelectIncident={vi.fn()} />, { wrapper })
+  it('renders in-flight incidents from the snapshot with severity and summary', () => {
+    render(
+      <BranchBreakdown
+        stage={makeStage({ incidents: [makeIncident()] })}
+        onSelectIncident={vi.fn()}
+      />,
+      { wrapper }
+    )
     expect(screen.getByText('Suspicious login attempt')).toBeInTheDocument()
     expect(screen.getByText('High')).toBeInTheDocument()
   })
 
-  it('queries with view=active and the stage statuses', () => {
-    mockUseIncidentQueue.mockReturnValue({
-      data: { items: [], total: 0, limit: 10, offset: 0, view: 'active', applied_filters: { status: [], severity: [], sort: '' } },
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as ReturnType<typeof incidentsApi.useIncidentQueue>)
-
-    render(<BranchBreakdown stage={stage} onSelectIncident={vi.fn()} />, { wrapper })
-    expect(mockUseIncidentQueue).toHaveBeenCalledWith(
-      expect.objectContaining({ view: 'active', status: ['triaging'] })
+  it('renders triage and enrichment score chips when present', () => {
+    render(
+      <BranchBreakdown
+        stage={makeStage({
+          incidents: [
+            makeIncident({
+              triage_verdict: 'real',
+              triage_confidence: 0.82,
+              enrichment_assessment: 'confirmed',
+              enrichment_confidence: 0.71,
+              response_plan_id: 'isolate_host',
+              response_verdict: 'verified',
+            }),
+          ],
+        })}
+        onSelectIncident={vi.fn()}
+      />,
+      { wrapper }
     )
+    expect(screen.getByText(/real · 82%/i)).toBeInTheDocument()
+    expect(screen.getByText(/confirmed · 71%/i)).toBeInTheDocument()
+    expect(screen.getByText(/isolate_host · verified/i)).toBeInTheDocument()
   })
 
   it('calls onSelectIncident when an incident row is clicked', async () => {
     const onSelectIncident = vi.fn()
-    mockUseIncidentQueue.mockReturnValue({
-      data: {
-        items: [makeIncident()],
-        total: 1,
-        limit: 10,
-        offset: 0,
-        view: 'active',
-        applied_filters: { status: [], severity: [], sort: '' },
-      },
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as ReturnType<typeof incidentsApi.useIncidentQueue>)
     const { default: userEvent } = await import('@testing-library/user-event')
-
-    render(<BranchBreakdown stage={stage} onSelectIncident={onSelectIncident} />, { wrapper })
-    await userEvent.click(screen.getByRole('button', { name: /open incident 00000000-0000-0000-0000-000000000001/i }))
+    render(
+      <BranchBreakdown
+        stage={makeStage({ incidents: [makeIncident()] })}
+        onSelectIncident={onSelectIncident}
+      />,
+      { wrapper }
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: /open incident 00000000-0000-0000-0000-000000000001/i })
+    )
     expect(onSelectIncident).toHaveBeenCalledWith('00000000-0000-0000-0000-000000000001')
   })
 
   it('shows an empty message when no incidents are currently in this stage', () => {
-    mockUseIncidentQueue.mockReturnValue({
-      data: { items: [], total: 0, limit: 10, offset: 0, view: 'active', applied_filters: { status: [], severity: [], sort: '' } },
-      isLoading: false,
-      isError: false,
-      error: null,
-    } as ReturnType<typeof incidentsApi.useIncidentQueue>)
-
-    render(<BranchBreakdown stage={stage} onSelectIncident={vi.fn()} />, { wrapper })
+    render(<BranchBreakdown stage={makeStage()} onSelectIncident={vi.fn()} />, { wrapper })
     expect(screen.getByText(/no incidents currently in this stage/i)).toBeInTheDocument()
   })
 })

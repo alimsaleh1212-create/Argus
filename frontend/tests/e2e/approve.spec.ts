@@ -18,11 +18,13 @@ test.describe('Approval workflow e2e', () => {
     await page.getByLabel(/username/i).fill('admin')
     await page.getByLabel(/password/i).fill(process.env.ARGUS_ADMIN_PASS ?? 'admin123')
     await page.getByRole('button', { name: /sign in/i }).click()
-    await page.waitForURL('/queue')
+    // Post-login default route is the Pipeline Map.
+    await page.waitForURL('/map')
   }
 
   test('sign-in → queue → open parked incident → approve → see remediated', async ({ page }) => {
     await login(page)
+    await page.goto('/queue')
 
     // Wait for the queue to load
     await expect(page.getByRole('table', { name: /incident queue/i })).toBeVisible({ timeout: 5000 })
@@ -54,6 +56,7 @@ test.describe('Approval workflow e2e', () => {
 
   test('reject path → rejected_by_human', async ({ page }) => {
     await login(page)
+    await page.goto('/queue')
 
     await expect(page.getByRole('table', { name: /incident queue/i })).toBeVisible({ timeout: 5000 })
 
@@ -74,9 +77,9 @@ test.describe('Approval workflow e2e', () => {
     ).toBeVisible({ timeout: 10_000 })
   })
 
-  test('sign-in navigates to queue on success', async ({ page }) => {
+  test('sign-in navigates to the Pipeline Map on success', async ({ page }) => {
     await login(page)
-    await expect(page).toHaveURL(/\/queue/)
+    await expect(page).toHaveURL(/\/map/)
     await expect(page.getByRole('navigation', { name: /main navigation/i })).toBeVisible()
   })
 

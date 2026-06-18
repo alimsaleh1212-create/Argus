@@ -21,6 +21,9 @@ const KpiDashboard = lazy(() =>
 const PipelineMap = lazy(() =>
   import('@/features/map/PipelineMap').then((m) => ({ default: m.PipelineMap }))
 )
+const HumanAttentionPage = lazy(() =>
+  import('@/features/attention/HumanAttentionPage').then((m) => ({ default: m.HumanAttentionPage }))
+)
 
 function Loading() {
   return (
@@ -51,7 +54,7 @@ export const router = createBrowserRouter([
       </AuthProvider>
     ),
     children: [
-      { index: true, element: <Navigate to="/queue" replace /> },
+      { index: true, element: <Navigate to="/map" replace /> },
       {
         path: 'queue',
         element: (
@@ -65,6 +68,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <PipelineMap />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'attention',
+        element: (
+          <Suspense fallback={<Loading />}>
+            <HumanAttentionPage />
           </Suspense>
         ),
       },

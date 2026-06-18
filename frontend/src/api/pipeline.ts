@@ -6,11 +6,28 @@ export interface BranchOutflow {
   count: number
 }
 
+export interface StageIncident {
+  id: string
+  severity: string
+  status: string
+  source: string
+  summary: string | null
+  updated_at: string
+  triage_verdict: string | null
+  triage_confidence: number | null
+  enrichment_assessment: string | null
+  enrichment_confidence: number | null
+  response_plan_id: string | null
+  response_selected_by: string | null
+  response_verdict: string | null
+}
+
 export interface StageNode {
   key: string
   label: string
   in_flight: number
   branches: BranchOutflow[]
+  incidents: StageIncident[]
 }
 
 export interface TerminalCounts {

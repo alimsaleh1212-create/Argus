@@ -6,7 +6,6 @@ import { StageNodeCard } from './StageNode'
 import { FlowEdge } from './FlowEdge'
 import { TerminalColumn } from './TerminalColumn'
 import { BranchBreakdown } from './BranchBreakdown'
-import { HumanAttentionLane } from './HumanAttentionLane'
 import { IncidentDrawer } from './IncidentDrawer'
 import { JourneyOverlay, useJourney } from './JourneyOverlay'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -72,7 +71,10 @@ export function PipelineMap() {
     snapshot.terminals.awaiting === 0
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-4rem)] gap-6" data-testid="pipeline-map">
+    <div
+      className="flex flex-col min-h-[calc(100vh-3.5rem)] gap-6 p-6"
+      data-testid="pipeline-map"
+    >
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-slate-100">Pipeline Map</h1>
@@ -145,8 +147,6 @@ export function PipelineMap() {
             </div>
             <TerminalColumn terminals={snapshot.terminals} changedKeys={changedTerminalKeys} />
           </div>
-
-          <HumanAttentionLane onSelectIncident={selectIncident} />
         </div>
       )}
 

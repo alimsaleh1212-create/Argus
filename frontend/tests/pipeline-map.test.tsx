@@ -11,10 +11,6 @@ vi.mock('@/features/map/useAnimatedPipeline', () => ({
   useAnimatedPipeline: vi.fn(),
 }))
 
-vi.mock('@/features/map/HumanAttentionLane', () => ({
-  HumanAttentionLane: () => <div data-testid="human-attention-lane-mock" />,
-}))
-
 vi.mock('@/features/map/IncidentDrawer', () => ({
   IncidentDrawer: ({ incidentId }: { incidentId: string | null }) => (
     <div data-testid="incident-drawer-mock">{incidentId ?? 'none'}</div>
@@ -37,10 +33,10 @@ const mockUseAnimatedPipeline = vi.mocked(animatedApi.useAnimatedPipeline)
 function makeSnapshot() {
   return {
     stages: [
-      { key: 'intake', label: 'Intake', in_flight: 2, branches: [] },
-      { key: 'triage', label: 'Triage', in_flight: 4, branches: [] },
-      { key: 'enrichment', label: 'Enrichment', in_flight: 1, branches: [] },
-      { key: 'response', label: 'Response', in_flight: 3, branches: [] },
+      { key: 'intake', label: 'Intake', in_flight: 2, branches: [], incidents: [] },
+      { key: 'triage', label: 'Triage', in_flight: 4, branches: [], incidents: [] },
+      { key: 'enrichment', label: 'Enrichment', in_flight: 1, branches: [], incidents: [] },
+      { key: 'response', label: 'Response', in_flight: 3, branches: [], incidents: [] },
     ],
     terminals: { resolved: 10, escalated: 2, awaiting: 1 },
     window_hours: 24,
@@ -62,7 +58,7 @@ function baseAnimatedPipeline() {
 }
 
 describe('StageNodeCard', () => {
-  const stage = { key: 'triage', label: 'Triage', in_flight: 4, branches: [] }
+  const stage = { key: 'triage', label: 'Triage', in_flight: 4, branches: [], incidents: [] }
 
   it('renders the stage label and in-flight count', () => {
     render(<StageNodeCard stage={stage} justChanged={false} />)
@@ -190,10 +186,10 @@ describe('PipelineMap', () => {
       ...baseAnimatedPipeline(),
       snapshot: {
         stages: [
-          { key: 'intake', label: 'Intake', in_flight: 0, branches: [] },
-          { key: 'triage', label: 'Triage', in_flight: 0, branches: [] },
-          { key: 'enrichment', label: 'Enrichment', in_flight: 0, branches: [] },
-          { key: 'response', label: 'Response', in_flight: 0, branches: [] },
+          { key: 'intake', label: 'Intake', in_flight: 0, branches: [], incidents: [] },
+          { key: 'triage', label: 'Triage', in_flight: 0, branches: [], incidents: [] },
+          { key: 'enrichment', label: 'Enrichment', in_flight: 0, branches: [], incidents: [] },
+          { key: 'response', label: 'Response', in_flight: 0, branches: [], incidents: [] },
         ],
         terminals: { resolved: 0, escalated: 0, awaiting: 0 },
         window_hours: 24,
@@ -233,14 +229,6 @@ describe('PipelineMap', () => {
     } as ReturnType<typeof animatedApi.useAnimatedPipeline>)
     render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
     expect(screen.getByRole('button', { name: /paused/i })).toBeInTheDocument()
-  })
-
-  it('renders the Human Attention lane below the rail', () => {
-    mockUseAnimatedPipeline.mockReturnValue(
-      baseAnimatedPipeline() as ReturnType<typeof animatedApi.useAnimatedPipeline>
-    )
-    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
-    expect(screen.getByTestId('human-attention-lane-mock')).toBeInTheDocument()
   })
 
   it('expands a stage to reveal its branch breakdown when the expand toggle is clicked', async () => {
