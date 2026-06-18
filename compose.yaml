@@ -259,6 +259,18 @@ services:
         condition: service_started
     restart: on-failure
 
+  # Dev-only: web UI for inspecting the postgres database.
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@argus.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # React SPA served by nginx, same-origin reverse-proxy to api (SPEC-dashboard #12).
   frontend:
     build:
