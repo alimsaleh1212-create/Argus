@@ -238,6 +238,27 @@ services:
         condition: service_completed_successfully
     restart: on-failure
 
+  # One-shot: replays behavioral logs through the ML anomaly detector (#17) and
+  # emits anomalous windows as incidents (source=anomaly-detector) via intake.
+  # Gives the dashboard non-Wazuh incidents alongside the Wazuh webhook feed.
+  anomaly-detector:
+    <<: *backend
+    command: ["python", "-m", "backend.anomaly_detector"]
+    environment:
+      ARGUS__VAULT__REQUIRED_PATHS: '["secret/ingest","secret/memory"]'
+      ARGUS__ANOMALY__REPLAY_PATH: "${ARGUS__ANOMALY__REPLAY_PATH:-backend/data/anomaly/replay.jsonl}"
+      ARGUS__ANOMALY__ENABLED: "${ARGUS__ANOMALY__ENABLED:-true}"
+    depends_on:
+      redis:
+        condition: service_healthy
+      vault-seed:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+      worker:
+        condition: service_started
+    restart: on-failure
+
   # React SPA served by nginx, same-origin reverse-proxy to api (SPEC-dashboard #12).
   frontend:
     build:

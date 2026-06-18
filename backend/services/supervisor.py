@@ -164,7 +164,7 @@ class Supervisor:
             SpanKind.ROOT,
             str(incident_id),
             attrs={"incident_id": str(incident_id)},
-        ):
+        ) as root_span:
             incident = await repo.get(incident_id)
             if incident is None:
                 logger.warning("supervisor_incident_not_found", incident_id=str(incident_id))
@@ -246,9 +246,22 @@ class Supervisor:
                             f"supervisor.stage.{stage_name.value}",
                             SpanKind.AGENT_STEP,
                             str(incident_id),
+                            parent_span_id=root_span.span_id,
                             attrs={"stage": stage_name.value, "attempt": attempt},
-                        ):
+                        ) as stage_span:
                             result = await handler(incident)
+                            # Record split token usage on the stage span so the
+                            # trace telemetry aggregates tokens_in/out (FR-016).
+                            if result is not None:
+                                stage_span.tokens_in = result.tokens_in
+                                stage_span.tokens_out = result.tokens_out
+                                if result.llm_model is not None:
+                                    stage_span.llm_model = result.llm_model
+                                stage_span.attributes = {
+                                    **stage_span.attributes,
+                                    "outcome": str(result.outcome),
+                                    "disposition": result.disposition or "",
+                                }
                         break
                     except ToolError as exc:
                         if not exc.retryable or attempt >= self._cfg.max_stage_retries:

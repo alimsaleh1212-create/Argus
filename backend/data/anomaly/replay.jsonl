@@ -1,0 +1,176 @@
+{"event_time": "2024-02-01T11:00:00", "entity_id": "attacker_m01", "fields": {"type": "logon", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "device", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "device", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "device", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "logon", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "device", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "device", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "device", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "device", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "device", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "http", "pc": "pc003", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "file", "pc": "pc003", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T12:00:00", "entity_id": "attacker_m01", "fields": {"type": "email", "pc": "pc003", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-01T13:00:00", "entity_id": "attacker_m01", "fields": {"type": "logon", "pc": "pc003"}, "label": "malicious"}
+{"event_time": "2024-02-01T17:00:00", "entity_id": "user_n02", "fields": {"type": "logon", "pc": "pc002"}, "label": "normal"}
+{"event_time": "2024-02-01T17:00:00", "entity_id": "user_n01", "fields": {"type": "logon", "pc": "pc001"}, "label": "normal"}
+{"event_time": "2024-02-01T19:00:00", "entity_id": "user_n01", "fields": {"type": "device", "pc": "pc001"}, "label": "normal"}
+{"event_time": "2024-02-01T19:00:00", "entity_id": "user_n01", "fields": {"type": "device", "pc": "pc001"}, "label": "normal"}
+{"event_time": "2024-02-01T19:00:00", "entity_id": "user_n01", "fields": {"type": "device", "pc": "pc001"}, "label": "normal"}
+{"event_time": "2024-02-01T19:00:00", "entity_id": "user_n02", "fields": {"type": "device", "pc": "pc002"}, "label": "normal"}
+{"event_time": "2024-02-01T19:00:00", "entity_id": "user_n02", "fields": {"type": "device", "pc": "pc002"}, "label": "normal"}
+{"event_time": "2024-02-01T20:00:00", "entity_id": "user_n01", "fields": {"type": "file", "pc": "pc001", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-01T20:00:00", "entity_id": "user_n02", "fields": {"type": "file", "pc": "pc002", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-01T20:00:00", "entity_id": "user_n01", "fields": {"type": "file", "pc": "pc001", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-01T20:00:00", "entity_id": "user_n01", "fields": {"type": "file", "pc": "pc001", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-01T20:00:00", "entity_id": "user_n02", "fields": {"type": "file", "pc": "pc002", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-01T20:00:00", "entity_id": "user_n02", "fields": {"type": "file", "pc": "pc002", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-01T20:00:00", "entity_id": "user_n01", "fields": {"type": "file", "pc": "pc001", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-01T21:00:00", "entity_id": "user_n01", "fields": {"type": "email", "pc": "pc001", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-01T21:00:00", "entity_id": "user_n02", "fields": {"type": "email", "pc": "pc002", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-01T21:00:00", "entity_id": "user_n02", "fields": {"type": "email", "pc": "pc002", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-01T21:00:00", "entity_id": "user_n01", "fields": {"type": "email", "pc": "pc001", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-01T21:00:00", "entity_id": "user_n02", "fields": {"type": "email", "pc": "pc002", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-01T21:00:00", "entity_id": "user_n01", "fields": {"type": "email", "pc": "pc001", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-01T21:00:00", "entity_id": "user_n01", "fields": {"type": "email", "pc": "pc001", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n02", "fields": {"type": "http", "pc": "pc002", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n02", "fields": {"type": "http", "pc": "pc002", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n02", "fields": {"type": "http", "pc": "pc002", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n02", "fields": {"type": "http", "pc": "pc002", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n02", "fields": {"type": "http", "pc": "pc002", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-01T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T02:00:00", "entity_id": "user_n02", "fields": {"type": "logon", "pc": "pc002"}, "label": "normal"}
+{"event_time": "2024-02-02T02:00:00", "entity_id": "user_n01", "fields": {"type": "logon", "pc": "pc001"}, "label": "normal"}
+{"event_time": "2024-02-02T10:00:00", "entity_id": "attacker_m02", "fields": {"type": "logon", "pc": "pc004"}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "device", "pc": "pc004"}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "device", "pc": "pc004"}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "device", "pc": "pc004"}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "device", "pc": "pc004"}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "device", "pc": "pc004"}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "device", "pc": "pc004"}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "logon", "pc": "pc004"}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "device", "pc": "pc004"}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "email", "pc": "pc004", "to_external": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "file", "pc": "pc004", "to_removable": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T11:00:00", "entity_id": "attacker_m02", "fields": {"type": "http", "pc": "pc004", "flagged": 1}, "label": "malicious"}
+{"event_time": "2024-02-02T13:00:00", "entity_id": "attacker_m02", "fields": {"type": "logon", "pc": "pc004"}, "label": "malicious"}
+{"event_time": "2024-02-02T17:00:00", "entity_id": "user_n01", "fields": {"type": "logon", "pc": "pc001"}, "label": "normal"}
+{"event_time": "2024-02-02T17:00:00", "entity_id": "user_n02", "fields": {"type": "logon", "pc": "pc002"}, "label": "normal"}
+{"event_time": "2024-02-02T19:00:00", "entity_id": "user_n02", "fields": {"type": "device", "pc": "pc002"}, "label": "normal"}
+{"event_time": "2024-02-02T19:00:00", "entity_id": "user_n02", "fields": {"type": "device", "pc": "pc002"}, "label": "normal"}
+{"event_time": "2024-02-02T19:00:00", "entity_id": "user_n01", "fields": {"type": "device", "pc": "pc001"}, "label": "normal"}
+{"event_time": "2024-02-02T19:00:00", "entity_id": "user_n01", "fields": {"type": "device", "pc": "pc001"}, "label": "normal"}
+{"event_time": "2024-02-02T19:00:00", "entity_id": "user_n01", "fields": {"type": "device", "pc": "pc001"}, "label": "normal"}
+{"event_time": "2024-02-02T20:00:00", "entity_id": "user_n02", "fields": {"type": "file", "pc": "pc002", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-02T20:00:00", "entity_id": "user_n01", "fields": {"type": "file", "pc": "pc001", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-02T20:00:00", "entity_id": "user_n02", "fields": {"type": "file", "pc": "pc002", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-02T20:00:00", "entity_id": "user_n01", "fields": {"type": "file", "pc": "pc001", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-02T20:00:00", "entity_id": "user_n02", "fields": {"type": "file", "pc": "pc002", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-02T20:00:00", "entity_id": "user_n01", "fields": {"type": "file", "pc": "pc001", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-02T20:00:00", "entity_id": "user_n01", "fields": {"type": "file", "pc": "pc001", "to_removable": 0}, "label": "normal"}
+{"event_time": "2024-02-02T21:00:00", "entity_id": "user_n01", "fields": {"type": "email", "pc": "pc001", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-02T21:00:00", "entity_id": "user_n01", "fields": {"type": "email", "pc": "pc001", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-02T21:00:00", "entity_id": "user_n01", "fields": {"type": "email", "pc": "pc001", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-02T21:00:00", "entity_id": "user_n02", "fields": {"type": "email", "pc": "pc002", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-02T21:00:00", "entity_id": "user_n02", "fields": {"type": "email", "pc": "pc002", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-02T21:00:00", "entity_id": "user_n01", "fields": {"type": "email", "pc": "pc001", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-02T21:00:00", "entity_id": "user_n02", "fields": {"type": "email", "pc": "pc002", "to_external": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n02", "fields": {"type": "http", "pc": "pc002", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n02", "fields": {"type": "http", "pc": "pc002", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n02", "fields": {"type": "http", "pc": "pc002", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n02", "fields": {"type": "http", "pc": "pc002", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n02", "fields": {"type": "http", "pc": "pc002", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-02T22:00:00", "entity_id": "user_n01", "fields": {"type": "http", "pc": "pc001", "flagged": 0}, "label": "normal"}
+{"event_time": "2024-02-03T02:00:00", "entity_id": "user_n02", "fields": {"type": "logon", "pc": "pc002"}, "label": "normal"}
+{"event_time": "2024-02-03T02:00:00", "entity_id": "user_n01", "fields": {"type": "logon", "pc": "pc001"}, "label": "normal"}

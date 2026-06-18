@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, BarChart3, LogOut, GitGraph } from 'lucide-react'
+import { LayoutDashboard, BarChart3, LogOut, GitGraph, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/auth/AuthContext'
 import { ConnectionIndicator } from './ConnectionIndicator'
@@ -8,8 +8,9 @@ import { useConnectionState, useSSEStream } from '@/api/stream'
 import logo from '@/assets/argus-logo.jpg'
 
 const navItems = [
-  { to: '/queue', label: 'Queue', icon: LayoutDashboard },
   { to: '/map', label: 'Pipeline Map', icon: GitGraph },
+  { to: '/attention', label: 'Human Attention', icon: ShieldAlert },
+  { to: '/queue', label: 'Queue', icon: LayoutDashboard },
   { to: '/kpis', label: 'KPIs', icon: BarChart3 },
 ]
 
@@ -30,10 +31,15 @@ export function AppShell() {
       {/* Sidebar */}
       <aside className="w-56 flex-shrink-0 bg-[#0F172A] border-r border-slate-800 flex flex-col">
         {/* Brand */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-800">
+        <button
+          type="button"
+          onClick={() => navigate('/map')}
+          aria-label="Go to Pipeline Map"
+          className="flex items-center gap-3 px-4 py-4 border-b border-slate-800 transition-colors hover:bg-slate-800/60 cursor-pointer text-left"
+        >
           <img src={logo} alt="Argus" className="w-11 h-11 rounded-lg object-cover flex-shrink-0" />
           <span className="text-base font-bold text-slate-50 tracking-tight">Argus</span>
-        </div>
+        </button>
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-2 space-y-1" aria-label="Main navigation">
@@ -77,8 +83,8 @@ export function AppShell() {
           <div id="topbar-title" className="text-sm text-slate-400 font-medium" />
         </header>
 
-        {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        {/* Scrollable content (full-bleed; pages own their padding) */}
+        <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
       </div>

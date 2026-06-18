@@ -112,6 +112,19 @@ def tokens(response: object) -> int:
     return prompt + completion
 
 
+def split_tokens(response: object) -> tuple[int | None, int | None, str | None]:
+    """Return (tokens_in, tokens_out, model) from the LLM response usage, or Nones."""
+    usage = getattr(response, "usage", None)
+    model = getattr(response, "model", None)
+    if usage is None:
+        return None, None, model
+    return (
+        getattr(usage, "prompt_tokens", None),
+        getattr(usage, "completion_tokens", None),
+        model,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Pure outcome mapping
 # ---------------------------------------------------------------------------

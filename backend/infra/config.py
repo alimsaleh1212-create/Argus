@@ -175,6 +175,10 @@ class ObservabilitySettings(BaseSettings):
     export_batch_size: Annotated[int, Field(gt=0)] = 512
     export_interval_ms: Annotated[int, Field(gt=0)] = 2000
     trace_to_stdout: bool = False
+    # Cadence for the background span-flush loop (ObservabilityProvider). Spans
+    # are enqueued synchronously off the incident path; this drains the queue to
+    # the trace_spans table so traces are observable while incidents are in flight.
+    span_flush_interval_s: Annotated[float, Field(gt=0)] = 2.0
 
 
 class RedisSettings(BaseSettings):
@@ -460,7 +464,7 @@ class AnomalySettings(BaseSettings):
 
     enabled: bool = True
     model_path: str = "backend/data/anomaly/model.joblib"
-    replay_path: str | None = None
+    replay_path: str | None = "backend/data/anomaly/replay.jsonl"
     window: timedelta = Field(default_factory=lambda: parse_window("1d"))
     fire_threshold: Annotated[float, Field(ge=0.0, le=1.0)] = 0.60
     band_medium: Annotated[float, Field(ge=0.0, le=1.0)] = 0.60

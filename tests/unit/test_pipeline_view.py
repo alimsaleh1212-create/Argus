@@ -105,6 +105,7 @@ class TestBuildPipelineSnapshot:
         repo.disposition_counts_since = AsyncMock(
             return_value={"auto_resolved_triage": 2, "escalated_response": 1}
         )
+        repo.list_in_flight_with_evidence = AsyncMock(return_value=[])
 
         snap = await build_pipeline_snapshot(repo, window_hours=24)
 
@@ -113,11 +114,88 @@ class TestBuildPipelineSnapshot:
         triage = next(s for s in snap.stages if s.key == "triage")
         assert triage.in_flight == 4
         assert {b.to: b.count for b in triage.branches} == {"resolved": 2}
+        assert triage.incidents == []
         assert snap.terminals.escalated == 1
         assert snap.terminals.awaiting == 1
         assert snap.window_hours == 24
         repo.status_counts.assert_called_once()
         repo.disposition_counts_since.assert_called_once_with(window_hours=24)
+        repo.list_in_flight_with_evidence.assert_called_once()
+
+
+class TestStageIncidents:
+    def _incident(self, **overrides):
+        import uuid as _uuid
+
+        from backend.domain.incident import Incident, IncidentStatus, Severity
+
+        base: dict = {
+            "id": _uuid.uuid4(),
+            "status": IncidentStatus.TRIAGING,
+            "severity": Severity.MEDIUM,
+            "correlation_id": "c1",
+            "dedup_fingerprint": "fp1",
+            "source": "wazuh",
+            "raw_alert": {},
+            "evidence": {
+                "summary": "SSH brute force",
+                "triage": {"verdict": "real", "confidence": 0.82},
+                "enrichment": {"assessment": "confirmed", "confidence": 0.71},
+            },
+            "updated_at": datetime.now(UTC),
+        }
+        base.update(overrides)
+        return Incident(**base)
+
+    def test_projects_triage_and_enrichment_scores(self) -> None:
+        from backend.services.pipeline_view import _to_stage_incident
+
+        view = _to_stage_incident(self._incident())
+        assert view.triage_verdict == "real"
+        assert view.triage_confidence == 0.82
+        assert view.enrichment_assessment == "confirmed"
+        assert view.enrichment_confidence == 0.71
+        assert view.response_plan_id is None
+
+    def test_projects_response_plan_and_verification(self) -> None:
+        from backend.services.pipeline_view import _to_stage_incident
+
+        inc = self._incident(
+            evidence={
+                "summary": "lateral movement",
+                "response": {
+                    "plan": {"playbook_id": "isolate_host", "selected_by": "deterministic"},
+                    "verification": {"verdict": "verified"},
+                },
+            }
+        )
+        view = _to_stage_incident(inc)
+        assert view.response_plan_id == "isolate_host"
+        assert view.response_selected_by == "deterministic"
+        assert view.response_verdict == "verified"
+
+    def test_confidence_out_of_range_coerced_to_none(self) -> None:
+        from backend.services.pipeline_view import _to_stage_incident
+
+        inc = self._incident(
+            evidence={"summary": "x", "triage": {"verdict": "real", "confidence": 1.4}}
+        )
+        assert _to_stage_incident(inc).triage_confidence is None
+
+    def test_stage_incidents_groups_by_stage_and_drops_unmapped(self) -> None:
+        from backend.domain.incident import IncidentStatus
+        from backend.services.pipeline_view import stage_incidents
+
+        triaging = self._incident()
+        enriching = self._incident(status=IncidentStatus.ENRICHING)
+        # 'grounded' maps to intake; a terminal status would be dropped, but
+        # list_in_flight_with_evidence only returns active statuses anyway.
+        grounded = self._incident(status=IncidentStatus.GROUNDED)
+        grouped = stage_incidents([triaging, enriching, grounded])
+        assert {g.id for g in grouped["triage"]} == {triaging.id}
+        assert {g.id for g in grouped["enrichment"]} == {enriching.id}
+        assert {g.id for g in grouped["intake"]} == {grounded.id}
+        assert grouped["response"] == []
 
 
 class TestExhaustiveness:

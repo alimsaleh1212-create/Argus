@@ -166,11 +166,13 @@ class TestTelemetryFromTraceTree:
         rec = TelemetryRecord.from_trace_tree(tree)
         assert rec.end_to_end_ms == 500
 
-    def test_total_tokens_aggregated_from_llm_spans_only(self) -> None:
-        # Tokens are summed only from LLM_CALL spans; root (ROOT kind) is excluded.
+    def test_total_tokens_aggregated_from_non_root_spans(self) -> None:
+        # Tokens are summed from every non-root span (stage agent-step spans
+        # carry split prompt/completion usage); the root is excluded so its
+        # usage is not double-counted.
         llm1 = _make_child(span_id="c1", tokens_in=5, tokens_out=15, kind=SpanKind.LLM_CALL)
-        llm2 = _make_child(span_id="c2", tokens_in=3, tokens_out=10, kind=SpanKind.LLM_CALL)
-        tree = self._make_tree({"root-span": [llm1, llm2]})
+        stage = _make_child(span_id="c2", tokens_in=3, tokens_out=10, kind=SpanKind.AGENT_STEP)
+        tree = self._make_tree({"root-span": [llm1, stage]})
         rec = TelemetryRecord.from_trace_tree(tree)
         assert rec.total_tokens_in == 8
         assert rec.total_tokens_out == 25

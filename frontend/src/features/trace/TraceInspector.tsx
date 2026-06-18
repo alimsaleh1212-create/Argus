@@ -29,7 +29,7 @@ export function TraceInspector() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 p-4 sm:p-6" aria-label="Loading trace">
+      <div className="p-4 sm:p-6" aria-label="Loading trace">
         <div className="max-w-6xl mx-auto space-y-4">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-20 w-full" />
@@ -52,7 +52,7 @@ export function TraceInspector() {
   const hasSpans = data.root !== null
 
   return (
-    <div className="min-h-screen bg-slate-950 p-4 sm:p-6">
+    <div className="p-4 sm:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">

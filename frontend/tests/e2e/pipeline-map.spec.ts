@@ -19,14 +19,19 @@ test.describe('Pipeline map e2e', () => {
     await page.getByLabel(/username/i).fill('admin')
     await page.getByLabel(/password/i).fill(process.env.ARGUS_ADMIN_PASS ?? 'admin123')
     await page.getByRole('button', { name: /sign in/i }).click()
-    await page.waitForURL('/queue')
+    // Post-login default route is the Pipeline Map.
+    await page.waitForURL('/map')
   }
 
-  test('map loads and shows the rail and human attention lane', async ({ page }) => {
+  test('map loads and shows the rail and terminal column', async ({ page }) => {
     await login(page)
-    await page.goto('/map')
     await expect(page.getByTestId('pipeline-map')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText(/human attention/i)).toBeVisible()
+    await expect(page.getByTestId('stage-node-intake')).toBeVisible()
+    await expect(page.getByTestId('terminal-column')).toBeVisible()
+    // Human Attention is a dedicated page now — assert its nav link is present.
+    await expect(
+      page.getByRole('link', { name: /human attention/i })
+    ).toBeVisible()
   })
 
   test('expanding a stage reveals its branch breakdown', async ({ page }) => {

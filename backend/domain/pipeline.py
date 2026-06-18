@@ -37,6 +37,11 @@ class StageResult(BaseModel):
     stage: StageName
     outcome: StageOutcome
     tokens_consumed: int = 0
+    # Split token usage (prompt/completion) for trace telemetry. None when the
+    # provider omits usage (FR-013); rendered as "unknown" rather than coerced.
+    tokens_in: int | None = None
+    tokens_out: int | None = None
+    llm_model: str | None = None
     disposition: str | None = None
     evidence_patch: dict[str, Any] | None = None
     note: str | None = None

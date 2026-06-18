@@ -1,9 +1,6 @@
-import { useIncidentQueue } from '@/api/incidents'
 import { SeverityBadge } from '@/components/SeverityBadge'
 import { StatusBadge } from '@/components/StatusBadge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { STAGE_STATUSES } from './stageStatuses'
-import type { StageNode } from '@/api/pipeline'
+import type { StageIncident, StageNode } from '@/api/pipeline'
 
 interface BranchBreakdownProps {
   stage: StageNode
@@ -25,20 +22,69 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`
 }
 
-export function BranchBreakdown({ stage, onSelectIncident }: BranchBreakdownProps) {
-  const statuses = STAGE_STATUSES[stage.key] ?? []
-  const { data, isLoading } = useIncidentQueue({
-    view: 'active',
-    status: statuses,
-    sort: '-updated_at',
-    limit: 10,
-  })
+const VERDICT_TONE: Record<string, string> = {
+  real: 'text-rose-400 bg-rose-400/10',
+  noise: 'text-cyan-400 bg-cyan-400/10',
+  uncertain: 'text-amber-400 bg-amber-400/10',
+}
+const ASSESSMENT_TONE: Record<string, string> = {
+  confirmed: 'text-rose-400 bg-rose-400/10',
+  benign: 'text-cyan-400 bg-cyan-400/10',
+  inconclusive: 'text-amber-400 bg-amber-400/10',
+}
 
+function pct(n: number | null): string {
+  if (n === null) return ''
+  return `${Math.round(n * 100)}%`
+}
+
+function ScoreChips({ incident }: { incident: StageIncident }) {
+  const chips: { label: string; value: string; tone: string }[] = []
+  if (incident.triage_verdict) {
+    chips.push({
+      label: 'triage',
+      value: `${incident.triage_verdict}${incident.triage_confidence !== null ? ` · ${pct(incident.triage_confidence)}` : ''}`,
+      tone: VERDICT_TONE[incident.triage_verdict] ?? 'text-slate-300 bg-slate-700/40',
+    })
+  }
+  if (incident.enrichment_assessment) {
+    chips.push({
+      label: 'enrich',
+      value: `${incident.enrichment_assessment}${incident.enrichment_confidence !== null ? ` · ${pct(incident.enrichment_confidence)}` : ''}`,
+      tone: ASSESSMENT_TONE[incident.enrichment_assessment] ?? 'text-slate-300 bg-slate-700/40',
+    })
+  }
+  if (incident.response_plan_id) {
+    chips.push({
+      label: 'response',
+      value: incident.response_verdict
+        ? `${incident.response_plan_id} · ${incident.response_verdict}`
+        : incident.response_plan_id,
+      tone: 'text-sky-400 bg-sky-400/10',
+    })
+  }
+  if (chips.length === 0) return null
+  return (
+    <div className="flex flex-wrap gap-1 mt-1.5">
+      {chips.map((c) => (
+        <span
+          key={c.label}
+          className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${c.tone}`}
+        >
+          <span className="opacity-60">{c.label}</span> {c.value}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+export function BranchBreakdown({ stage, onSelectIncident }: BranchBreakdownProps) {
   const maxCount = Math.max(1, ...stage.branches.map((b) => b.count))
+  const incidents = stage.incidents
 
   return (
     <div
-      className="rounded-lg bg-slate-900/60 border border-slate-800 p-4 mt-2 w-full sm:w-[340px] space-y-4"
+      className="rounded-lg bg-slate-900/60 border border-slate-800 p-4 mt-2 w-full sm:w-[360px] space-y-4"
       data-testid={`branch-breakdown-${stage.key}`}
     >
       <div>
@@ -71,18 +117,13 @@ export function BranchBreakdown({ stage, onSelectIncident }: BranchBreakdownProp
 
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-          Currently in stage ({stage.in_flight})
+          In stage ({stage.in_flight})
         </p>
-        {isLoading ? (
-          <div className="space-y-1.5">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ) : !data || data.items.length === 0 ? (
+        {incidents.length === 0 ? (
           <p className="text-xs text-slate-600 italic">No incidents currently in this stage.</p>
         ) : (
           <ul className="space-y-1.5">
-            {data.items.map((incident) => (
+            {incidents.map((incident) => (
               <li key={incident.id}>
                 <button
                   type="button"
@@ -93,6 +134,9 @@ export function BranchBreakdown({ stage, onSelectIncident }: BranchBreakdownProp
                   <div className="flex items-center gap-2 flex-wrap">
                     <SeverityBadge severity={incident.severity} />
                     <StatusBadge status={incident.status} />
+                    <span className="text-[10px] font-mono text-slate-500 truncate">
+                      {incident.source}
+                    </span>
                     <span className="text-[11px] text-slate-500 ml-auto">
                       {timeAgo(incident.updated_at)}
                     </span>
@@ -100,6 +144,7 @@ export function BranchBreakdown({ stage, onSelectIncident }: BranchBreakdownProp
                   {incident.summary && (
                     <p className="text-xs text-slate-300 mt-1 truncate">{incident.summary}</p>
                   )}
+                  <ScoreChips incident={incident} />
                 </button>
               </li>
             ))}
