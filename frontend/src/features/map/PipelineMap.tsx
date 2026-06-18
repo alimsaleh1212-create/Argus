@@ -142,13 +142,21 @@ export function PipelineMap() {
             <JourneyOverlay incidentId={selectedIncidentId} onClear={clearSelection} />
           )}
 
+          {/* Outcomes board sits above the rail so the full pipeline is
+              visible without horizontal scroll. */}
+          <TerminalColumn
+            terminals={snapshot.terminals}
+            changedKeys={changedTerminalKeys}
+            onSelect={(key) => navigate(TERMINAL_ROUTES[key])}
+          />
+
           <div className="flex items-start gap-2 overflow-x-auto pb-4 xl:gap-3">
             {snapshot.stages.map((stage, i) => {
               const expanded = !collapsed.has(stage.key)
               const dimmed = !!journey && !journey.visitedStages.has(stage.key)
               return (
                 <Fragment key={stage.key}>
-                  <div className="flex min-w-[260px] flex-1 flex-col gap-3">
+                  <div className="flex min-w-[200px] flex-1 flex-col gap-3">
                     <StageNodeCard
                       stage={stage}
                       justChanged={changedStageKeys.has(stage.key)}
@@ -179,17 +187,6 @@ export function PipelineMap() {
                 </Fragment>
               )
             })}
-
-            <div className="self-start pt-[3.25rem]">
-              <FlowEdge active={changedTerminalKeys.size > 0} />
-            </div>
-            <div className="w-[300px] min-w-[260px] flex-shrink-0 self-start">
-              <TerminalColumn
-                terminals={snapshot.terminals}
-                changedKeys={changedTerminalKeys}
-                onSelect={(key) => navigate(TERMINAL_ROUTES[key])}
-              />
-            </div>
           </div>
         </div>
       )}

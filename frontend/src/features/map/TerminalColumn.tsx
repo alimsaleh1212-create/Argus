@@ -63,6 +63,7 @@ export function TerminalColumn({ terminals, changedKeys, onSelect }: TerminalCol
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 px-1">
         Outcomes
       </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {TILES.map((tile) => {
         const { key, label, hint, icon: Icon, iconColor, countColor, restBorder, flashBorder, pulse } = tile
         const count = terminals[key]
@@ -113,6 +114,7 @@ export function TerminalColumn({ terminals, changedKeys, onSelect }: TerminalCol
           </button>
         )
       })}
+      </div>
     </div>
   )
 }
