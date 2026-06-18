@@ -407,19 +407,24 @@ login; ok "JWT refreshed"
 # Expected terminal (status, disposition) per path
 declare -A EXPECTED=(
   [01_low_fastpath]="resolved:auto_resolved_noise"
-  [02_medium_triage_noise]="escalated:escalated_stage_error"  # LLM-dependent; may escalate (fail-closed)
-  [03_real_auto_remediated]="escalated:escalated_stage_error" # LLM-dependent (triage); may escalate
+  # NOTE: post thinking-fix (gemini-2.5-flash thinking_budget=0), triage + enrichment
+  # now run for real instead of failing with escalated_stage_error. These LLM paths use
+  # status-tolerant disposition (`*`) since the exact disposition is LLM-dependent.
+  # Real cases escalate at ENRICHMENT (not triage) because graph-RAG retrieval is empty
+  # without seeded memory/corpus (the descoped C3); seed it to reach auto-remediation.
+  [02_medium_triage_noise]="escalated:*"               # LLM-dependent (triage verdict)
+  [03_real_auto_remediated]="escalated:*"              # reaches enrichment; empty graph-RAG → escalates; auto-remediate needs seeded memory (C3)
   [04_awaiting_approval]="resolved:*"                   # approve→remediated; reject→rejected_by_human
   [07_approval_timeout]="escalated:approval_expired"
-  [08_dedup_first]="escalated:escalated_stage_error"       # LLM-dependent (triage); dedup itself verified at ingest
-  [08_dedup_second]="escalated:escalated_stage_error"
-  [09_no_playbook_match]="escalated:escalated_stage_error"
+  [08_dedup_first]="escalated:*"                        # LLM-dependent; dedup itself verified at ingest
+  [08_dedup_second]="escalated:*"
+  [09_no_playbook_match]="escalated:*"                 # escalates at enrichment pre-response (empty retrieval); reaching the no-playbook path needs seeded memory (C3)
   [10_unverified_after_approve]="escalated:remediation_unverified"
   [11_regressed_after_approve]="escalated:remediation_unverified"
-  [12_triage_escalate]="escalated:escalated_stage_error"
-  [13_enrichment_benign]="escalated:escalated_stage_error" # LLM-dependent
-  [14_enrichment_escalate]="escalated:escalated_stage_error" # LLM-dependent
-  [16_sse_live]="escalated:escalated_stage_error"          # LLM-dependent (triage); SSE push verified at ingest
+  [12_triage_escalate]="escalated:*"                   # LLM-dependent (triage escalate)
+  [13_enrichment_benign]="resolved:auto_resolved_triage" # triage confidently resolves the signed-by-Microsoft write
+  [14_enrichment_escalate]="escalated:*"               # triage/enrichment escalates the inconclusive case
+  [16_sse_live]="escalated:*"                          # LLM-dependent; SSE push verified at ingest
 )
 
 log "Polling terminal states (up to 60s each for stragglers)…"
@@ -445,7 +450,7 @@ for i in "${!PATH_NAMES[@]}"; do
     else
       # LLM-dependent paths: report but don't fail the demo
       case "$name" in
-        12_triage_escalate|13_enrichment_benign|14_enrichment_escalate|02_medium_triage_noise)
+        02_medium_triage_noise|03_real_auto_remediated|08_dedup_first|08_dedup_second|09_no_playbook_match|12_triage_escalate|13_enrichment_benign|14_enrichment_escalate|16_sse_live)
           verdict="${C_YELLOW}LLM${C_RESET}"; llm_dependent=$((llm_dependent+1));;
         *)
           if [ "$st" = "$exp_st" ]; then verdict="${C_YELLOW}DISP${C_RESET}"; else verdict="${C_RED}FAIL${C_RESET}"; fi;;
