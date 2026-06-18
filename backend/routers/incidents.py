@@ -34,7 +34,7 @@ from backend.domain.dashboard import (
 from backend.domain.telemetry import Span, TelemetryRecord
 from backend.services.dashboard_stream import incident_stream
 from backend.services.kpis import build_kpi_snapshot
-from backend.services.pipeline_view import build_pipeline_snapshot
+from backend.services.pipeline_view import build_journey, build_pipeline_snapshot
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
@@ -199,6 +199,7 @@ async def get_incident(
         correlation_id=incident.correlation_id,
         pending_approval=pending_approval,
         audit=audit,
+        journey=build_journey(incident),
     )
 
 

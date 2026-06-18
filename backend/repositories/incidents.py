@@ -9,7 +9,7 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.domain.dashboard import IncidentSummary, MemoryHit, VolumeBucket
+from backend.domain.dashboard import IncidentSummary, MemoryHit, VolumeBucket, build_journey
 from backend.domain.incident import Evidence, Incident, IncidentStatus, NormalizedEvent, Severity
 
 _TABLE = sa.text  # convenience alias
@@ -204,7 +204,7 @@ class IncidentRepository:
         params["limit"] = limit
         params["offset"] = offset
         sql = (
-            "SELECT id, status, severity, disposition, source, "
+            "SELECT id, status, severity, disposition, source, evidence, "
             "evidence->>'summary' AS summary, updated_at, created_at "
             f"FROM incidents{where} ORDER BY {order} LIMIT :limit OFFSET :offset"
         )
@@ -221,6 +221,7 @@ class IncidentRepository:
                 is_awaiting_approval=row["status"] == "awaiting_approval",
                 created_at=row["created_at"],
                 updated_at=row["updated_at"],
+                journey=build_journey(_row_journey_stub(row)),
             )
             for row in rows
         ]
@@ -413,6 +414,27 @@ def _json(value: Any) -> str:
     if value is None:
         return "null"
     return json.dumps(value)
+
+
+class _JourneyStub:
+    """Minimal duck-typed incident slice for build_journey (status/source/evidence/disposition)."""
+
+    def __init__(
+        self, *, status: str, source: str, evidence: dict[str, Any], disposition: str | None
+    ) -> None:
+        self.status = IncidentStatus(status)
+        self.source = source
+        self.evidence = evidence
+        self.disposition = disposition
+
+
+def _row_journey_stub(row: Any) -> _JourneyStub:
+    return _JourneyStub(
+        status=row["status"],
+        source=row["source"],
+        evidence=row["evidence"] or {},
+        disposition=row["disposition"],
+    )
 
 
 def _row_to_incident(row: Any) -> Incident:
