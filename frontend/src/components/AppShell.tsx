@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, BarChart3, LogOut, GitGraph, ShieldAlert } from 'lucide-react'
+import { LayoutDashboard, BarChart3, LogOut, GitGraph, ShieldAlert, ClipboardCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/auth/AuthContext'
 import { ConnectionIndicator } from './ConnectionIndicator'
@@ -10,6 +10,7 @@ import logo from '@/assets/argus-logo.jpg'
 const navItems = [
   { to: '/map', label: 'Pipeline Map', icon: GitGraph },
   { to: '/attention', label: 'Human Attention', icon: ShieldAlert },
+  { to: '/approvals', label: 'Approvals', icon: ClipboardCheck },
   { to: '/queue', label: 'Queue', icon: LayoutDashboard },
   { to: '/kpis', label: 'KPIs', icon: BarChart3 },
 ]

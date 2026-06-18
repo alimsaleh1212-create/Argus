@@ -24,6 +24,9 @@ const PipelineMap = lazy(() =>
 const HumanAttentionPage = lazy(() =>
   import('@/features/attention/HumanAttentionPage').then((m) => ({ default: m.HumanAttentionPage }))
 )
+const ApprovalsPage = lazy(() =>
+  import('@/features/approvals/ApprovalsPage').then((m) => ({ default: m.ApprovalsPage }))
+)
 
 function Loading() {
   return (
@@ -76,6 +79,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<Loading />}>
             <HumanAttentionPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'approvals',
+        element: (
+          <Suspense fallback={<Loading />}>
+            <ApprovalsPage />
           </Suspense>
         ),
       },
