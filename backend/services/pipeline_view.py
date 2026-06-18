@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 
 from backend.domain.dashboard import (
     BranchOutflow,
+    JourneyStep,
     PipelineSnapshot,
     StageIncident,
     StageNode,
@@ -187,3 +188,95 @@ async def build_pipeline_snapshot(repo, *, window_hours: int) -> PipelineSnapsho
         window_hours=window_hours,
         generated_at=datetime.now(UTC),
     )
+
+
+_ERRORED_DISPOSITIONS = frozenset(
+    {"escalated_stage_error", "escalated_step_cap", "escalated_token_cap",
+     "escalated_illegal_transition"}
+)
+
+_STAGE_ORDER = ["triage", "enrichment", "response"]
+
+
+def _conf(value) -> float | None:
+    if value is None:
+        return None
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f if 0.0 <= f <= 1.0 else None
+
+
+def build_journey(incident) -> list[JourneyStep]:
+    """Derive an incident's ordered stage path from evidence + status + disposition.
+
+    Pure: only reads the incident projection. Stages that were never reached are
+    omitted; a reached stage with no downstream progress and a safety-net escalation
+    is marked 'errored'.
+    """
+    evidence = incident.evidence or {}
+    status = incident.status.value
+    disposition = incident.disposition
+    triage = evidence.get("triage") or {}
+    enrichment = evidence.get("enrichment") or {}
+    response = evidence.get("response") or {}
+
+    steps: list[JourneyStep] = [
+        JourneyStep(stage="intake", label="Intake", outcome="advance", detail=incident.source)
+    ]
+    if disposition == "auto_resolved_noise":
+        steps[0].outcome = "resolved"
+
+    present = {
+        "triage": bool(triage),
+        "enrichment": bool(enrichment),
+        "response": bool(response),
+    }
+    current_stage = _STATUS_TO_STAGE.get(status)
+
+    for i, stage in enumerate(_STAGE_ORDER):
+        reached = present[stage] or current_stage == stage
+        if not reached:
+            continue
+        downstream_reached = any(
+            present[s] for s in _STAGE_ORDER[i + 1 :]
+        ) or (current_stage in _STAGE_ORDER[i + 1 :])
+
+        if stage == "triage":
+            detail = triage.get("verdict")
+            score = _conf(triage.get("confidence"))
+        elif stage == "enrichment":
+            detail = enrichment.get("assessment")
+            score = _conf(enrichment.get("confidence"))
+        else:  # response
+            plan = response.get("plan") or {}
+            verification = response.get("verification") or {}
+            detail = plan.get("playbook_id") or verification.get("verdict")
+            score = None
+
+        if downstream_reached:
+            outcome = "advance"
+        else:
+            mapped = _DISPOSITION_TO_BRANCH.get(disposition or "")
+            if mapped and mapped[0] == stage:
+                outcome = mapped[1]
+            elif current_stage == stage:
+                outcome = "advance"  # in-flight, no terminal yet
+            else:
+                outcome = "advance"
+        steps.append(
+            JourneyStep(stage=stage, label=stage.capitalize(), outcome=outcome,
+                        detail=detail, score=score)
+        )
+
+    if status in ("resolved", "escalated", "failed"):
+        if disposition in _ERRORED_DISPOSITIONS:
+            term_outcome = "errored"
+        else:
+            term_outcome = _DISPOSITION_TO_TERMINAL_BRANCH.get(disposition or "", "escalated")
+        steps.append(
+            JourneyStep(stage="terminal", label=disposition or status,
+                        outcome=term_outcome, detail=disposition)
+        )
+    return steps

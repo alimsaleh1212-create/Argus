@@ -27,6 +27,17 @@ class IncidentSummary(BaseModel):
     is_awaiting_approval: bool
     created_at: datetime
     updated_at: datetime
+    journey: list["JourneyStep"] = Field(default_factory=list)
+
+
+class JourneyStep(BaseModel):
+    """One stop on an incident's path through the pipeline (read-only projection)."""
+
+    stage: str  # "intake" | "triage" | "enrichment" | "response" | "terminal"
+    label: str
+    outcome: str  # "advance" | "resolved" | "escalated" | "errored"
+    detail: str | None = None
+    score: float | None = None
 
 
 class QueuePage(BaseModel):
@@ -87,6 +98,7 @@ class IncidentDetailView(BaseModel):
     correlation_id: str | None = None
     pending_approval: ApprovalView | None = None
     audit: list[AuditView] = Field(default_factory=list)
+    journey: list[JourneyStep] = Field(default_factory=list)
 
 
 class SpanView(BaseModel):
