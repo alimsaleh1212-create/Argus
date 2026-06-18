@@ -278,6 +278,12 @@ def _build_gemini_config(
     if request.response_schema is not None:
         kwargs["response_mime_type"] = "application/json"
         kwargs["response_schema"] = request.response_schema
+        # gemini-2.5-flash is a thinking model; without this it spends the
+        # max_output_tokens budget on thinking tokens and truncates the JSON,
+        # failing the structured-output contract. Disable thinking for the
+        # deterministic JSON-extraction calls. (genai_types is already imported
+        # at module top as `from google.genai import types as genai_types`.)
+        kwargs["thinking_config"] = genai_types.ThinkingConfig(thinking_budget=0)
 
     return genai_types.GenerateContentConfig(**kwargs)
 
