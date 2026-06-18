@@ -231,26 +231,41 @@ describe('PipelineMap', () => {
     expect(screen.getByRole('button', { name: /paused/i })).toBeInTheDocument()
   })
 
-  it('expands a stage to reveal its branch breakdown when the expand toggle is clicked', async () => {
+  it('shows every stage breakdown expanded by default', () => {
+    mockUseAnimatedPipeline.mockReturnValue(
+      baseAnimatedPipeline() as ReturnType<typeof animatedApi.useAnimatedPipeline>
+    )
+    render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    expect(screen.getByTestId('branch-breakdown-mock-intake')).toBeInTheDocument()
+    expect(screen.getByTestId('branch-breakdown-mock-triage')).toBeInTheDocument()
+    expect(screen.getByTestId('branch-breakdown-mock-enrichment')).toBeInTheDocument()
+    expect(screen.getByTestId('branch-breakdown-mock-response')).toBeInTheDocument()
+  })
+
+  it('collapses a stage when its toggle is clicked, and re-expands on a second click', async () => {
     mockUseAnimatedPipeline.mockReturnValue(
       baseAnimatedPipeline() as ReturnType<typeof animatedApi.useAnimatedPipeline>
     )
     const { default: userEvent } = await import('@testing-library/user-event')
     render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
+    expect(screen.getByTestId('branch-breakdown-mock-triage')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /collapse triage/i }))
     expect(screen.queryByTestId('branch-breakdown-mock-triage')).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: /expand triage/i }))
     expect(screen.getByTestId('branch-breakdown-mock-triage')).toBeInTheDocument()
   })
 
-  it('collapses an expanded stage when its toggle is clicked again', async () => {
+  it('routes terminal outcome blocks to their destinations', async () => {
     mockUseAnimatedPipeline.mockReturnValue(
       baseAnimatedPipeline() as ReturnType<typeof animatedApi.useAnimatedPipeline>
     )
     const { default: userEvent } = await import('@testing-library/user-event')
     render(<PipelineMap />, { wrapper: ({ children }) => <MemoryRouter>{children}</MemoryRouter> })
-    await userEvent.click(screen.getByRole('button', { name: /expand triage/i }))
-    await userEvent.click(screen.getByRole('button', { name: /collapse triage/i }))
-    expect(screen.queryByTestId('branch-breakdown-mock-triage')).toBeNull()
+    const escalated = screen.getByTestId('terminal-escalated')
+    const awaiting = screen.getByTestId('terminal-awaiting')
+    expect(escalated).toBeEnabled()
+    expect(awaiting).toHaveAttribute('aria-label', expect.stringContaining('Approve'))
+    await userEvent.click(escalated)
   })
 
   it('passes the incident id from the URL query param to the drawer', () => {

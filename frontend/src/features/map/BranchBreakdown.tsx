@@ -1,10 +1,12 @@
 import { SeverityBadge } from '@/components/SeverityBadge'
 import { StatusBadge } from '@/components/StatusBadge'
+import { cn } from '@/lib/utils'
 import type { StageIncident, StageNode } from '@/api/pipeline'
 
 interface BranchBreakdownProps {
   stage: StageNode
   onSelectIncident: (incidentId: string) => void
+  dimmed?: boolean
 }
 
 const BRANCH_COLOR: Record<string, string> = {
@@ -78,13 +80,16 @@ function ScoreChips({ incident }: { incident: StageIncident }) {
   )
 }
 
-export function BranchBreakdown({ stage, onSelectIncident }: BranchBreakdownProps) {
+export function BranchBreakdown({ stage, onSelectIncident, dimmed = false }: BranchBreakdownProps) {
   const maxCount = Math.max(1, ...stage.branches.map((b) => b.count))
   const incidents = stage.incidents
 
   return (
     <div
-      className="rounded-lg bg-slate-900/60 border border-slate-800 p-4 mt-2 w-full sm:w-[360px] space-y-4"
+      className={cn(
+        'rounded-xl bg-slate-950/50 border border-slate-800/80 p-4 w-full space-y-4 backdrop-blur-sm',
+        dimmed && 'opacity-40'
+      )}
       data-testid={`branch-breakdown-${stage.key}`}
     >
       <div>
@@ -129,7 +134,12 @@ export function BranchBreakdown({ stage, onSelectIncident }: BranchBreakdownProp
                   type="button"
                   onClick={() => onSelectIncident(incident.id)}
                   aria-label={`Open incident ${incident.id}`}
-                  className="w-full text-left bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 transition-colors cursor-pointer"
+                  className={cn(
+                    'w-full text-left bg-slate-800/50 hover:bg-slate-800 border rounded-lg px-2.5 py-2 transition-colors cursor-pointer',
+                    incident.severity === 'critical'
+                      ? 'border-red-500/50 argus-pulse-red'
+                      : 'border-slate-700/80'
+                  )}
                 >
                   <div className="flex items-center gap-2 flex-wrap">
                     <SeverityBadge severity={incident.severity} />
