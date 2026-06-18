@@ -397,6 +397,11 @@ class ResponseSettings(BaseSettings):
         default_factory=lambda: ["malicious", "suspicious"]
     )
     verify_llm_tiebreak: bool = False
+    # Mock executor probe mode for the verification tail (demo/dev only).
+    # "expected" → probes report the intended post-state (verdict VERIFIED).
+    # "inconclusive" → probes can't read post-state (verdict UNVERIFIED → escalated).
+    # "regressed" → probes report the threat persists (verdict REGRESSED → escalated).
+    verify_probe_mode: Literal["expected", "inconclusive", "regressed"] = "expected"
     dwell_window_s: Annotated[int, Field(gt=0)] = 900  # M2-reserved
 
 

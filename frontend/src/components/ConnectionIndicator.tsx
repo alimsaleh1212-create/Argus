@@ -13,8 +13,8 @@ export function ConnectionIndicator({ state, className }: ConnectionIndicatorPro
     connected: {
       icon: Wifi,
       label: 'Live',
-      color: 'text-green-500',
-      dot: 'bg-green-500',
+      color: 'text-cyan-400',
+      dot: 'bg-cyan-400',
     },
     reconnecting: {
       icon: WifiOff,

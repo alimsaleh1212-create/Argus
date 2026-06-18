@@ -221,7 +221,7 @@ curl -s -X POST "$INGEST" -H "$H_AUTH" -H "$H_CT" -d '{
 **Approve it:**
 ```bash
 APPROVAL_ID=$(curl -s "$BASE/approvals" \
-  -H "Authorization: Bearer $JWT" | jq -r '.[0].id')
+  -H "Authorization: Bearer $JWT" | jq -r '.approvals[0].id')
 
 curl -s -X POST "$BASE/approvals/$APPROVAL_ID/decision" \
   -H "Authorization: Bearer $JWT" -H "$H_CT" \
@@ -256,7 +256,7 @@ curl -s -X POST "$INGEST" -H "$H_AUTH" -H "$H_CT" -d '{
 **Reject it (show both approve/reject flows to stakeholders):**
 ```bash
 APPROVAL_ID=$(curl -s "$BASE/approvals" \
-  -H "Authorization: Bearer $JWT" | jq -r '.[0].id')
+  -H "Authorization: Bearer $JWT" | jq -r '.approvals[0].id')
 
 curl -s -X POST "$BASE/approvals/$APPROVAL_ID/decision" \
   -H "Authorization: Bearer $JWT" -H "$H_CT" \

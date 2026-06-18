@@ -14,8 +14,8 @@
   --color-text: #F8FAFC;      /* slate-50 */
   --color-muted: #94A3B8;     /* slate-400 */
 
-  /* Primary action */
-  --color-primary: #22C55E;   /* green-500 */
+  /* Primary action (logo-coherent cyan accent) */
+  --color-primary: #38BDF8;   /* sky-400 */
 
   /* Severity */
   --color-sev-low: #38BDF8;      /* sky-400 */
@@ -25,7 +25,7 @@
 
   /* Status badges */
   --color-status-awaiting: #FACC15;  /* amber */
-  --color-status-resolved: #22C55E;  /* green */
+  --color-status-resolved: #22D3EE;  /* cyan-400 (positive) */
   --color-status-escalated: #FB923C; /* orange */
   --color-status-rejected: #EF4444;  /* red */
   --color-status-inflight: #64748B;  /* slate-500 */
@@ -76,6 +76,6 @@ body,
 
 /* ── Focus ring ── */
 :focus-visible {
-  outline: 2px solid #22C55E;
+  outline: 2px solid #38BDF8;
   outline-offset: 2px;
 }

@@ -44,8 +44,8 @@ export function VolumeChart({ buckets }: VolumeChartProps) {
           <AreaChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="alertGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#22C55E" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#22C55E" stopOpacity={0} />
+                <stop offset="5%" stopColor="#38BDF8" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#38BDF8" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
@@ -57,7 +57,7 @@ export function VolumeChart({ buckets }: VolumeChartProps) {
             <Area
               type="monotone"
               dataKey="count"
-              stroke="#22C55E"
+              stroke="#38BDF8"
               fill="url(#alertGradient)"
               strokeWidth={2}
             />

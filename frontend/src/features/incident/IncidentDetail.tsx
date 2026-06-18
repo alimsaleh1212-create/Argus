@@ -38,7 +38,7 @@ function EvidencePanel({ evidence }: { evidence: Record<string, unknown> | null 
         {Boolean(evidence.verdict) && (
           <div>
             <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Verdict</p>
-            <span className="font-mono text-xs text-green-400">{String(evidence.verdict)}</span>
+            <span className="font-mono text-xs text-cyan-400">{String(evidence.verdict)}</span>
           </div>
         )}
         {Array.isArray(evidence.flags) && evidence.flags.length > 0 && (
@@ -89,7 +89,7 @@ function AuditTrail({ audit }: { audit: AuditView[] }) {
               <li key={i} className="ml-4">
                 <div className="absolute -left-[5px] mt-1 w-2.5 h-2.5 rounded-full bg-slate-700 border border-slate-600" />
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-xs text-green-400">{row.action}</span>
+                  <span className="font-mono text-xs text-cyan-400">{row.action}</span>
                   <span className="text-xs text-slate-500">by</span>
                   <span className="font-mono text-xs text-slate-300">{row.actor}</span>
                   {row.target && (
@@ -101,7 +101,7 @@ function AuditTrail({ audit }: { audit: AuditView[] }) {
                   <span
                     className={`ml-auto text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
                       row.outcome === 'applied'
-                        ? 'bg-green-500/10 text-green-400'
+                        ? 'bg-cyan-400/10 text-cyan-400'
                         : row.outcome === 'skipped'
                         ? 'bg-slate-700 text-slate-400'
                         : 'bg-red-500/10 text-red-400'
@@ -194,7 +194,7 @@ export function IncidentDetail() {
       {data.correlation_id && (
         <Link
           to={`/incidents/${data.id}/trace`}
-          className="inline-flex items-center gap-1.5 text-sm text-green-400 hover:text-green-300 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-sm text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
         >
           <GitBranch className="w-4 h-4" aria-hidden="true" />
           View pipeline trace

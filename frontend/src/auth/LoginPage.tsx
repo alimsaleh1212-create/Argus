@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { login } from '@/api/client'
 import { useAuth } from './AuthContext'
+import logo from '@/assets/argus-logo.jpg'
 
 export function LoginPage() {
   const { signIn } = useAuth()
@@ -36,9 +36,9 @@ export function LoginPage() {
     <div className="min-h-screen bg-[#020617] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {/* Logo / brand */}
-        <div className="flex flex-col items-center mb-8 gap-3">
-          <div className="w-14 h-14 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center">
-            <Shield className="w-7 h-7 text-green-500" aria-hidden="true" />
+        <div className="flex flex-col items-center mb-8 gap-4">
+          <div className="w-28 h-28 rounded-xl overflow-hidden bg-sky-400/10 border-2 border-sky-400/40 flex items-center justify-center shadow-lg shadow-sky-400/10">
+            <img src={logo} alt="Argus" className="w-full h-full object-cover" />
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold text-slate-50 tracking-tight">Argus</h1>

@@ -50,11 +50,25 @@ _NON_RETRYABLE = frozenset(
 # ---------------------------------------------------------------------------
 
 
+def _strip_code_fences(text: str) -> str:
+    """Strip markdown code fences (```json ... ``` or ``` ... ```) from LLM output."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        # Remove the opening fence (with optional language tag)
+        first_nl = stripped.find("\n")
+        if first_nl != -1:
+            stripped = stripped[first_nl + 1 :]
+        # Remove the closing fence
+        if stripped.rstrip().endswith("```"):
+            stripped = stripped.rstrip()[:-3].rstrip()
+    return stripped.strip()
+
+
 def _validate_contract(response: LlmResponse, request: LlmRequest) -> None:
     """Raise LlmError(CONTRACT_UNSATISFIED) if the response doesn't honor the request contract."""
     if request.response_schema is not None:
         try:
-            parsed = json.loads(response.content)
+            parsed = json.loads(_strip_code_fences(response.content))
         except (json.JSONDecodeError, ValueError) as exc:
             raise LlmError(
                 kind=LlmErrorKind.CONTRACT_UNSATISFIED,
@@ -189,7 +203,15 @@ class LlmClient:
                     continue  # Try the next provider
                 raise  # Non-retryable: surface immediately (no failover FR-008)
 
-            # 5. Fail-closed contract validation (LD4 / SC-009)
+            # 5. Strip markdown code fences from structured-output responses
+            #    so callers can safely json.loads the content (Ollama wraps JSON
+            #    in ```json fences even when format is specified).
+            if request.response_schema is not None:
+                result = result.model_copy(
+                    update={"content": _strip_code_fences(result.content)}
+                )
+
+            # 5b. Fail-closed contract validation (LD4 / SC-009)
             _validate_contract(result, request)
 
             # 6. Mark failover

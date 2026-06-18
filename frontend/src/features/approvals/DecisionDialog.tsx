@@ -31,7 +31,7 @@ export function DecisionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isApprove ? (
-              <CheckCircle2 className="w-5 h-5 text-green-400" aria-hidden="true" />
+              <CheckCircle2 className="w-5 h-5 text-cyan-400" aria-hidden="true" />
             ) : (
               <AlertTriangle className="w-5 h-5 text-red-400" aria-hidden="true" />
             )}

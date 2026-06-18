@@ -79,17 +79,3 @@ playbooks:
         params: {}
       - type: open_ticket
         params: { priority: high }
-
-  - id: full_response
-    strength: 2
-    description: "Critical with broad threat — watchlist, isolate host, and open high-priority ticket."
-    criteria:
-      severity:
-        - critical
-    actions:
-      - type: add_to_watchlist
-        params: {}
-      - type: isolate_host
-        params: {}
-      - type: open_ticket
-        params: { priority: critical }

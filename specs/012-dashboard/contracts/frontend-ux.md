@@ -20,13 +20,22 @@ contrast; excellent performance.
 | Surface raised / border | `#1E293B` | slate-800 |
 | Text | `#F8FAFC` | slate-50 |
 | Muted text | `#94A3B8` | slate-400 |
-| Primary action / positive | `#22C55E` | green-500 |
+| Primary action / brand accent | `#38BDF8` | sky-400 |
+| Positive / resolved / success | `#22D3EE` | cyan-400 |
+
+> **Brand vs. positive split (logo-coherence, RD11):** the Argus logo
+> (`docs/argus_nano_1.jpg`) is a dark-navy field with cyan/sky glowing highlights.
+> The brand accent (primary button, focus rings, active nav, logo ring, selection
+> chips, volume chart) uses **sky-400 `#38BDF8`**; semantic positive states
+> (resolved / remediated / success / Live / approve / just-changed pipeline flash)
+> use the distinct **cyan-400 `#22D3EE`** so a "Resolved" badge never collides with
+> the sky-400 "Low" severity or in-flight (triaging/enriching/responding) badges.
 
 **Semantic colors** (layered for SOC meaning — always paired with a **label/icon**, never color alone):
 - Severity: low `#38BDF8` (sky), medium `#FACC15` (amber), high `#FB923C` (orange), critical
   `#EF4444` (red).
 - Status/disposition badges: in-flight (slate/blue), awaiting-approval (amber, attention), resolved /
-  remediated (green), escalated (orange), rejected/expired (red/slate).
+  remediated (cyan-400, positive), escalated (orange), rejected/expired (red/slate).
 
 **Typography**: **Fira Sans** (body/UI) + **Fira Code** (mono — incident IDs, IPs, hashes, tokens,
 trace span names, JSON evidence). `line-height` 1.5–1.75; body ≥ 14px UI / 16px prose.

@@ -14,8 +14,8 @@ interface DispositionSplitProps {
 }
 
 const COLORS: Record<string, string> = {
-  auto_remediated: '#22C55E',
-  remediated: '#22C55E',
+  auto_remediated: '#22D3EE',
+  remediated: '#22D3EE',
   rejected_by_human: '#EF4444',
   approval_expired: '#FB923C',
   escalated_response: '#FB923C',
