@@ -29,20 +29,25 @@ def _inc(status):
 
 
 class _IncRepo:
-    def __init__(self, inc):
+    def __init__(self, inc, ack_returns=True):
         self._inc = inc
-        self.ack = False
+        self.ack_called = False
+        self.ack_returns = ack_returns
 
     async def get(self, _id):
         return self._inc
 
     async def acknowledge(self, _id, *, actor):
-        self.ack = True
-        return True
+        self.ack_called = True
+        return self.ack_returns
 
 
 class _Audit:
+    def __init__(self):
+        self.append_called = False
+
     async def append(self, **kw):
+        self.append_called = True
         return None
 
 
@@ -57,9 +62,25 @@ _OP = OperatorSession(subject="alice", role="admin", expires_at=datetime.now(UTC
 @pytest.mark.asyncio
 async def test_acknowledge_ok():
     inc = _inc(IncidentStatus.ESCALATED)
-    repo = _IncRepo(inc)
-    out = await r.acknowledge_incident(inc.id, repo, _Audit(), _OP)
-    assert repo.ack is True and out["status"] == "escalated"
+    repo = _IncRepo(inc, ack_returns=True)
+    audit = _Audit()
+    out = await r.acknowledge_incident(inc.id, repo, audit, _OP)
+    assert repo.ack_called is True
+    assert out["status"] == "escalated"
+    assert out["acknowledged"] is True
+    assert audit.append_called is True
+
+
+@pytest.mark.asyncio
+async def test_acknowledge_already_acknowledged():
+    inc = _inc(IncidentStatus.ESCALATED)
+    repo = _IncRepo(inc, ack_returns=False)
+    audit = _Audit()
+    out = await r.acknowledge_incident(inc.id, repo, audit, _OP)
+    assert repo.ack_called is True
+    assert out["status"] == "escalated"
+    assert out["acknowledged"] is False
+    assert audit.append_called is False
 
 
 @pytest.mark.asyncio

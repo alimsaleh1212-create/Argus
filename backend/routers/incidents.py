@@ -271,18 +271,19 @@ async def acknowledge_incident(
         raise HTTPException(status_code=404, detail="Incident not found")
     if incident.status.value != "escalated":
         raise HTTPException(status_code=409, detail="Only escalated incidents can be acknowledged")
-    await incident_repo.acknowledge(incident_id, actor=operator.subject)
-    try:
-        await audit_repo.append(
-            incident_id=incident_id,
-            actor=operator.subject,
-            action="acknowledged",
-            target=None,
-            outcome="acknowledged",
-        )
-    except Exception:
-        pass
-    return {"incident_id": str(incident_id), "status": "escalated", "acknowledged_by": operator.subject}
+    acknowledged = await incident_repo.acknowledge(incident_id, actor=operator.subject)
+    if acknowledged:
+        try:
+            await audit_repo.append(
+                incident_id=incident_id,
+                actor=operator.subject,
+                action="acknowledged",
+                target=None,
+                outcome="acknowledged",
+            )
+        except Exception:
+            pass
+    return {"incident_id": str(incident_id), "status": "escalated", "acknowledged_by": operator.subject, "acknowledged": acknowledged}
 
 
 @router.post("/{incident_id}/resolve")
