@@ -14,6 +14,8 @@ vi.mock('@/api/approvals', () => ({
 
 vi.mock('@/api/incidents', () => ({
   useIncidentQueue: vi.fn(),
+  useAcknowledgeIncident: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useResolveIncident: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }))
 
 const mockUsePendingApprovals = vi.mocked(approvalsApi.usePendingApprovals)
@@ -44,6 +46,7 @@ function makeEscalated(overrides: Partial<IncidentSummary> = {}): IncidentSummar
     is_awaiting_approval: false,
     created_at: '2026-06-18T08:00:00Z',
     updated_at: '2026-06-18T08:30:00Z',
+    acknowledged_at: null,
     ...overrides,
   }
 }
@@ -100,5 +103,26 @@ describe('HumanAttentionLane', () => {
     mockUseIncidentQueue.mockReturnValue({ data: emptyQueuePage(), isLoading: false } as ReturnType<typeof incidentsApi.useIncidentQueue>)
     render(<HumanAttentionLane onSelectIncident={vi.fn()} />, { wrapper })
     expect(screen.getByText(/nothing needs your attention/i)).toBeInTheDocument()
+  })
+
+  it('hides acknowledged escalated incidents from the lane', () => {
+    const acknowledged = makeEscalated({
+      id: '00000000-0000-0000-0000-000000000003',
+      acknowledged_at: '2026-06-18T09:00:00Z',
+    })
+    const unacknowledged = makeEscalated()
+    mockUsePendingApprovals.mockReturnValue({ data: { approvals: [] }, isLoading: false } as ReturnType<typeof approvalsApi.usePendingApprovals>)
+    mockUseIncidentQueue.mockReturnValue({ data: { ...emptyQueuePage(), items: [unacknowledged, acknowledged] }, isLoading: false } as ReturnType<typeof incidentsApi.useIncidentQueue>)
+    render(<HumanAttentionLane onSelectIncident={vi.fn()} />, { wrapper })
+    expect(screen.getByTestId(`escalated-card-${unacknowledged.id}`)).toBeInTheDocument()
+    expect(screen.queryByTestId(`escalated-card-${acknowledged.id}`)).toBeNull()
+  })
+
+  it('renders Acknowledge and Resolve buttons on an escalated card', () => {
+    mockUsePendingApprovals.mockReturnValue({ data: { approvals: [] }, isLoading: false } as ReturnType<typeof approvalsApi.usePendingApprovals>)
+    mockUseIncidentQueue.mockReturnValue({ data: { ...emptyQueuePage(), items: [makeEscalated()] }, isLoading: false } as ReturnType<typeof incidentsApi.useIncidentQueue>)
+    render(<HumanAttentionLane onSelectIncident={vi.fn()} />, { wrapper })
+    expect(screen.getByRole('button', { name: /acknowledge incident/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /resolve incident/i })).toBeInTheDocument()
   })
 })

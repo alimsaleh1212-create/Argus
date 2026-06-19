@@ -280,6 +280,32 @@ class TestBuildGeminiConfig:
         assert cfg.tool_config is not None
 
 
+class TestGeminiThinkingDisabled:
+    def test_structured_output_disables_thinking(self):
+        from backend.infra.llm_drivers import _build_gemini_config
+
+        req = LlmRequest(
+            system="s",
+            messages=[LlmMessage(role="user", content="x")],
+            response_schema={
+                "type": "object",
+                "required": ["a"],
+                "properties": {"a": {"type": "string"}},
+            },
+            max_tokens=512,
+        )
+        cfg = _build_gemini_config(req, "s")
+        assert cfg.thinking_config is not None
+        assert cfg.thinking_config.thinking_budget == 0
+
+    def test_no_schema_leaves_thinking_unset(self):
+        from backend.infra.llm_drivers import _build_gemini_config
+
+        req = LlmRequest(system="s", messages=[LlmMessage(role="user", content="x")])
+        cfg = _build_gemini_config(req, "s")
+        assert cfg.thinking_config is None
+
+
 # ---------------------------------------------------------------------------
 # Response parsers
 # ---------------------------------------------------------------------------

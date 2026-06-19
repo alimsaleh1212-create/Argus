@@ -15,8 +15,10 @@ from fastapi.responses import StreamingResponse
 from backend.dependencies import (
     get_approval_repo,
     get_audit_repo,
+    get_current_operator,
     get_incident_repo,
     get_redactor_dep,
+    get_supervisor,
     get_trace_repo,
 )
 from backend.domain.dashboard import (
@@ -34,7 +36,7 @@ from backend.domain.dashboard import (
 from backend.domain.telemetry import Span, TelemetryRecord
 from backend.services.dashboard_stream import incident_stream
 from backend.services.kpis import build_kpi_snapshot
-from backend.services.pipeline_view import build_pipeline_snapshot
+from backend.services.pipeline_view import build_journey, build_pipeline_snapshot
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
@@ -199,6 +201,7 @@ async def get_incident(
         correlation_id=incident.correlation_id,
         pending_approval=pending_approval,
         audit=audit,
+        journey=build_journey(incident),
     )
 
 
@@ -254,3 +257,51 @@ async def get_audit(
         raise HTTPException(status_code=404, detail="Incident not found")
 
     return AuditPage(audit=_audit_views(await audit_repo.list_for_incident(incident_id)))
+
+
+@router.post("/{incident_id}/acknowledge")
+async def acknowledge_incident(
+    incident_id: uuid.UUID,
+    incident_repo=Depends(get_incident_repo),
+    audit_repo=Depends(get_audit_repo),
+    operator=Depends(get_current_operator),
+) -> dict:
+    incident = await incident_repo.get(incident_id)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    if incident.status.value != "escalated":
+        raise HTTPException(status_code=409, detail="Only escalated incidents can be acknowledged")
+    acknowledged = await incident_repo.acknowledge(incident_id, actor=operator.subject)
+    if acknowledged:
+        try:
+            await audit_repo.append(
+                incident_id=incident_id,
+                actor=operator.subject,
+                action="acknowledged",
+                target=None,
+                outcome="acknowledged",
+            )
+        except Exception:
+            pass
+    return {"incident_id": str(incident_id), "status": "escalated", "acknowledged_by": operator.subject, "acknowledged": acknowledged}
+
+
+@router.post("/{incident_id}/resolve")
+async def resolve_incident(
+    incident_id: uuid.UUID,
+    incident_repo=Depends(get_incident_repo),
+    audit_repo=Depends(get_audit_repo),
+    supervisor=Depends(get_supervisor),
+    operator=Depends(get_current_operator),
+) -> dict:
+    incident = await incident_repo.get(incident_id)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    if incident.status.value != "escalated":
+        raise HTTPException(status_code=409, detail="Only escalated incidents can be resolved")
+    ok = await supervisor.close_incident(
+        incident_id, incident_repo, audit_repo=audit_repo, actor=operator.subject
+    )
+    if not ok:
+        raise HTTPException(status_code=409, detail="Incident was no longer escalated")
+    return {"incident_id": str(incident_id), "status": "resolved", "disposition": "operator_resolved"}

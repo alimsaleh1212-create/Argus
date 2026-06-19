@@ -1,5 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
+
+export interface JourneyStep {
+  stage: string
+  label: string
+  outcome: 'advance' | 'resolved' | 'escalated' | 'errored'
+  detail: string | null
+  score: number | null
+}
 
 export interface IncidentSummary {
   id: string
@@ -11,6 +19,8 @@ export interface IncidentSummary {
   is_awaiting_approval: boolean
   created_at: string
   updated_at: string
+  acknowledged_at: string | null
+  journey: JourneyStep[]
 }
 
 export interface ApprovalView {
@@ -57,6 +67,7 @@ export interface IncidentDetailView {
   correlation_id: string | null
   pending_approval: ApprovalView | null
   audit: AuditView[]
+  journey: JourneyStep[]
 }
 
 export interface QueueFilters {
@@ -108,5 +119,21 @@ export function useIncidentAudit(incidentId: string | undefined) {
     queryFn: () => apiFetch<{ audit: AuditView[] }>(`/incidents/${incidentId}/audit`),
     enabled: !!incidentId,
     staleTime: 30_000,
+  })
+}
+
+export function useAcknowledgeIncident() {
+  const qc = useQueryClient()
+  return useMutation<unknown, Error, string>({
+    mutationFn: (id) => apiFetch(`/incidents/${id}/acknowledge`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['incidents', 'queue'] }),
+  })
+}
+
+export function useResolveIncident() {
+  const qc = useQueryClient()
+  return useMutation<unknown, Error, string>({
+    mutationFn: (id) => apiFetch(`/incidents/${id}/resolve`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['incidents', 'queue'] }),
   })
 }

@@ -10,6 +10,7 @@ import asyncio
 import uuid
 
 from backend.infra.logging import get_logger
+from backend.repositories.incidents import IncidentRepository
 
 logger = get_logger(__name__)
 
@@ -104,7 +105,9 @@ async def _apply_feedback_bias(
         return evidence
 
 
-async def _run(settings, queue, repo, tracer, supervisor=None, memory=None) -> None:
+async def _run(
+    settings, queue, repo, tracer, supervisor=None, memory=None, session_factory=None
+) -> None:
     """Inner consume loop (extracted for testability)."""
     await queue.recover()
     logger.info("worker_started")
@@ -152,8 +155,10 @@ async def _run(settings, queue, repo, tracer, supervisor=None, memory=None) -> N
             logger.info("worker_grounded", incident_id=incident_id_str)
 
             # Best-effort memory write: off the disposition path, never blocks/raises
-            if memory is not None:
-                _maybe_record_episode(incident_id, incident_id_str, repo, memory, settings)
+            if memory is not None and session_factory is not None:
+                _maybe_record_episode(
+                    incident_id, incident_id_str, session_factory, memory, settings
+                )
 
         except Exception as exc:
             logger.error(
@@ -169,16 +174,18 @@ async def _run(settings, queue, repo, tracer, supervisor=None, memory=None) -> N
                 logger.warning("worker_failed_terminal", incident_id=incident_id_str)
 
 
-def _maybe_record_episode(incident_id, incident_id_str, repo, memory, settings):
-    """Schedule best-effort episode write as a fire-and-forget asyncio task."""
-    import asyncio
+async def _record_episode_isolated(incident_id, incident_id_str, session_factory, memory, settings):
+    """Off-path episode write using its OWN session (never the main loop's).
 
-    async def _do_record():
-        try:
-            from backend.domain.incident import IncidentStatus
-            from backend.infra.redaction import build_redactor
-            from backend.services.memory import record_episode, record_outcome_facts
+    Best-effort: any error is logged and swallowed, never raised.
+    """
+    try:
+        from backend.domain.incident import IncidentStatus
+        from backend.infra.redaction import build_redactor
+        from backend.services.memory import record_episode, record_outcome_facts
 
+        async with session_factory() as session:
+            repo = IncidentRepository(session)
             incident = await repo.get(incident_id)
             if incident is None:
                 return
@@ -196,16 +203,19 @@ def _maybe_record_episode(incident_id, incident_id_str, repo, memory, settings):
             if feedback_cfg is not None and getattr(feedback_cfg, "enabled", True):
                 await record_outcome_facts(incident, memory, redactor, cfg=feedback_cfg)
                 logger.info("memory_outcome_facts_recorded", incident_id=incident_id_str)
-        except Exception as exc:
-            logger.warning(
-                "memory_episode_error",
-                incident_id=incident_id_str,
-                error=str(exc),
-            )
+    except Exception as exc:
+        logger.warning("memory_episode_error", incident_id=incident_id_str, error=str(exc))
+
+
+def _maybe_record_episode(incident_id, incident_id_str, session_factory, memory, settings):
+    """Schedule the isolated episode write as a fire-and-forget task."""
+    import asyncio
 
     try:
         loop = asyncio.get_event_loop()
-        loop.create_task(_do_record())
+        loop.create_task(
+            _record_episode_isolated(incident_id, incident_id_str, session_factory, memory, settings)
+        )
     except Exception as exc:
         logger.warning("memory_schedule_error", error=str(exc))
 
@@ -318,10 +328,16 @@ async def _main_async() -> None:
 
         try:
             async with session_factory() as session:
-                from backend.repositories.incidents import IncidentRepository
-
                 repo = IncidentRepository(session)
-                await _run(settings, queue, repo, tracer, supervisor=supervisor, memory=memory)
+                await _run(
+                    settings,
+                    queue,
+                    repo,
+                    tracer,
+                    supervisor=supervisor,
+                    memory=memory,
+                    session_factory=session_factory,
+                )
         finally:
             sweeper_task.cancel()
             try:

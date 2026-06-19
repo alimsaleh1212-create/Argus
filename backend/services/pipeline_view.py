@@ -9,11 +9,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from backend.domain.dashboard import (
+    _DISPOSITION_TO_BRANCH,
+    _DISPOSITION_TO_TERMINAL_BRANCH,
+    _STATUS_TO_STAGE,
     BranchOutflow,
     PipelineSnapshot,
     StageIncident,
     StageNode,
     TerminalCounts,
+    build_journey,  # noqa: F401 — re-exported for backward-compat (routers/tests import it from here)
 )
 
 # Ordered rail: (stage key, display label).
@@ -23,46 +27,6 @@ STAGES: list[tuple[str, str]] = [
     ("enrichment", "Enrichment"),
     ("response", "Response"),
 ]
-
-# Active (in-flight) statuses → the stage they sit in. Terminal statuses
-# (resolved/escalated/failed) intentionally map to no stage.
-_STATUS_TO_STAGE: dict[str, str] = {
-    "received": "intake",
-    "grounding": "intake",
-    "grounded": "intake",
-    "triaging": "triage",
-    "enriching": "enrichment",
-    "responding": "response",
-    "awaiting_approval": "response",
-}
-
-# Stage-tagged dispositions → (stage that produced it, terminal branch).
-_DISPOSITION_TO_BRANCH: dict[str, tuple[str, str]] = {
-    "auto_resolved_noise": ("intake", "resolved"),
-    "auto_resolved_triage": ("triage", "resolved"),
-    "escalated_triage": ("triage", "escalated"),
-    "auto_resolved_enrichment": ("enrichment", "resolved"),
-    "escalated_enrichment": ("enrichment", "escalated"),
-    "auto_remediated": ("response", "resolved"),
-    "remediated": ("response", "resolved"),
-    "rejected_by_human": ("response", "resolved"),
-    "remediation_unverified": ("response", "escalated"),
-    "approval_expired": ("response", "escalated"),
-    "escalated_response": ("response", "escalated"),
-}
-
-# Every terminal disposition → its branch ("resolved" | "escalated"), independent of
-# stage attribution. Includes everything in _DISPOSITION_TO_BRANCH (stage-attributable)
-# PLUS supervisor safety-net escalations that can fire from any in-flight stage and so
-# cannot be attributed to a single rail stage — these must still count toward the
-# headline escalated total, just not toward any one stage's breakdown.
-_DISPOSITION_TO_TERMINAL_BRANCH: dict[str, str] = {
-    **{disposition: branch for disposition, (_, branch) in _DISPOSITION_TO_BRANCH.items()},
-    "escalated_step_cap": "escalated",
-    "escalated_token_cap": "escalated",
-    "escalated_stage_error": "escalated",
-    "escalated_illegal_transition": "escalated",
-}
 
 
 def stage_in_flight(status_counts: dict[str, int]) -> dict[str, int]:
@@ -187,3 +151,8 @@ async def build_pipeline_snapshot(repo, *, window_hours: int) -> PipelineSnapsho
         window_hours=window_hours,
         generated_at=datetime.now(UTC),
     )
+
+
+# build_journey lives in backend.domain.dashboard (see import above) — moved there in
+# B2 so backend.repositories can derive a queue row's journey without importing
+# backend.services (forbidden by the layered-architecture import-linter contract).
