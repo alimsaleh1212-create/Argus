@@ -152,6 +152,11 @@ services:
     <<: *backend
     ports:
       - "8000:8000"
+    # Self-heal on crash (OOM, transient dependency hiccup, etc.) — without this,
+    # a dead api container leaves the frontend's nginx proxying into a void
+    # (persistent 502 on every /incidents/* route) until someone notices and
+    # restarts it by hand.
+    restart: on-failure
     environment:
       ARGUS__VAULT__REQUIRED_PATHS: '["secret/minio","secret/llm","secret/ingest","secret/dashboard"]'
       # Presidio's AnalyzerEngine deadlocks at import inside the container

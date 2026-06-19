@@ -10,7 +10,7 @@ export function LoginPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/queue'
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/map'
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
