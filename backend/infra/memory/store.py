@@ -29,6 +29,20 @@ logger = get_logger(__name__)
 _EMPTY_FACT_STATE = FactState(fact=None, is_current=False, has_superseded=False)
 
 
+def _to_native_dt(value: Any) -> datetime | None:
+    """Convert a ``neo4j.time.DateTime`` to a native ``datetime`` (pass through None/datetime).
+
+    The Neo4j driver returns temporal properties as ``neo4j.time.DateTime``, which
+    pydantic's ``TemporalFact`` rejects; ``.to_native()`` yields a stdlib ``datetime``.
+    """
+    if value is None:
+        return None
+    to_native = getattr(value, "to_native", None)
+    if callable(to_native):
+        return to_native()
+    return value
+
+
 # ── NullMemory ───────────────────────────────────────────────────────────────
 
 
@@ -181,51 +195,48 @@ class GraphitiMemory:
         )
 
     async def _write_fact_inner(self, fact: TemporalFact) -> None:
-        episode_name = f"fact:{fact.entity.value}:{fact.fact_type}:{fact.valid_from.isoformat()}"
-        # Idempotent: an identical fact (same entity/type/valid_from) already exists →
-        # full no-op. Checked BEFORE invalidation so re-seeding doesn't invalidate the
-        # current fact and then skip rewriting it.
-        if await self._episode_exists(episode_name):
-            return
-
         now = datetime.now(UTC)
+        value_node = f"{fact.fact_type}:{fact.value}"
 
-        # Invalidate (not delete) any currently-open fact of the same (entity, fact_type).
+        # Invalidate (not delete) any currently-open fact of the same (entity, fact_type)
+        # whose validity differs from this one — preserves temporal history while keeping
+        # re-seeding the SAME fact idempotent (the matching-valid_at edge is left open).
         invalidate_cypher = """
         MATCH (src:Entity)-[r:RELATES_TO]-(tgt:Entity)
         WHERE (src.name = $entity_val OR tgt.name = $entity_val)
           AND r.invalid_at IS NULL
           AND (toLower(r.name) CONTAINS toLower($fact_type)
                OR toLower(r.fact) CONTAINS toLower($fact_type))
+          AND r.valid_at <> $valid_from
         SET r.invalid_at = $now
         """
         await self._graphiti.driver.execute_query(
             invalidate_cypher,
             entity_val=fact.entity.value,
             fact_type=fact.fact_type,
+            valid_from=fact.valid_from,
             now=now,
         )
 
-        # Write the new fact as an episode so Graphiti indexes it.
-        import json as _json
-
-        body = _json.dumps(
-            {
-                "entity_kind": fact.entity.kind,
-                "entity_value": fact.entity.value,
-                "fact_type": fact.fact_type,
-                "value": fact.value,
-                "valid_from": fact.valid_from.isoformat(),
-            }
-        )
-        from graphiti_core.nodes import EpisodeType
-
-        await self._graphiti.add_episode(
-            name=episode_name,
-            episode_body=body,
-            source_description=f"argus-{fact.fact_type}",
-            reference_time=fact.valid_from,
-            source=EpisodeType.json,
+        # Upsert a deterministic, immediately-queryable reputation edge. We do NOT rely
+        # on Graphiti's LLM entity-extraction for facts: a single-entity reputation fact
+        # ("<ip> is malicious") does not reliably yield a RELATES_TO edge, so query_fact
+        # would never see it. The edge carries name=fact_type and fact=value so the
+        # query_fact Cypher matches and returns the value. MERGE keyed on
+        # (entity, fact_type, valid_at) keeps re-seeding idempotent.
+        upsert_cypher = """
+        MERGE (e:Entity {name: $entity_val})
+        MERGE (v:Entity {name: $value_node})
+        MERGE (e)-[r:RELATES_TO {name: $fact_type, valid_at: $valid_from}]->(v)
+        SET r.fact = $value, r.invalid_at = null
+        """
+        await self._graphiti.driver.execute_query(
+            upsert_cypher,
+            entity_val=fact.entity.value,
+            value_node=value_node,
+            fact_type=fact.fact_type,
+            valid_from=fact.valid_from,
+            value=fact.value,
         )
 
     # -- temporal fact --------------------------------------------------------
@@ -278,7 +289,19 @@ class GraphitiMemory:
             entity_val=entity.value,
             fact_type=fact_type,
         )
-        rows = result.records if hasattr(result, "records") else []
+        raw_rows = result.records if hasattr(result, "records") else []
+        # The Neo4j driver returns temporal properties as neo4j.time.DateTime, which
+        # pydantic's TemporalFact rejects. Normalise every row to native datetimes up
+        # front so the window-matching and TemporalFact construction below are safe.
+        rows = [
+            {
+                "fact_text": r.get("fact_text"),
+                "fact_name": r.get("fact_name"),
+                "valid_from": _to_native_dt(r.get("valid_from")),
+                "valid_until": _to_native_dt(r.get("valid_until")),
+            }
+            for r in raw_rows
+        ]
 
         if not rows:
             return _EMPTY_FACT_STATE

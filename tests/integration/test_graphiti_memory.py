@@ -235,6 +235,40 @@ async def test_temporal_validity(graphiti_memory) -> None:
 
 
 @pytest.mark.asyncio
+async def test_write_fact_query_fact_roundtrip(graphiti_memory) -> None:
+    """write_fact persists a deterministic, immediately-queryable reputation edge.
+
+    Regression: previously write_fact relied on Graphiti's LLM entity-extraction, which
+    does not form a RELATES_TO edge for a single-entity reputation fact, and query_fact
+    could not convert Neo4j's DateTime to a native datetime — so query_fact NEVER returned
+    a fact. Both are now fixed; this asserts the full round-trip and temporal supersede
+    deterministically (no reliance on extraction quality).
+    """
+    from backend.domain.memory import TemporalFact
+
+    entity = EntityRef(kind=EntityKind.ADDRESS, value="203.0.113.207")
+
+    await graphiti_memory.write_fact(
+        TemporalFact(entity=entity, fact_type="reputation", value="malicious", valid_from=_T1)
+    )
+    state = await graphiti_memory.query_fact(entity, "reputation")
+    assert state.fact is not None
+    assert state.fact.value == "malicious"
+    assert state.is_current is True
+
+    # Supersede with a newer, different value — temporal validity is now deterministic.
+    await graphiti_memory.write_fact(
+        TemporalFact(entity=entity, fact_type="reputation", value="benign", valid_from=_T2)
+    )
+    now_state = await graphiti_memory.query_fact(entity, "reputation")
+    past_state = await graphiti_memory.query_fact(entity, "reputation", as_of=_T1)
+    assert now_state.fact is not None and now_state.fact.value == "benign"
+    assert now_state.is_current is True
+    assert past_state.fact is not None and past_state.fact.value == "malicious"
+    assert now_state.has_superseded is True
+
+
+@pytest.mark.asyncio
 async def test_idempotent_write_no_duplicate(graphiti_memory) -> None:
     """Writing the same incident_id twice does not duplicate episode or double-apply facts — T031."""
     ep = _make_episode(
