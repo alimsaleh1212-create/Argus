@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { ShieldAlert, AlertTriangle } from 'lucide-react'
 import { usePendingApprovals, useApprovalDecision } from '@/api/approvals'
-import { useIncidentQueue } from '@/api/incidents'
+import { useIncidentQueue, useAcknowledgeIncident, useResolveIncident } from '@/api/incidents'
 import type { ApprovalSummary } from '@/api/approvals'
 import type { IncidentSummary } from '@/api/incidents'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SeverityBadge } from '@/components/SeverityBadge'
 import { JourneyTrace } from '@/components/JourneyTrace'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DeadlineCountdown } from '@/features/approvals/DeadlineCountdown'
 import { DecisionDialog } from '@/features/approvals/DecisionDialog'
 
@@ -89,26 +90,77 @@ function AwaitingCard({ approval, onOpen }: { approval: ApprovalSummary; onOpen:
 }
 
 function EscalatedCard({ incident, onOpen }: { incident: IncidentSummary; onOpen: () => void }) {
+  const [pendingAction, setPendingAction] = useState<'acknowledge' | 'resolve' | null>(null)
+  const { mutate: acknowledge, isPending: isAcknowledging } = useAcknowledgeIncident()
+  const { mutate: resolve, isPending: isResolving } = useResolveIncident()
+  const isLoading = isAcknowledging || isResolving
+
+  function handleConfirm() {
+    if (pendingAction === 'acknowledge') {
+      acknowledge(incident.id, { onSuccess: () => setPendingAction(null), onError: () => setPendingAction(null) })
+    } else if (pendingAction === 'resolve') {
+      resolve(incident.id, { onSuccess: () => setPendingAction(null), onError: () => setPendingAction(null) })
+    }
+  }
+
   return (
-    <Card className="border-orange-500/30 bg-orange-500/5" data-testid={`escalated-card-${incident.id}`}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-orange-400 text-sm">
-          <AlertTriangle className="w-4 h-4" aria-hidden="true" />
-          Escalated
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <SeverityBadge severity={incident.severity} />
-          <span className="font-mono text-[11px] text-slate-500 truncate">{incident.id}</span>
-        </div>
-        {incident.summary && <p className="text-slate-200 text-sm">{incident.summary}</p>}
-        <JourneyTrace steps={incident.journey ?? []} />
-        <Button variant="outline" size="sm" onClick={onOpen} aria-label="View detail">
-          View detail
-        </Button>
-      </CardContent>
-    </Card>
+    <>
+      <Card className="border-orange-500/30 bg-orange-500/5" data-testid={`escalated-card-${incident.id}`}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-orange-400 text-sm">
+            <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+            Escalated
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <SeverityBadge severity={incident.severity} />
+            <span className="font-mono text-[11px] text-slate-500 truncate">{incident.id}</span>
+          </div>
+          {incident.summary && <p className="text-slate-200 text-sm">{incident.summary}</p>}
+          <JourneyTrace steps={incident.journey ?? []} />
+          <div className="flex gap-3 flex-wrap">
+            <Button variant="outline" size="sm" onClick={onOpen} aria-label="View detail">
+              View detail
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setPendingAction('acknowledge')}
+              disabled={isLoading}
+              aria-label="Acknowledge incident"
+            >
+              Acknowledge
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setPendingAction('resolve')}
+              disabled={isLoading}
+              aria-label="Resolve incident"
+              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+            >
+              Resolve
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      {pendingAction && (
+        <ConfirmDialog
+          open={!!pendingAction}
+          onOpenChange={(open) => { if (!open) setPendingAction(null) }}
+          title={pendingAction === 'acknowledge' ? 'Acknowledge Incident' : 'Resolve Incident'}
+          description={
+            pendingAction === 'acknowledge'
+              ? 'This incident will be marked as acknowledged and removed from the human attention lane.'
+              : 'This incident will be marked as resolved. This cannot be undone.'
+          }
+          confirmLabel={pendingAction === 'acknowledge' ? 'Acknowledge' : 'Resolve'}
+          onConfirm={handleConfirm}
+          isLoading={isLoading}
+        />
+      )}
+    </>
   )
 }
 
@@ -122,7 +174,7 @@ export function HumanAttentionLane({ onSelectIncident }: HumanAttentionLaneProps
   })
 
   const awaiting = pending?.approvals ?? []
-  const escalated = escalatedPage?.items ?? []
+  const escalated = (escalatedPage?.items ?? []).filter((i) => !i.acknowledged_at)
   const isEmpty = awaiting.length === 0 && escalated.length === 0
 
   return (
