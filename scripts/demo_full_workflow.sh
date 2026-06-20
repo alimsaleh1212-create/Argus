@@ -22,8 +22,9 @@
 #
 # Usage:  bash scripts/demo_full_workflow.sh
 # Needs:  curl, python3 (for JSON parsing), and a healthy stack (make up) whose
-#         .env carries a demo-friendly ARGUS__RESPONSE__APPROVAL_TIMEOUT_S (≈120s)
-#         so the approval-expiry path resolves within the demo.
+#         .env carries ARGUS__RESPONSE__APPROVAL_TIMEOUT_S (≈300s = 5 min response
+#         window). The approval-expiry path (7) therefore takes ~5 min; this script
+#         fires it first and waits out the full window at the end.
 set -euo pipefail
 
 BASE="http://localhost:8000"
@@ -268,7 +269,7 @@ aid=$(pending_approval_id_for "$id_reject")
 if [ -n "$aid" ]; then decide "$aid" reject "User contacted SOC — travel is legitimate, VPN misconfiguration"; ok "rejected $aid"; else err "no pending approval found for 3.2"; fi
 
 log "Act 4 — Approval expiry (path 7): park a destructive plan and let the sweeper expire it"
-# Fired early so the approval-timeout window (≈120s, .env) elapses while the
+# Fired early so the approval-timeout window (≈300s, .env) elapses while the
 # remaining acts process — checked at the coverage matrix. We deliberately do NOT
 # approve this one; the worker's timeout sweeper expires it → escalated.
 fire "4.1 impossible travel (let expire)" "07_approval_timeout" '{
@@ -330,10 +331,12 @@ fire "8.1 live SSE incident" "16_sse_live" '{
 log "Letting incidents finish processing…"
 sleep 20
 
-# Ensure the approval-expiry path (7) has been swept before we score it.
-log "Waiting for the parked approval (path 7) to be expired by the sweeper…"
-st=$(wait_for_status "$id_expire" "escalated" 150)
-[ "$st" = "escalated" ] && ok "path 7 expired → escalated" || warn "path 7 status=$st (expected escalated after ~120s timeout)"
+# Ensure the approval-expiry path (7) has been swept before we score it. The
+# approval window is ~300s from park; this one was fired first (Act 4), so most of
+# it has already elapsed — but allow the full window plus a sweep interval.
+log "Waiting for the parked approval (path 7) to be expired by the sweeper (up to ~5 min)…"
+st=$(wait_for_status "$id_expire" "escalated" 330)
+[ "$st" = "escalated" ] && ok "path 7 expired → escalated" || warn "path 7 status=$st (expected escalated after ~300s timeout)"
 ok "Dispatch complete"
 
 # ─── coverage matrix ────────────────────────────────────────────────────────

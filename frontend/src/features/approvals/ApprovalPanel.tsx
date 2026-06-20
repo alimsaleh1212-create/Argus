@@ -65,13 +65,24 @@ export function ApprovalPanel({ approval, onDecided }: ApprovalPanelProps) {
             <p className="text-xs text-slate-500 uppercase tracking-wider mb-1.5">
               Pending Actions ({approval.pending_actions.length})
             </p>
-            <ul className="space-y-1">
+            <ul className="space-y-2">
               {approval.pending_actions.map((action, i) => (
                 <li
                   key={i}
-                  className="bg-slate-900 border border-slate-700 rounded px-3 py-2 font-mono text-xs text-slate-300"
+                  className="bg-slate-900 border border-slate-700 rounded-md px-3.5 py-3"
                 >
-                  {JSON.stringify(action)}
+                  <dl className="grid grid-cols-[minmax(0,7rem)_1fr] gap-x-3 gap-y-1.5 font-mono text-xs">
+                    {Object.entries(action).map(([key, value]) => (
+                      <div key={key} className="contents">
+                        <dt className="text-slate-500 break-all">{key}</dt>
+                        <dd className="text-slate-200 break-all whitespace-pre-wrap">
+                          {typeof value === 'object' && value !== null
+                            ? JSON.stringify(value)
+                            : String(value)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
                 </li>
               ))}
             </ul>

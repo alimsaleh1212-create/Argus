@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import sqlalchemy as sa
@@ -163,6 +163,21 @@ class ApprovalRepository:
         return [_row_to_record(row) for row in result.mappings().all()]
 
 
+def _as_utc(dt: datetime | None) -> datetime | None:
+    """Tag a naive timestamp as UTC.
+
+    The deadline_at/decided_at columns are TIMESTAMP WITHOUT TIME ZONE and are
+    written as naive UTC (handler.py strips tzinfo to match the column). Read
+    back, they have no tzinfo, so .isoformat() emits no offset — and a browser
+    then parses the string as LOCAL time, shifting the deadline by the client's
+    UTC offset and showing it as "Expired". Attaching UTC here makes every
+    consumer serialize an offset-bearing ISO string the frontend reads correctly.
+    """
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def _row_to_record(row: Any) -> ApprovalRecord:
     import json
 
@@ -179,9 +194,9 @@ def _row_to_record(row: Any) -> ApprovalRecord:
         pending_actions=pending_actions,
         rationale=row.get("rationale") or "",
         status=row["status"],
-        deadline_at=row["deadline_at"],
+        deadline_at=_as_utc(row["deadline_at"]),
         decided_by=row.get("decided_by"),
-        decided_at=row.get("decided_at"),
+        decided_at=_as_utc(row.get("decided_at")),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
