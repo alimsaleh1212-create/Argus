@@ -1,29 +1,30 @@
-name: Eval Freeze (nightly + tag)
+name: Eval Freeze (manual)
 
+# NON-BLOCKING / MANUAL-ONLY.
+#
+# This freeze eval exercises provider-dependent quality gates (triage F1, the
+# pinned rationale judge) that require real LLM credentials which are NOT
+# available in CI:
+#   - GEMINI_API_KEY secret           (Gemini provider + pinned rationale judge)
+#   - Ollama cloud auth for the model  (the configured model is gemma4:31b-cloud,
+#                                       a cloud-hosted model the local CI ollama
+#                                       container cannot serve)
+# plus a reachable MinIO for `--upload`.
+#
+# Without those, the provider-dependent gates report `incomplete` (exit 3) and
+# the run goes red. To avoid perpetual red nightly/tag runs, the automatic
+# triggers are disabled — run this manually via "Run workflow" once the
+# credentials above are configured. The job is also marked continue-on-error so
+# it can never block the pipeline.
 on:
-  schedule:
-    - cron: "0 2 * * *"   # nightly at 02:00 UTC
   workflow_dispatch:
-  push:
-    tags: ["v*"]
 
 jobs:
   eval-freeze:
     name: Freeze eval (both providers + MinIO report)
     runs-on: ubuntu-latest
+    continue-on-error: true   # informational until provider creds are configured
     services:
-      minio:
-        image: minio/minio:latest
-        ports:
-          - 9000:9000
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-        options: >-
-          --health-cmd "curl -sf http://localhost:9000/minio/health/live"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
       ollama:
         image: ollama/ollama:latest
         ports:
@@ -34,6 +35,18 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync
+      # MinIO must be started via `docker run` (not a `services:` container): the
+      # minio image needs the `server /data` command, which `services:` blocks
+      # cannot pass, so as a service it just prints usage and exits unhealthy.
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 -p 9001:9001 \
+            -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:latest server /data --console-address ":9001"
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 2
+          done
       - name: Pull Ollama model
         run: |
           curl -s -X POST http://localhost:11434/api/pull \
