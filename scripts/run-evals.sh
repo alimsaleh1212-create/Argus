@@ -17,6 +17,14 @@ cd "$(dirname "$0")/.."
 # Forward remaining args to each gate invocation
 EXTRA_ARGS=("$@")
 
+COV="${COV:-0}"
+declare -a RUNNER=(uv run python)
+if [[ "$COV" == "1" ]]; then
+  export COVERAGE_FILE="${COVERAGE_FILE:-.coverage.eval}"
+  rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".* 2>/dev/null || true
+  RUNNER=(uv run coverage run -p)
+fi
+
 # Discover declared gate names from the yaml (single source of truth)
 mapfile -t GATES < <(
   uv run python - <<'PYEOF'
@@ -41,12 +49,16 @@ echo "────────────────────────�
 
 for gate in "${GATES[@]}"; do
   echo "▶ gate: $gate"
-  uv run python -m backend.eval --gate "$gate" "${EXTRA_ARGS[@]}"
+  "${RUNNER[@]}" -m backend.eval --gate "$gate" "${EXTRA_ARGS[@]}"
   rc=$?
   if [[ $rc -ne 0 ]]; then
     failed+=("$gate (exit $rc)")
   fi
 done
+
+if [[ "$COV" == "1" ]]; then
+  uv run coverage combine    # merges .coverage.eval.* parallel files -> $COVERAGE_FILE
+fi
 
 echo "────────────────────────────────────────────────────────────────"
 if (( ${#failed[@]} )); then
