@@ -17,7 +17,7 @@ import asyncio
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 SAMPLE_EPISODES = [
     {
@@ -33,7 +33,7 @@ SAMPLE_EPISODES = [
                 {"kind": "host", "value": "web-server-01"},
             ],
         }),
-        "reference_time": datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
+        "reference_time": datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
     },
     {
         "name": "spike-002",
@@ -48,7 +48,7 @@ SAMPLE_EPISODES = [
                 {"kind": "host", "value": "db-server-02"},
             ],
         }),
-        "reference_time": datetime(2024, 1, 15, 11, 0, 0, tzinfo=timezone.utc),
+        "reference_time": datetime(2024, 1, 15, 11, 0, 0, tzinfo=UTC),
     },
     {
         "name": "spike-003",
@@ -63,7 +63,7 @@ SAMPLE_EPISODES = [
                 {"kind": "host", "value": "honeypot-01"},
             ],
         }),
-        "reference_time": datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc),
+        "reference_time": datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC),
     },
 ]
 
@@ -76,7 +76,7 @@ CONFLICT_EPISODES = [
             "verdict": "noise",
             "entity_fact": {"entity": "198.51.100.5", "reputation": "benign"},
         }),
-        "reference_time": datetime(2024, 1, 16, 9, 0, 0, tzinfo=timezone.utc),
+        "reference_time": datetime(2024, 1, 16, 9, 0, 0, tzinfo=UTC),
     },
     {
         "name": "spike-conflict-t2",
@@ -86,7 +86,7 @@ CONFLICT_EPISODES = [
             "verdict": "real",
             "entity_fact": {"entity": "198.51.100.5", "reputation": "malicious"},
         }),
-        "reference_time": datetime(2024, 1, 16, 14, 0, 0, tzinfo=timezone.utc),
+        "reference_time": datetime(2024, 1, 16, 14, 0, 0, tzinfo=UTC),
     },
 ]
 
@@ -94,8 +94,8 @@ CONFLICT_EPISODES = [
 async def run_spike() -> None:
     try:
         from graphiti_core import Graphiti
-        from graphiti_core.llm_client.gemini_client import GeminiClient, LLMConfig
         from graphiti_core.embedder.gemini import GeminiEmbedder, GeminiEmbedderConfig
+        from graphiti_core.llm_client.gemini_client import GeminiClient, LLMConfig
     except ImportError as e:
         print(f"[SPIKE] Import error: {e}. Ensure graphiti-core[google-genai] is installed.")
         return
