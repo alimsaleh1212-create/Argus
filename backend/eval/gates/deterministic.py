@@ -6,9 +6,7 @@ Each runner calls scoring helpers shared with tests/eval/* gate tests.
 
 from __future__ import annotations
 
-import uuid
 from pathlib import Path
-from typing import Any
 
 import yaml
 

@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-import uuid
-
-import pytest
-
 from backend.domain.response import (
-    ActionResult,
-    ActionStatus,
     ActionType,
     ProbeResult,
     ProbeState,
@@ -22,7 +16,9 @@ def _make_verification_record(verdict: VerificationVerdict) -> VerificationRecor
     probe = ProbeResult(
         type=ActionType.BLOCK_IP,
         target="[REDACTED]",
-        state=ProbeState.EXPECTED if verdict == VerificationVerdict.VERIFIED else ProbeState.UNEXPECTED,
+        state=ProbeState.EXPECTED
+        if verdict == VerificationVerdict.VERIFIED
+        else ProbeState.UNEXPECTED,
         detail="[REDACTED]",
     )
     sig = VerificationSignals(probe=probe)

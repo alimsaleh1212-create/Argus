@@ -35,8 +35,10 @@ def test_full_path_resolved():
     ev = {
         "triage": {"verdict": "real", "confidence": 0.82},
         "enrichment": {"assessment": "malicious", "confidence": 0.91},
-        "response": {"plan": {"playbook_id": "isolate_and_ticket"},
-                     "verification": {"verdict": "verified"}},
+        "response": {
+            "plan": {"playbook_id": "isolate_and_ticket"},
+            "verification": {"verdict": "verified"},
+        },
     }
     inc = _incident(status=IncidentStatus.RESOLVED, disposition="remediated", evidence=ev)
     stages = [s.stage for s in build_journey(inc)]
@@ -61,6 +63,9 @@ def test_safety_net_error_marks_terminal_errored():
 
 
 def test_intake_source_label_for_anomaly():
-    inc = _incident(status=IncidentStatus.TRIAGING, source="anomaly-detector",
-                    evidence={"triage": {"verdict": "real", "confidence": 0.7}})
+    inc = _incident(
+        status=IncidentStatus.TRIAGING,
+        source="anomaly-detector",
+        evidence={"triage": {"verdict": "real", "confidence": 0.7}},
+    )
     assert build_journey(inc)[0].detail == "anomaly-detector"

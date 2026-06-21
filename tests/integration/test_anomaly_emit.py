@@ -394,7 +394,5 @@ class TestAnomalyEmitsSourceTagged:
         assert result2.incident_id == incident_ids[1]
         assert result1.incident_id != result2.incident_id
         # The persisted incidents carried the distinct source tags.
-        persisted_sources = {
-            mock_repo.create.await_args_list[i].args[0].source for i in range(2)
-        }
+        persisted_sources = {mock_repo.create.await_args_list[i].args[0].source for i in range(2)}
         assert persisted_sources == {"detector", "anomaly-detector"}

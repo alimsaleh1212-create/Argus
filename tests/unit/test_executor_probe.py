@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
 from backend.domain.response import (
     ActionType,
     ProbeState,
@@ -34,7 +32,7 @@ def _action(atype: ActionType = ActionType.BLOCK_IP) -> RemediationAction:
 
 
 def _run(coro):  # type: ignore[no-untyped-def]
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 # ---------------------------------------------------------------------------

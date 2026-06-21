@@ -9,26 +9,23 @@ from __future__ import annotations
 
 import uuid
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
-from backend.agents.response import _pass_a, _pass_b, make_response_handler
+from backend.agents.response import _pass_a, _pass_b
 from backend.domain.incident import Incident, IncidentStatus, Severity
 from backend.domain.pipeline import StageOutcome
 from backend.domain.response import (
-    ActionStatus,
     ActionType,
     RemediationAction,
     RiskClass,
-    VerificationVerdict,
 )
 from backend.infra.executors import (
     build_inconclusive_executors,
     build_mock_executors,
     build_regressed_executors,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -40,8 +37,14 @@ class _Cfg:
     verify_regressed_verdicts = ["malicious", "suspicious"]
     verify_llm_tiebreak = False
     select_min_confidence = 0.6
-    auto_execute_actions = ["add_to_watchlist", "open_ticket", "enrich_and_tag",
-                            "isolate_host", "block_ip", "disable_user"]
+    auto_execute_actions = [
+        "add_to_watchlist",
+        "open_ticket",
+        "enrich_and_tag",
+        "isolate_host",
+        "block_ip",
+        "disable_user",
+    ]
     approval_timeout_s = 1800
     catalog_dir = "backend/data/playbooks"
     max_output_tokens = 512
@@ -56,8 +59,16 @@ class _FakeAuditRepo:
     async def is_applied(self, key: str) -> bool:
         return False
 
-    async def append(self, *, incident_id: Any, actor: str, action: str,
-                     target: Any = None, outcome: str, idempotency_key: Any = None) -> bool:
+    async def append(
+        self,
+        *,
+        incident_id: Any,
+        actor: str,
+        action: str,
+        target: Any = None,
+        outcome: str,
+        idempotency_key: Any = None,
+    ) -> bool:
         self.rows.append({"actor": actor, "action": action, "outcome": outcome})
         return True
 
@@ -108,19 +119,26 @@ def _incident(evidence: dict | None = None) -> Incident:
 
 def _auto_action(atype: ActionType = ActionType.BLOCK_IP) -> RemediationAction:
     return RemediationAction(
-        type=atype, target="1.2.3.4", params={}, risk=RiskClass.AUTO,
+        type=atype,
+        target="1.2.3.4",
+        params={},
+        risk=RiskClass.AUTO,
         idempotency_key=f"e2e:{atype.value}:1.2.3.4",
     )
 
 
 class _BenignIntel:
     async def lookup(self, target: str, kind: str) -> Any:
-        m = MagicMock(); m.verdict = "benign"; return m
+        m = MagicMock()
+        m.verdict = "benign"
+        return m
 
 
 class _MaliciousIntel:
     async def lookup(self, target: str, kind: str) -> Any:
-        m = MagicMock(); m.verdict = "malicious"; return m
+        m = MagicMock()
+        m.verdict = "malicious"
+        return m
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +154,7 @@ async def test_pass_a_clean_probe_and_benign_intel_resolves_auto_remediated():
     incident = _incident()
     executors = build_mock_executors()
 
-    from backend.agents.response import PlaybookEntry, _pass_a
+    from backend.agents.response import PlaybookEntry
 
     catalog = [
         PlaybookEntry(
@@ -172,7 +190,7 @@ async def test_pass_a_regressed_probe_escalates_as_unverified():
     incident = _incident()
     executors = build_regressed_executors(ActionType.BLOCK_IP)
 
-    from backend.agents.response import PlaybookEntry, _pass_a
+    from backend.agents.response import PlaybookEntry
 
     catalog = [
         PlaybookEntry(
@@ -211,7 +229,7 @@ async def test_pass_a_inconclusive_probe_escalates_as_unverified():
     incident = _incident()
     executors = build_inconclusive_executors(ActionType.BLOCK_IP)
 
-    from backend.agents.response import PlaybookEntry, _pass_a
+    from backend.agents.response import PlaybookEntry
 
     catalog = [
         PlaybookEntry(
@@ -251,9 +269,15 @@ async def test_pass_b_clean_probe_resolves_remediated():
     executors = build_mock_executors()
 
     approved = _FakeApprovedRow(
-        actions=[{"type": "block_ip", "target": "1.2.3.4",
-                  "params": {}, "risk": "auto",
-                  "idempotency_key": "e2e:block_ip:1.2.3.4"}]
+        actions=[
+            {
+                "type": "block_ip",
+                "target": "1.2.3.4",
+                "params": {},
+                "risk": "auto",
+                "idempotency_key": "e2e:block_ip:1.2.3.4",
+            }
+        ]
     )
 
     result = await _pass_b(
@@ -279,9 +303,15 @@ async def test_pass_b_malicious_intel_escalates():
     executors = build_mock_executors()
 
     approved = _FakeApprovedRow(
-        actions=[{"type": "block_ip", "target": "1.2.3.4",
-                  "params": {}, "risk": "auto",
-                  "idempotency_key": "e2e:block_ip:1.2.3.4"}]
+        actions=[
+            {
+                "type": "block_ip",
+                "target": "1.2.3.4",
+                "params": {},
+                "risk": "auto",
+                "idempotency_key": "e2e:block_ip:1.2.3.4",
+            }
+        ]
     )
 
     result = await _pass_b(
@@ -310,16 +340,18 @@ async def test_pass_a_idempotent_when_verification_already_present():
     audit = _FakeAuditRepo()
     approval = _FakeApprovalRepo()
     # incident already carries a verification record in evidence (merged with base evidence)
-    incident = _incident(evidence={
-        "severity": "high",
-        "normalized_event": {"severity": "high", "rule_groups": ["attack"]},
-        "response": {
-            "verification": {"verdict": "verified"},
-        },
-    })
+    incident = _incident(
+        evidence={
+            "severity": "high",
+            "normalized_event": {"severity": "high", "rule_groups": ["attack"]},
+            "response": {
+                "verification": {"verdict": "verified"},
+            },
+        }
+    )
     executors = build_regressed_executors(ActionType.BLOCK_IP)  # would regress if re-checked
 
-    from backend.agents.response import PlaybookEntry, _pass_a
+    from backend.agents.response import PlaybookEntry
 
     catalog = [
         PlaybookEntry(
@@ -366,7 +398,6 @@ async def test_pass_a_verification_error_never_blocks_disposition():
         def get(self, key, default=None):
             executor = build_mock_executors().get(key, default)
             if executor is not None:
-                original_probe = executor.probe
 
                 async def _broken_probe(action: Any) -> Any:
                     raise RuntimeError("probe exploded")
@@ -376,12 +407,14 @@ async def test_pass_a_verification_error_never_blocks_disposition():
 
     # Use a broken executor that crashes on probe
     executors_dict = build_mock_executors()
-    for k, v in executors_dict.items():
+    for _k, v in executors_dict.items():
+
         async def _err_probe(action: Any) -> Any:
             raise RuntimeError("probe exploded")
+
         v.probe = _err_probe
 
-    from backend.agents.response import PlaybookEntry, _pass_a
+    from backend.agents.response import PlaybookEntry
 
     catalog = [
         PlaybookEntry(

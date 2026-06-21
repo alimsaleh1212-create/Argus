@@ -306,7 +306,9 @@ async def test_handler_propagates_select_tool_error():
     from unittest.mock import patch
 
     with (
-        patch("backend.agents.response.handler.ApprovalRepository", return_value=_FakeApprovalRepo()),
+        patch(
+            "backend.agents.response.handler.ApprovalRepository", return_value=_FakeApprovalRepo()
+        ),
         patch("backend.agents.response.handler.AuditRepository", return_value=_FakeAuditRepo()),
     ):
         handler = make_response_handler(

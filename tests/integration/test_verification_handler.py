@@ -9,22 +9,18 @@ from __future__ import annotations
 
 import uuid
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
-from backend.agents.response import _pass_a, _pass_b, verify_remediation
+from backend.agents.response import verify_remediation
 from backend.domain.incident import Incident, IncidentStatus, Severity
-from backend.domain.pipeline import StageOutcome
 from backend.domain.response import (
     ActionResult,
     ActionStatus,
     ActionType,
-    IndicatorRecheck,
-    ProbeState,
     RemediationAction,
     RiskClass,
-    VerificationSignals,
     VerificationVerdict,
 )
 from backend.infra.executors import (
@@ -57,7 +53,9 @@ def _action(atype: ActionType = ActionType.BLOCK_IP, target: str = "1.2.3.4") ->
     )
 
 
-def _applied_result(atype: ActionType = ActionType.BLOCK_IP, target: str = "1.2.3.4") -> ActionResult:
+def _applied_result(
+    atype: ActionType = ActionType.BLOCK_IP, target: str = "1.2.3.4"
+) -> ActionResult:
     return ActionResult(type=atype, target=target, status=ActionStatus.APPLIED)
 
 
@@ -237,7 +235,6 @@ async def test_verify_remediation_skipped_when_cfg_off():
     class _CfgOff(_Cfg):
         verify_remediation = False
 
-    results = [_applied_result()]
     actions = [_action()]
     executors = build_regressed_executors(ActionType.BLOCK_IP)  # would regress if checked
 

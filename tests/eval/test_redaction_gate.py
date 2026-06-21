@@ -15,8 +15,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 PLANTED_AWS_KEY = "AKIAIOSFODNN7EXAMPLE"
 PLANTED_BEARER = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.sig"
 PLANTED_KV_SECRET = "api_key=sk-prod-ABCDEF1234567890abcdef"
@@ -161,7 +159,6 @@ async def _run_redaction_scenarios() -> tuple[int, int]:
 
 def test_aws_key_in_probe_detail_is_redacted():
     """AWS key in ProbeResult.detail must not survive redact_mapping."""
-    import asyncio
 
     from backend.domain.redaction import Boundary
     from backend.infra.redaction import build_redactor
@@ -217,9 +214,7 @@ def test_bearer_token_in_probe_detail_is_redacted():
     }
     out = redactor.redact_mapping(evidence, Boundary.OPERATIONAL)
     jwt_part = PLANTED_BEARER.split(" ", 1)[-1]
-    assert jwt_part not in json.dumps(out), (
-        f"Bearer JWT found unredacted in verification evidence"
-    )
+    assert jwt_part not in json.dumps(out), "Bearer JWT found unredacted in verification evidence"
 
 
 def test_kv_secret_in_rationale_is_redacted():
@@ -240,7 +235,7 @@ def test_kv_secret_in_rationale_is_redacted():
     out = redactor.redact_mapping(evidence, Boundary.OPERATIONAL)
     kv_value = PLANTED_KV_SECRET.split("=", 1)[-1]
     assert kv_value not in json.dumps(out), (
-        f"KV secret value found unredacted in verification rationale"
+        "KV secret value found unredacted in verification rationale"
     )
 
 
@@ -262,7 +257,7 @@ def test_aws_key_in_dashboard_evidence_path_is_redacted():
     }
     out = redactor.redact_mapping(payload, Boundary.OPERATIONAL)
     assert PLANTED_AWS_KEY not in json.dumps(out), (
-        f"AWS key found unredacted in dashboard evidence path"
+        "AWS key found unredacted in dashboard evidence path"
     )
 
 

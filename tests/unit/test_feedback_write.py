@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 
 from backend.domain.incident import Incident, IncidentStatus, Severity
-from backend.domain.memory import EntityKind, EntityRef, TemporalFact
+from backend.domain.memory import EntityKind, TemporalFact
 from backend.domain.redaction import Boundary
 from backend.infra.config import FeedbackSettings
 

@@ -16,7 +16,6 @@ from backend.agents.response import PlaybookEntry, _pass_a
 from backend.domain.feedback import FeedbackSignal, RemediationOutcome
 from backend.domain.incident import Incident, IncidentStatus, Severity
 from backend.domain.pipeline import StageOutcome
-from backend.domain.response import RiskClass
 from backend.infra.config import FeedbackSettings
 
 
@@ -38,8 +37,16 @@ class _FakeAuditRepo:
     async def is_applied(self, key: str) -> bool:
         return False
 
-    async def append(self, *, incident_id: Any, actor: str, action: str,
-                     target: Any = None, outcome: str, idempotency_key: Any = None) -> bool:
+    async def append(
+        self,
+        *,
+        incident_id: Any,
+        actor: str,
+        action: str,
+        target: Any = None,
+        outcome: str,
+        idempotency_key: Any = None,
+    ) -> bool:
         self.rows.append({"actor": actor, "action": action, "outcome": outcome})
         return True
 
@@ -57,16 +64,20 @@ class _DoNothingExecutors(dict):
         class _R:
             status = "applied"
             detail = "ok"
+
         return _R()
 
 
 def _make_executors() -> dict:
     from backend.infra.executors import build_mock_executors
+
     return build_mock_executors()
 
 
 def _incident(*, severity: Severity, prior_outcome: dict | None = None) -> Incident:
-    effective_severity = prior_outcome.get("biased_severity", severity.value) if prior_outcome else severity.value
+    effective_severity = (
+        prior_outcome.get("biased_severity", severity.value) if prior_outcome else severity.value
+    )
     evidence: dict[str, Any] = {
         "severity": effective_severity,
         "normalized_event": {

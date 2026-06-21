@@ -46,12 +46,12 @@ class FeedbackSignal(BaseModel):
 def has_prior_failure(signals: list[FeedbackSignal], cfg: object) -> bool:
     """True iff any current signal's outcome is in cfg.feedback.escalate_on."""
     escalate_on: set[str] = set(getattr(cfg, "escalate_on", ["regressed", "unverified"]))
-    return any(
-        s.is_current and s.outcome.value in escalate_on for s in signals
-    )
+    return any(s.is_current and s.outcome.value in escalate_on for s in signals)
 
 
-def decide_severity_bias(severity: Severity, signals: list[FeedbackSignal], cfg: object) -> Severity:
+def decide_severity_bias(
+    severity: Severity, signals: list[FeedbackSignal], cfg: object
+) -> Severity:
     """Raise effective severity when a current failure-class outcome exists.
 
     Config values:

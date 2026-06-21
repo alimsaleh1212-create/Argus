@@ -207,9 +207,7 @@ class LlmClient:
             #    so callers can safely json.loads the content (Ollama wraps JSON
             #    in ```json fences even when format is specified).
             if request.response_schema is not None:
-                result = result.model_copy(
-                    update={"content": _strip_code_fences(result.content)}
-                )
+                result = result.model_copy(update={"content": _strip_code_fences(result.content)})
 
             # 5b. Fail-closed contract validation (LD4 / SC-009)
             _validate_contract(result, request)

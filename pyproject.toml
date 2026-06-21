@@ -77,6 +77,13 @@ omit = [
     "backend/corpus_provider.py",
     # Standalone one-shot CLI entrypoint (`seed-corpus`), not application runtime.
     "backend/seed_corpus.py",
+    # Standalone one-shot CLI entrypoints (#14 detector, #17 anomaly
+    # train/detect), same class as seed-corpus above: invoked as
+    # `python -m backend.<name>`, not application runtime. Validated by the
+    # eval gates + smoke/e2e tier, not this line-coverage gate.
+    "backend/detector.py",
+    "backend/anomaly_train.py",
+    "backend/anomaly_detector.py",
     # Reserved stub — measured when its spec lands.
     "backend/infra/guardrails.py",
     # Implemented + measured (removed from omit as their specs landed):

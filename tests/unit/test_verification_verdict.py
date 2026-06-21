@@ -6,8 +6,6 @@ T009–T012 implement the domain types.
 
 from __future__ import annotations
 
-import pytest
-
 from backend.domain.response import (
     ActionType,
     IndicatorRecheck,
@@ -168,7 +166,6 @@ def test_custom_regressed_set():
     assert decide_action_verdict(sig_sus, _CfgCustom()) == VerificationVerdict.REGRESSED
 
     # malicious is NOT in the custom set → inconclusive path
-    sig_mal = _signals(ProbeState.EXPECTED, "malicious")
     # probe expected + intel malicious but not in regressed set → still regressed (conflict case)
     # Actually this depends on implementation; the function should treat non-set as not-regressed-intel
     # but the conflict resolution still goes worst-case. Test the basic custom set behaviour:

@@ -47,9 +47,7 @@ async def test_record_episode_swallows_errors():
         raise RuntimeError("boom")
 
     # Must not raise — best-effort.
-    await _record_episode_isolated(
-        uuid.uuid4(), "iid", factory, memory=object(), settings=object()
-    )
+    await _record_episode_isolated(uuid.uuid4(), "iid", factory, memory=object(), settings=object())
 
 
 @pytest.mark.asyncio

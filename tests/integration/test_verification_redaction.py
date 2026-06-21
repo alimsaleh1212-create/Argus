@@ -15,10 +15,14 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
+
+if TYPE_CHECKING:
+    from backend.domain.incident import Incident
 
 _JWT_SECRET = "verification-jwt-secret-long-enough-32ch"
 _NOW = datetime(2026, 6, 16, 9, 0, 0, tzinfo=UTC)
@@ -127,7 +131,7 @@ def _make_app(*, incident, audit_rows=None):
 # ---------------------------------------------------------------------------
 
 
-def _make_escalated_unverified(planted_secret: str | None = None) -> "Incident":  # type: ignore[name-defined]
+def _make_escalated_unverified(planted_secret: str | None = None) -> Incident:  # type: ignore[name-defined]
     from backend.domain.incident import Incident, IncidentStatus, Severity
 
     rationale = "Probe inconclusive — indicator still flagged."
@@ -181,7 +185,7 @@ def _make_escalated_unverified(planted_secret: str | None = None) -> "Incident":
     )
 
 
-def _make_verified_resolved() -> "Incident":  # type: ignore[name-defined]
+def _make_verified_resolved() -> Incident:  # type: ignore[name-defined]
     """Incident that passed verification — for contrast in the queue."""
     from backend.domain.incident import Incident, IncidentStatus, Severity
 
@@ -273,10 +277,6 @@ class TestVerificationRedactionGate:
         # so we specifically verify the API does not perform active de-redaction that
         # would expose hidden values. The evidence is transparent.
         body_json = resp.json()
-        evidence = body_json.get("evidence", {})
-        verification_rationale = (
-            evidence.get("response", {}).get("verification", {}).get("rationale", "")
-        )
         # If stored rationale contains the key, the API surfaces it as-is (correct —
         # no de-redaction magic). But we assert the disposition is present and correct.
         assert body_json.get("disposition") == DISP_REMEDIATION_UNVERIFIED
@@ -308,7 +308,6 @@ class TestVerificationRedactionGate:
         assert resp.status_code == 200
         # Queue endpoint typically shows summary/disposition only — not full evidence.
         # The JWT part of the bearer token should not be in the queue summary.
-        jwt_part = PLANTED_BEARER.split(" ", 1)[-1]
         # Only assert the disposition is present; full evidence is detail-only
         assert DISP_REMEDIATION_UNVERIFIED in resp.text
 
