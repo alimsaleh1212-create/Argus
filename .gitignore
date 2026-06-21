@@ -56,9 +56,10 @@ docs/resources
 docs/reports
 
 # Graphify
-graphify-out/cache/
-graphify-out/.graphify_python
-graphify-out/.graphify_root
+graphify-out/
+
+# Local agent tooling
+.superpowers/
 
 
 docs/presentation-script_files/

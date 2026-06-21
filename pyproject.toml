@@ -101,6 +101,9 @@ exclude_lines = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Vendored agent tooling / generated artifacts are not application source and are
+# not linted (CI lints backend/ + tests/; this keeps `ruff check .` consistent).
+extend-exclude = [".opencode", ".superpowers", ".specify", ".claude", "graphify-out"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "PTH"]
