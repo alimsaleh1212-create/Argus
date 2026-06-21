@@ -73,9 +73,7 @@ def _window_label(label_records: list[dict], entity_id: str, window_start: str) 
     return None
 
 
-async def run_anomaly_detection(
-    spec: GateSpec, provider: str | None = None
-) -> GateResult:
+async def run_anomaly_detection(spec: GateSpec, provider: str | None = None) -> GateResult:
     """Score the committed artifact over the labeled fixture and compute metrics."""
     if not _MODEL_PATH.exists() or not _REPLAY_PATH.exists():
         return GateResult(
@@ -131,15 +129,11 @@ async def run_anomaly_detection(
                 tp += 1
             else:
                 fn += 1
-                failures.append(
-                    f"FN {w.entity_id}@{w.window_start.date()} score={score:.4f}"
-                )
+                failures.append(f"FN {w.entity_id}@{w.window_start.date()} score={score:.4f}")
         elif label == "normal":
             if fired:
                 fp += 1
-                failures.append(
-                    f"FP {w.entity_id}@{w.window_start.date()} score={score:.4f}"
-                )
+                failures.append(f"FP {w.entity_id}@{w.window_start.date()} score={score:.4f}")
             else:
                 tn += 1
 

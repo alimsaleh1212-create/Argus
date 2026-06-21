@@ -28,7 +28,7 @@ class IncidentSummary(BaseModel):
     created_at: datetime
     updated_at: datetime
     acknowledged_at: datetime | None = None
-    journey: list["JourneyStep"] = Field(default_factory=list)
+    journey: list[JourneyStep] = Field(default_factory=list)
 
 
 class JourneyStep(BaseModel):

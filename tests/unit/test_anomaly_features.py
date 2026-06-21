@@ -52,11 +52,31 @@ class TestBuildWindows:
 
     def test_feature_counts(self) -> None:
         events = [
-            RawLogEvent(event_time=datetime(2024, 1, 1, 8), entity_id="alice", fields={"type": "logon", "pc": "pc001"}),
-            RawLogEvent(event_time=datetime(2024, 1, 1, 9), entity_id="alice", fields={"type": "device", "pc": "pc001"}),
-            RawLogEvent(event_time=datetime(2024, 1, 1, 10), entity_id="alice", fields={"type": "file", "pc": "pc001", "to_removable": 1}),
-            RawLogEvent(event_time=datetime(2024, 1, 1, 11), entity_id="alice", fields={"type": "email", "pc": "pc001", "to_external": 1}),
-            RawLogEvent(event_time=datetime(2024, 1, 1, 12), entity_id="alice", fields={"type": "http", "pc": "pc001", "flagged": 1}),
+            RawLogEvent(
+                event_time=datetime(2024, 1, 1, 8),
+                entity_id="alice",
+                fields={"type": "logon", "pc": "pc001"},
+            ),
+            RawLogEvent(
+                event_time=datetime(2024, 1, 1, 9),
+                entity_id="alice",
+                fields={"type": "device", "pc": "pc001"},
+            ),
+            RawLogEvent(
+                event_time=datetime(2024, 1, 1, 10),
+                entity_id="alice",
+                fields={"type": "file", "pc": "pc001", "to_removable": 1},
+            ),
+            RawLogEvent(
+                event_time=datetime(2024, 1, 1, 11),
+                entity_id="alice",
+                fields={"type": "email", "pc": "pc001", "to_external": 1},
+            ),
+            RawLogEvent(
+                event_time=datetime(2024, 1, 1, 12),
+                entity_id="alice",
+                fields={"type": "http", "pc": "pc001", "flagged": 1},
+            ),
         ]
         windows = build_windows(events, parse_window("1d"))
         assert len(windows) == 1
@@ -111,7 +131,7 @@ class TestLoadReplayEvents:
         p = tmp_path / "replay.jsonl"
         p.write_text(
             '{"event_time": "2024-01-01T09:00:00", "entity_id": "alice", "fields": {}}\n'
-            'not valid json\n'
+            "not valid json\n"
             '{"event_time": "2024-01-01T10:00:00", "entity_id": "bob", "fields": {}}\n'
         )
         events = load_replay_events(p)

@@ -132,10 +132,7 @@ async def test_gather_feedback_drops_superseded(graphiti_memory) -> None:
 @pytest.mark.asyncio
 async def test_gather_feedback_bounded_by_max_indicators(graphiti_memory) -> None:
     cfg = FeedbackSettings(max_indicators=2)
-    entities = [
-        EntityRef(kind=EntityKind.ADDRESS, value=f"198.51.100.{i}")
-        for i in range(10, 15)
-    ]
+    entities = [EntityRef(kind=EntityKind.ADDRESS, value=f"198.51.100.{i}") for i in range(10, 15)]
     for entity in entities:
         await graphiti_memory.write_fact(
             TemporalFact(

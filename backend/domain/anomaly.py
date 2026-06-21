@@ -79,7 +79,8 @@ class AnomalyModel(Protocol):
 
     feature_spec: list[str]
 
-    def score(self, vectors: list[FeatureVector]) -> list[float]: ...
+    def score(self, vectors: list[FeatureVector]) -> list[float]:
+        ...
         # returns a [0,1] anomaly score per vector (higher = more anomalous)
 
 

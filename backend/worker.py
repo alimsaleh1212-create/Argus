@@ -214,7 +214,9 @@ def _maybe_record_episode(incident_id, incident_id_str, session_factory, memory,
     try:
         loop = asyncio.get_event_loop()
         loop.create_task(
-            _record_episode_isolated(incident_id, incident_id_str, session_factory, memory, settings)
+            _record_episode_isolated(
+                incident_id, incident_id_str, session_factory, memory, settings
+            )
         )
     except Exception as exc:
         logger.warning("memory_schedule_error", error=str(exc))

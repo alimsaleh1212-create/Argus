@@ -7,6 +7,7 @@ T009–T011 implement the domain types.
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from backend.domain.response import (
     ActionType,
@@ -17,7 +18,6 @@ from backend.domain.response import (
     VerificationSignals,
     VerificationVerdict,
 )
-
 
 # ---------------------------------------------------------------------------
 # ProbeResult
@@ -31,7 +31,7 @@ def test_probe_result_requires_type_target_state():
 
 
 def test_probe_result_extra_fields_forbidden():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ProbeResult(
             type=ActionType.BLOCK_IP,
             target="1.2.3.4",
@@ -68,7 +68,7 @@ def test_indicator_recheck_current_malicious():
 
 
 def test_indicator_recheck_extra_forbidden():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         IndicatorRecheck(target="x", intel_verdict="benign", bogus=True)
 
 
@@ -86,7 +86,7 @@ def test_verification_signals_no_recheck():
 def test_verification_signals_frozen():
     probe = ProbeResult(type=ActionType.BLOCK_IP, target="1.2.3.4", state=ProbeState.EXPECTED)
     sig = VerificationSignals(probe=probe)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         sig.recheck = IndicatorRecheck(target="x", intel_verdict="benign")  # type: ignore[misc]
 
 
@@ -111,7 +111,7 @@ def test_verification_record_basic():
 def test_verification_record_rationale_required():
     probe = ProbeResult(type=ActionType.BLOCK_IP, target="1.2.3.4", state=ProbeState.EXPECTED)
     sig = VerificationSignals(probe=probe)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         VerificationRecord(
             verdict=VerificationVerdict.VERIFIED,
             per_action=[],
@@ -123,7 +123,7 @@ def test_verification_record_rationale_required():
 def test_verification_record_extra_forbidden():
     probe = ProbeResult(type=ActionType.BLOCK_IP, target="1.2.3.4", state=ProbeState.EXPECTED)
     sig = VerificationSignals(probe=probe)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         VerificationRecord(
             verdict=VerificationVerdict.VERIFIED,
             per_action=[],

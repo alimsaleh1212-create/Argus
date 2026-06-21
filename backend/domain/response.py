@@ -49,7 +49,7 @@ _VERDICT_RANK: dict[VerificationVerdict, int] = {
 class ProbeState(StrEnum):
     """Observed executor post-state (read-only; never an efficacy claim)."""
 
-    EXPECTED = "expected"      # control reports the intended post-state
+    EXPECTED = "expected"  # control reports the intended post-state
     UNEXPECTED = "unexpected"  # control reports the threat persists / action not in effect
     INCONCLUSIVE = "inconclusive"  # control could not be read → fail-closed unverified
 
@@ -144,7 +144,9 @@ def decide_action_verdict(signals: VerificationSignals, cfg: object) -> Verifica
     - probe INCONCLUSIVE or intel unknown/absent → UNVERIFIED
     - genuine conflict (probe EXPECTED, intel in regressed set) → REGRESSED (deterministic)
     """
-    regressed_set: set[str] = set(getattr(cfg, "verify_regressed_verdicts", ["malicious", "suspicious"]))
+    regressed_set: set[str] = set(
+        getattr(cfg, "verify_regressed_verdicts", ["malicious", "suspicious"])
+    )
 
     probe_state = signals.probe.state
     recheck = signals.recheck
@@ -188,9 +190,7 @@ def decide_action_verdict(signals: VerificationSignals, cfg: object) -> Verifica
     return VerificationVerdict.UNVERIFIED
 
 
-def decide_verdict(
-    per_action: list[VerificationSignals], cfg: object
-) -> VerificationVerdict:
+def decide_verdict(per_action: list[VerificationSignals], cfg: object) -> VerificationVerdict:
     """Worst-case aggregate verdict across all applied actions.
 
     REGRESSED > UNVERIFIED > VERIFIED. An empty list yields UNVERIFIED (fail-closed).

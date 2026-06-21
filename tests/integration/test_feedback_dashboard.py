@@ -159,9 +159,7 @@ class TestFeedbackTrace:
         app = _make_app(mock_repo=repo)
         token = _get_token(app)
         with TestClient(app, raise_server_exceptions=False) as client:
-            resp = client.get(
-                f"/incidents/{inc_id}", headers={"Authorization": f"Bearer {token}"}
-            )
+            resp = client.get(f"/incidents/{inc_id}", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
         body = resp.json()
         assert body["evidence"]["prior_outcome"]["biased_severity"] == "critical"

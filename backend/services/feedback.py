@@ -52,8 +52,7 @@ async def gather_feedback(
         return []
 
     tasks = [
-        _safe(memory.query_fact(entity, fact_type, as_of=None), FactState())
-        for entity in targets
+        _safe(memory.query_fact(entity, fact_type, as_of=None), FactState()) for entity in targets
     ]
     results = await asyncio.gather(*tasks)
 

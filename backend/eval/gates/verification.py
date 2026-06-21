@@ -90,9 +90,7 @@ async def run_verification(spec: GateSpec, provider: str | None = None) -> GateR
         if got == expected:
             correct += 1
         else:
-            failed_cases.append(
-                f"{fixture_path.name}: expected={expected.value} got={got.value}"
-            )
+            failed_cases.append(f"{fixture_path.name}: expected={expected.value} got={got.value}")
             # False-verified: a case that should have been unverified/regressed was called verified
             if expected != VerificationVerdict.VERIFIED and got == VerificationVerdict.VERIFIED:
                 false_verified += 1

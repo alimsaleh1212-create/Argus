@@ -283,7 +283,12 @@ async def acknowledge_incident(
             )
         except Exception:
             pass
-    return {"incident_id": str(incident_id), "status": "escalated", "acknowledged_by": operator.subject, "acknowledged": acknowledged}
+    return {
+        "incident_id": str(incident_id),
+        "status": "escalated",
+        "acknowledged_by": operator.subject,
+        "acknowledged": acknowledged,
+    }
 
 
 @router.post("/{incident_id}/resolve")
@@ -304,4 +309,8 @@ async def resolve_incident(
     )
     if not ok:
         raise HTTPException(status_code=409, detail="Incident was no longer escalated")
-    return {"incident_id": str(incident_id), "status": "resolved", "disposition": "operator_resolved"}
+    return {
+        "incident_id": str(incident_id),
+        "status": "resolved",
+        "disposition": "operator_resolved",
+    }

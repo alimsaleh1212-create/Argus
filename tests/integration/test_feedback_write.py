@@ -41,8 +41,7 @@ def _incident(verdict: str, targets: list[str], updated_at: datetime) -> Inciden
         evidence={
             "response": {
                 "results": [
-                    {"type": "block_ip", "target": t, "status": "applied"}
-                    for t in targets
+                    {"type": "block_ip", "target": t, "status": "applied"} for t in targets
                 ],
                 "verification": {"verdict": verdict},
             }

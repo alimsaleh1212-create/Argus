@@ -175,9 +175,7 @@ def train_anomaly_model(
         raise TrainingError("no windows built from events")
 
     vectors = [featurize(w, feature_spec) for w in windows]
-    matrix = pd.DataFrame([v.values for v in vectors], columns=feature_spec).to_numpy(
-        dtype=float
-    )
+    matrix = pd.DataFrame([v.values for v in vectors], columns=feature_spec).to_numpy(dtype=float)
 
     model = IsolationForest(
         n_estimators=100,
@@ -205,7 +203,9 @@ def train_anomaly_model(
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="python -m backend.anomaly_train")
     p.add_argument("--cert-dir", required=True, help="Directory containing CERT CSV files.")
-    p.add_argument("--out", default="backend/data/anomaly/model.joblib", help="Output artifact path.")
+    p.add_argument(
+        "--out", default="backend/data/anomaly/model.joblib", help="Output artifact path."
+    )
     p.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
     p.add_argument("--window", default="1d", help="Per-entity aggregation window (e.g. 1d, 1h).")
     p.add_argument(

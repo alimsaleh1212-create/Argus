@@ -85,7 +85,7 @@ def _is_after_hours(event_time: datetime, fields: dict[str, Any]) -> bool:
 
 def _aggregate_features(events: list[RawLogEvent]) -> dict[str, float]:
     """Aggregate a list of raw events into the canonical feature dict."""
-    counts: dict[str, int] = {name: 0 for name in _CANONICAL_FEATURE_NAMES}
+    counts: dict[str, int] = dict.fromkeys(_CANONICAL_FEATURE_NAMES, 0)
     pcs: set[str] = set()
 
     for ev in events:
