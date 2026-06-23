@@ -1,7 +1,3 @@
-
-
-https://github.com/user-attachments/assets/b9188d1d-98b7-4a63-af46-b66be4931cc3
-
 <div align="center">
 
 <img src="docs/assets/argus-logo.png" alt="Argus" width="220" />
@@ -112,20 +108,7 @@ migration or secret step. A `seed-corpus` one-shot loads the reference knowledge
 
 ## 🎬 Demo
 
-<!--
-INLINE PLAYER: open this file on github.com, click the pencil (Edit), and DRAG
-docs/assets/demo/argus-demo.mp4 into the editor right here. GitHub uploads it and
-inserts a https://github.com/user-attachments/assets/... URL that renders an
-inline video player. The clickable poster below stays as a fallback.
--->
-
-[![Watch the Argus demo](docs/assets/demo/demo-poster.jpg)](docs/assets/demo/argus-demo.mp4)
-
-*▶ Click the image above to play the full walkthrough (~1.5 min).*
-
-
 https://github.com/user-attachments/assets/4bac57e4-5c75-49c1-ab8d-f7146b280453
-
 
 ### Highlights
 
