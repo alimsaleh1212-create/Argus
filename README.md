@@ -108,6 +108,13 @@ migration or secret step. A `seed-corpus` one-shot loads the reference knowledge
 
 ## 🎬 Demo
 
+<!--
+INLINE PLAYER: open this file on github.com, click the pencil (Edit), and DRAG
+docs/assets/demo/argus-demo.mp4 into the editor right here. GitHub uploads it and
+inserts a https://github.com/user-attachments/assets/... URL that renders an
+inline video player. The clickable poster below stays as a fallback.
+-->
+
 [![Watch the Argus demo](docs/assets/demo/demo-poster.jpg)](docs/assets/demo/argus-demo.mp4)
 
 *▶ Click the image above to play the full walkthrough (~1.5 min).*
