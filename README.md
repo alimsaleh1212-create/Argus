@@ -106,6 +106,20 @@ migration or secret step. A `seed-corpus` one-shot loads the reference knowledge
 
 ---
 
+## 🎬 Demo
+
+[![Watch the Argus demo](docs/assets/demo/demo-poster.jpg)](docs/assets/demo/argus-demo.mp4)
+
+*▶ Click the image above to play the full walkthrough (~1.5 min).*
+
+### Highlights
+
+| SOC pipeline map | Human-in-the-loop approvals | Attention lane |
+|---|---|---|
+| ![Pipeline](docs/assets/demo/pipeline.png) | ![Approvals](docs/assets/demo/approvals.png) | ![Human attention](docs/assets/demo/human-attention.png) |
+
+---
+
 ## Operations dashboard
 
 A separate React SPA (`frontend/`) over read-side endpoints — incident queue, detail, audit trail,
