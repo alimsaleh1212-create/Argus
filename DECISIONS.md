@@ -1084,3 +1084,99 @@ surface novel behavioral deviations.
 model is injected behind a pure `AnomalyModel` Protocol; unit/integration/e2e tests use a
 deterministic `FakeAnomalyModel` and never load `scikit-learn`; the one blocking eval gate
 (`anomaly_detection`) scores a committed artifact deterministically, so it is bit-stable.
+
+---
+
+## Jev typed-decision model (proposed; component number TBD — #18 is XDR)
+
+Status: **accepted as an opt-in pilot** (2026-10-20). Everything below ships **off by default**;
+with `ARGUS__JEV__ENABLED=false` (the default) behavior is identical to v1.
+
+### JD1 — Adopt TypeSafe Jev as an optional engine for *bounded* decisions only
+
+**Decision**: Add TypeSafe AI's **Jev** ("System One") as an optional, config-gated decision
+engine behind a new pure **`DecisionClient`** Protocol (`domain/decision.py`), implemented by
+`infra/decision.py` (`JevClient`, lifespan `DecisionProvider` → `container.decision`). Jev takes a
+`state` plus typed questions and returns a typed answer — for a `choice` question, the winning
+option, a per-option `probabilities` map and a calibrated `confidence` — rather than generated
+text. Vendor-reported latency is ~70–500 ms (often ~100 ms).
+
+**Why**: Two of Argus's three LLM call sites are, in substance, closed-set classifications that
+already end in a pure, threshold-gated `decide_outcome`: triage (`real`/`noise`/`uncertain` +
+confidence) and the ambiguous playbook tail (pick one id from a candidate list). A model built for
+that shape returns a schema-valid answer by construction (no JSON-repair / `malformed_output`
+path), a calibrated confidence instead of a self-reported one, and lower latency/cost.
+
+**Rejected**:
+- *Replace every LLM call with Jev* — enrichment synthesises an `EnrichmentReport` across intel
+  and memory; that is open-ended reasoning, not a closed-set choice (see JD2).
+- *Put Jev behind `LlmClient`* — Jev does not generate text, has no messages/tools/schema, and
+  would make the `LlmClient` contract lie. A separate Protocol keeps both honest.
+- *Use the vendor `typesafe-sdk`* — adds a pre-1.0 dependency for one HTTP call; `httpx` is
+  already a dependency and confined to `infra` (same pattern as `infra/intel.py`).
+
+### JD2 — Scope: triage + ambiguous playbook tail; enrichment stays on the LLM
+
+**Decision**: Jev is wired into exactly two places:
+1. **Triage** (`agents/triage.py`) — one `choice` question over the same evidence bundle the LLM
+   sees; the answer is mapped onto the existing `TriageJudgment` and the **unchanged**
+   `decide_outcome` thresholds.
+2. **Ambiguous playbook tail** (`agents/response/selection.py`) — one `choice` question whose
+   options are the matched candidate playbook ids; the existing `select_min_confidence` gate and
+   fail-closed rules apply unchanged. `RemediationPlan.selected_by` gains `"jev"`.
+
+Enrichment, the verification tiebreak and the rationale judge are untouched. No FSM, schema,
+migration or supervisor change; the supervisor stays the single writer (Constitution III).
+
+### JD3 — Rollout modes; the LLM remains the backstop
+
+**Decision**: `TriageSettings.engine: "llm" | "shadow" | "jev"` (default `"llm"`) and
+`ResponseSettings.selection_engine: "llm" | "jev"` (default `"llm"`).
+- `shadow` — the LLM stays authoritative; Jev runs **concurrently** (no added latency) and its
+  answer is recorded under `evidence.triage_jev` with an `agrees_with_llm` flag. Jev errors never
+  affect the incident. This is how the swap is evaluated on real traffic.
+- `jev` — Jev decides. Any Jev failure (auth, 4xx/5xx, 429, timeout, malformed answer) **falls
+  back to the existing LLM path** for that call (graceful degradation, Principle VI) and the
+  fallback is recorded in `evidence.triage_jev`. A low-confidence Jev answer is a model *outcome*,
+  not a failure: it escalates exactly as a low-confidence LLM answer does — it never silently
+  retries on the LLM to "shop" for a confident answer.
+- Jev disabled / no API key / provider absent → the `engine` setting is inert; LLM path as v1.
+
+**Promotion criteria** (`shadow` → `jev` as default): on the labeled triage set and ≥2 weeks of
+shadow traffic, Jev's macro-F1 ≥ the LLM's on both providers, abstention rate within the
+`triage` gate bound, and the `advance/resolve_min_confidence` thresholds re-checked against Jev's
+calibrated confidences (calibrated scores are typically lower than LLM self-reports).
+
+### JD4 — Principle IV rationale requirement: templated attribution, flagged for sign-off
+
+**Decision**: Principle IV requires every agent to emit a plain-language, evidence-cited
+rationale. Jev returns probabilities, not reasoning. In `jev` mode triage writes a **deterministic
+attribution rationale** (chosen label, its probability, the full distribution, and the evidence
+fields supplied) and `cited_evidence` lists the evidence fields that were present. This is
+auditable but is **not** model-authored reasoning.
+
+**Consequence**: `shadow` mode is fully Principle-IV compliant (the LLM rationale is kept).
+Making `jev` the **production default** requires either an amendment-log note in
+`.specify/memory/constitution.md` accepting attribution rationales for closed-set decisions, or a
+follow-up that generates an LLM rationale only for incidents that reach a human
+(escalated/approval-bound). That decision is deliberately left to the maintainer.
+
+### JD5 — Data boundary: third-party processor, off by default
+
+**Decision**: The Jev `state` is the same evidence bundle already sent to Gemini, scrubbed at
+the same `Boundary.OPERATIONAL` (credential-class) boundary as the LLM seam. The API key is an
+**optional** Vault secret (`secret/jev`, seeded only when `JEV_API_KEY` is set) — never a boot
+requirement; a missing key disables Jev rather than failing boot (mirrors CD3).
+
+**Why / caution**: TypeSafe processes data in the US; its privacy policy states no training on
+customer input, but request-retention is not fixed and zero-data-retention is an enterprise
+option. Before enabling with production alerts, confirm the DPA/ZDR terms — or tighten the
+outbound redaction to `Boundary.PROMPT` at the cost of triage signal.
+
+### JD6 — Pinned model, short timeout, no client retries
+
+**Decision**: `JevSettings.model` pins a versioned id (`jev-1.13.0`), not `jev-latest`, so
+evals and shadow comparisons are reproducible; a bump is a config change reviewed like a prompt
+change. `timeout_s` defaults to **2.0 s** and the client does **no retries** — the LLM fallback
+*is* the retry, and a slow Jev call defeats its only purpose. One pooled `httpx.AsyncClient` is
+built at lifespan start and closed at shutdown.

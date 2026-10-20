@@ -60,11 +60,12 @@ class SupervisorProvider:
         intel_client = getattr(container, "intel", None)
         memory_store = getattr(container, "memory", None)
         db_engine = getattr(container, "db_engine", None)
+        decision_client = getattr(container, "decision", None)  # Jev (JD1); None unless enabled
 
         if llm_client is not None:
             from backend.agents.triage import make_triage_handler
 
-            triage_handler = make_triage_handler(llm_client, triage_cfg)
+            triage_handler = make_triage_handler(llm_client, triage_cfg, decision_client)
         else:
             from backend.domain.incident import Incident
             from backend.domain.pipeline import StageOutcome, StageResult
@@ -120,6 +121,7 @@ class SupervisorProvider:
                 cfg=response_cfg,
                 catalog=catalog,
                 feedback_cfg=settings.feedback,
+                decision=decision_client,
             )
         else:
             # Degraded boot: fall back to the existing stub

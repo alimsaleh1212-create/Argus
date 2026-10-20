@@ -281,6 +281,7 @@ async def _main_async() -> None:
     from backend.infra.config import load_settings
     from backend.infra.container import clear_registry, register_provider
     from backend.infra.db import register_db_provider
+    from backend.infra.decision import DecisionProvider
     from backend.infra.intel import IntelProvider
     from backend.infra.lifespan import argus_lifespan
     from backend.infra.llm import register_llm_provider
@@ -304,6 +305,7 @@ async def _main_async() -> None:
     register_provider(MemoryProvider())
     register_provider(CorpusProvider())
     register_provider(IntelProvider())
+    register_provider(DecisionProvider())  # Jev (JD1) — before SupervisorProvider
     register_provider(SupervisorProvider())
 
     from fastapi import FastAPI
