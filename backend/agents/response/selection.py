@@ -1,8 +1,10 @@
 """Playbook selection — deterministic match (RD1) + ambiguous-tail LLM call + default-deny policy.
 
 Determinism-first: an unambiguous catalog match yields a plan with no LLM call. Only the ambiguous
-tail (multi-candidate match) consults the LlmClient once. `classify` applies the pure default-deny
-policy (RD10): AUTO iff the action type is on the allowlist, else APPROVAL_REQUIRED.
+tail (multi-candidate match) consults the LlmClient once — or, with `selection_engine="jev"`, one
+Jev choice question, falling back to the LLM on Jev failure (DECISIONS.md JD2/JD3). `classify`
+applies the pure default-deny policy (RD10): AUTO iff the action type is on the allowlist, else
+APPROVAL_REQUIRED.
 """
 
 from __future__ import annotations
@@ -11,7 +13,8 @@ import json
 import uuid
 from typing import NamedTuple
 
-from backend.agents.response.catalog import PlaybookCatalog
+from backend.agents.response.catalog import PlaybookCatalog, PlaybookEntry
+from backend.domain.decision import ChoiceQuestion, DecisionRequest, DecisionResponse
 from backend.domain.feedback import FeedbackSignal, prefer_stronger_playbook
 from backend.domain.incident import Incident
 from backend.domain.pipeline import ToolError
@@ -160,8 +163,9 @@ async def select_playbook(
     llm: object | None,
     cfg: object,
     feedback_cfg: object | None = None,
+    decision: object | None = None,
 ) -> SelectionResult:
-    """Select a playbook deterministically or via one LLM call for the ambiguous tail.
+    """Select a playbook deterministically or via one LLM/Jev call for the ambiguous tail.
 
     Returns a SelectionResult (plan + token usage). Raises ToolError
     (retryable=False) when no confident selection can be made (fail-closed).
@@ -222,6 +226,16 @@ async def select_playbook(
 
     if len(matches) == 0:
         raise ToolError(retryable=False, kind="no_playbook_match")
+
+    if decision is not None and getattr(cfg, "selection_engine", "llm") == "jev":
+        try:
+            response = await _jev_select(decision, incident, matches)
+        except Exception:
+            if llm is None:
+                raise ToolError(retryable=False, kind="jev_selection_failed") from None
+            # Jev failure → the LLM path below decides (JD3).
+        else:
+            return _plan_from_jev(response, incident, matches, plan_id, select_min_confidence)
 
     if llm is None:
         raise ToolError(retryable=False, kind="no_llm_for_ambiguous_selection")
@@ -301,6 +315,80 @@ async def select_playbook(
         tokens_in,
         tokens_out,
         llm_model,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Jev ambiguous-tail selection (JD2) — one choice question over the candidates
+# ---------------------------------------------------------------------------
+
+_JEV_QUESTION_ID = "playbook"
+
+
+async def _jev_select(
+    decision: object, incident: Incident, candidates: list[PlaybookEntry]
+) -> DecisionResponse:
+    evidence = incident.evidence or {}
+    state = {
+        "severity": evidence.get("severity"),
+        "summary": evidence.get("summary"),
+        "triage": evidence.get("triage"),
+        "enrichment": evidence.get("enrichment"),
+        "normalized_event": evidence.get("normalized_event"),
+    }
+    question = ChoiceQuestion(
+        instructions=(
+            "Select the single playbook that best fits this incident, based only on the "
+            "supplied incident evidence."
+        ),
+        criteria={
+            pb.id: f"{pb.description} (actions: {', '.join(a['type'] for a in pb.actions)})"
+            for pb in candidates
+        },
+    )
+    request = DecisionRequest(
+        state=json.dumps(state, indent=2, default=str), questions={_JEV_QUESTION_ID: question}
+    )
+    return await decision.decide(request, correlation_id=incident.correlation_id)  # type: ignore[attr-defined]
+
+
+def _plan_from_jev(
+    response: DecisionResponse,
+    incident: Incident,
+    candidates: list[PlaybookEntry],
+    plan_id: str,
+    select_min_confidence: float,
+) -> SelectionResult:
+    """Same fail-closed rules as the LLM tail: low confidence escalates, never re-asks (JD3)."""
+    answer = response.answers[_JEV_QUESTION_ID]
+    if answer.confidence < select_min_confidence:
+        raise ToolError(retryable=False, kind="low_confidence_selection")
+
+    pb_selected = next((pb for pb in candidates if pb.id == answer.choice), None)
+    if pb_selected is None:
+        raise ToolError(retryable=False, kind="unknown_playbook_selected")
+
+    actions = _build_actions(pb_selected.actions, str(incident.id), pb_selected.id)
+    if not actions:
+        raise ToolError(retryable=False, kind="no_executable_actions")
+
+    rationale = (
+        f"Jev ({response.model}) selected {pb_selected.id} with confidence "
+        f"{answer.confidence:.2f} among {len(candidates)} matching playbooks: "
+        f"{pb_selected.description}"
+    )
+    return SelectionResult(
+        RemediationPlan(
+            plan_id=plan_id,
+            playbook_id=pb_selected.id,
+            actions=actions,
+            rationale=rationale,
+            selected_by="jev",
+        ),
+        response.total_tokens,
+        response.input_tokens,
+        response.output_tokens,
+        response.model,
     )
 
 

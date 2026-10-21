@@ -215,7 +215,7 @@ class RemediationPlan(BaseModel):
     playbook_id: str
     actions: list[RemediationAction] = Field(min_length=1)
     rationale: str = Field(min_length=1)
-    selected_by: Literal["deterministic", "llm"]
+    selected_by: Literal["deterministic", "llm", "jev"]
 
     @property
     def has_approval_required(self) -> bool:

@@ -52,6 +52,10 @@ def _bootstrap_providers() -> None:
         from backend.corpus_provider import CorpusProvider
 
         register_provider(CorpusProvider())
+    if "decision" not in existing_names:
+        from backend.infra.decision import DecisionProvider
+
+        register_provider(DecisionProvider())
     if "supervisor" not in existing_names:
         from backend.supervisor_provider import SupervisorProvider
 

@@ -43,6 +43,7 @@ _KNOWN_ARGUS_SECTIONS = frozenset(
         "feedback",
         "detector",
         "anomaly",
+        "jev",
     }
 )
 _ARGUS_PREFIX = "ARGUS__"
@@ -251,6 +252,9 @@ class TriageSettings(BaseSettings):
     max_output_tokens: Annotated[int, Field(gt=0)] = 512
     temperature: Annotated[float, Field(ge=0.0)] = 0.0
     prompt_version: str = "v1"
+    # JD3: "llm" = v1; "shadow" = LLM decides, Jev recorded alongside; "jev" = Jev decides,
+    # LLM fallback on Jev failure. Inert unless ARGUS__JEV__ENABLED and a key is present.
+    engine: Literal["llm", "shadow", "jev"] = "llm"
 
     @model_validator(mode="after")
     def _advance_le_resolve(self) -> TriageSettings:
@@ -389,6 +393,8 @@ class ResponseSettings(BaseSettings):
         default_factory=lambda: ["add_to_watchlist", "open_ticket", "enrich_and_tag"]
     )
     select_min_confidence: Annotated[float, Field(ge=0.0, le=1.0)] = 0.6
+    # JD2/JD3: engine for the ambiguous playbook tail; "jev" falls back to the LLM on Jev failure.
+    selection_engine: Literal["llm", "jev"] = "llm"
     approval_timeout_s: Annotated[int, Field(gt=0)] = 1800
     sweep_interval_s: Annotated[int, Field(gt=0)] = 60
     catalog_dir: str = "backend/data/playbooks"
@@ -497,6 +503,21 @@ class AnomalySettings(BaseSettings):
         return self
 
 
+class JevSettings(BaseSettings):
+    """TypeSafe Jev typed-decision model (DECISIONS.md JD1–JD6). Off by default.
+
+    The API key is an optional Vault secret: missing → Jev disabled, never a boot failure.
+    """
+
+    model_config = SettingsConfigDict(extra="forbid")
+
+    enabled: bool = False
+    base_url: str = "https://api.typesafe.ai/v1/systemone"
+    model: str = "jev-1.13.0"
+    api_key_vault_path: str = "secret/jev"
+    timeout_s: Annotated[float, Field(gt=0)] = 2.0
+
+
 class Settings(BaseSettings):
     """Root settings object — built once at startup, frozen thereafter.
 
@@ -533,6 +554,7 @@ class Settings(BaseSettings):
     eval: EvalSettings = Field(default_factory=EvalSettings)
     detector: DetectorSettings = Field(default_factory=DetectorSettings)
     anomaly: AnomalySettings = Field(default_factory=AnomalySettings)
+    jev: JevSettings = Field(default_factory=JevSettings)
 
     @model_validator(mode="after")
     def _ensure_dashboard_vault_path_required(self) -> Settings:

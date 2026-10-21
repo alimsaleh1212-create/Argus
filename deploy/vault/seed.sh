@@ -34,4 +34,9 @@ if [ -n "${INTEL_API_KEY:-}" ]; then
   vault kv put secret/intel api_key="${INTEL_API_KEY}"
 fi
 
+# TypeSafe Jev typed-decision model is optional and config-gated (JD5) — seed only when provided.
+if [ -n "${JEV_API_KEY:-}" ]; then
+  vault kv put secret/jev api_key="${JEV_API_KEY}"
+fi
+
 echo "vault-seed: all secrets written"

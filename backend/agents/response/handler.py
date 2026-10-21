@@ -54,6 +54,7 @@ def make_response_handler(
     intel: object | None = None,
     memory: object | None = None,
     feedback_cfg: object | None = None,
+    decision: object | None = None,
 ) -> object:
     """Return a StageHandler closed over action tools, session factory, catalog, and config.
 
@@ -92,6 +93,7 @@ def make_response_handler(
                 intel=intel,
                 memory=memory,
                 feedback_cfg=feedback_cfg,
+                decision=decision,
             )
 
     return run_response
@@ -218,9 +220,12 @@ async def _pass_a(
     intel: object | None = None,
     memory: object | None = None,
     feedback_cfg: object | None = None,
+    decision: object | None = None,
 ) -> StageResult:
     """Pass A — forward path: select → classify → execute auto / park destructive → verify."""
-    selection = await select_playbook(incident, catalog, llm, cfg, feedback_cfg=feedback_cfg)
+    selection = await select_playbook(
+        incident, catalog, llm, cfg, feedback_cfg=feedback_cfg, decision=decision
+    )
     plan_raw = selection.plan
     tokens_consumed = selection.tokens_consumed
     tokens_in = selection.tokens_in
