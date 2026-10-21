@@ -24,6 +24,7 @@ from backend.domain.eval import (
     RunMode,
 )
 from backend.infra.config import EvalSettings
+from tests.helpers.images import MINIO_IMAGE
 
 SCHEMA_PATH = pathlib.Path("specs/013-eval-harness/contracts/eval-report.schema.json")
 
@@ -59,7 +60,7 @@ def _make_report(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_report_upload_and_download():
-    with MinioContainer() as minio:
+    with MinioContainer(MINIO_IMAGE) as minio:
         endpoint = f"http://{minio.get_config()['endpoint']}"
         cfg = EvalSettings(
             report_bucket="eval-reports",
@@ -92,7 +93,7 @@ async def test_report_upload_and_download():
 @pytest.mark.asyncio
 async def test_two_runs_at_different_keys_are_both_retained():
     """History is retained: uploading a second report does not overwrite the first."""
-    with MinioContainer() as minio:
+    with MinioContainer(MINIO_IMAGE) as minio:
         endpoint = f"http://{minio.get_config()['endpoint']}"
         cfg = EvalSettings(
             report_bucket="eval-reports",
@@ -141,7 +142,7 @@ async def test_report_matches_json_schema():
     """Downloaded report validates against contracts/eval-report.schema.json."""
     jsonschema = pytest.importorskip("jsonschema")
 
-    with MinioContainer() as minio:
+    with MinioContainer(MINIO_IMAGE) as minio:
         endpoint = f"http://{minio.get_config()['endpoint']}"
         cfg = EvalSettings(report_bucket="eval-reports")
 

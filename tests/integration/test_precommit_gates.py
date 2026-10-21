@@ -66,7 +66,9 @@ class TestPreCommitGates:
                 ["pre-commit", "run", "gitleaks", "--files", tmp_path],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                # First run installs the hook env (gitleaks is built from source);
+                # 30s flaked on CI with a cold cache (a cold local run took ~260s).
+                timeout=600,
             )
             # gitleaks protect --staged scans the index, not the --files path, so
             # the hook exits 0 here (no staged changes). Assert it ran without crash.

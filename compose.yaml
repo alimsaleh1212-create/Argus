@@ -68,7 +68,9 @@ services:
     restart: on-failure
 
   minio:
-    image: minio/minio
+    # MinIO stopped publishing images; pgsty/minio is a maintained drop-in build
+    # (ships minio + mc). Keep in sync with tests/helpers/images.py.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
