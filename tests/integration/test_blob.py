@@ -51,7 +51,9 @@ def minio_container():
     pytest.importorskip("testcontainers")
     from testcontainers.minio import MinioContainer
 
-    with MinioContainer() as minio:
+    from tests.helpers.images import MINIO_IMAGE
+
+    with MinioContainer(MINIO_IMAGE) as minio:
         minio.get_url = lambda: (
             f"http://{minio.get_container_host_ip()}:{minio.get_exposed_port(9000)}"
         )
